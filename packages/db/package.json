@@ -1,0 +1,23 @@
+{
+	"name": "@fuzzyfinance/db",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"exports": {
+		".": "./src/index.js",
+		"./schema": "./src/schema.js",
+		"./dto": "./src/dto.js",
+		"./repo": "./src/repo.js"
+	},
+	"scripts": {
+		"build:types": "tsc"
+	},
+	"dependencies": {
+		"@libsql/client": "^0.17.0",
+		"drizzle-orm": "^0.45.1"
+	},
+	"devDependencies": {
+		"drizzle-kit": "^0.31.8",
+		"typescript": "^5.9.3"
+	}
+}
