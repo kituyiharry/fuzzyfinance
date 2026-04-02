@@ -1,60 +1,68 @@
 <script>
-	import welcomeFallback from '$lib/images/svelte-welcome.png';
-	import welcome from '$lib/images/svelte-welcome.webp';
+	import Card from '$lib/components/Card.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import { authClient } from '$lib/auth-client';
 
-	import Counter from './Counter.svelte';
+	const loginWithGoogle = async () => {
+		await authClient.signIn.social({
+			provider: 'google',
+			callbackURL: '/dashboard'
+		});
+	};
 </script>
 
 <svelte:head>
-	<title>Home</title>
-	<meta name="description" content="Svelte demo app" />
+	<title>Login | FuzzyFinance</title>
 </svelte:head>
 
-<section>
-	<h1>
-		<span class="welcome">
-			<picture>
-				<source srcset={welcome} type="image/webp" />
-				<img src={welcomeFallback} alt="Welcome" />
-			</picture>
-		</span>
+<div
+	class="flex flex-1 items-center min-w-xs justify-center bg-[#f3f4f6] p-8"
+>
+	<Card class="w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]" title="System Authentication">
+		<div class="mb-8 flex flex-col gap-4">
+			<p class="text-sm font-mono italic text-gray-600">
+				PLEASE PROVIDE GOOGLE CREDENTIALS TO ACCESS FUZZYFINANCE SPREADSHEET ENGINE V1.0
+			</p>
+			<div class="h-[2px] w-full bg-black/10"></div>
+		</div>
 
-		to your new<br />SvelteKit app
-	</h1>
+		<div class="flex flex-col gap-6">
+			<Button onclick={loginWithGoogle} variant="primary" class="flex items-center justify-center gap-3 py-4 text-lg">
+				<svg class="h-5 w-5 fill-white" viewBox="0 0 24 24">
+					<path
+						d="M12.48 10.92v3.28h7.84c-.24 1.84-.908 3.162-1.9 4.162-1.228 1.228-3.14 2.56-6.42 2.56-5.14 0-9.2-4.16-9.2-9.2s4.06-9.2 9.2-9.2c2.78 0 4.86 1.08 6.36 2.52l2.308-2.308C18.6 1.08 15.86 0 12.48 0 6.2 0 1.1 5.1 1.1 11.3s5.1 11.3 11.3 11.3c3.42 0 6.02-1.12 8.04-3.2 2.08-2.08 2.74-4.98 2.74-7.34 0-.72-.06-1.42-.18-2.06H12.48z"
+					/>
+				</svg>
+				Sign in with Google
+			</Button>
 
-	<h2>
-		try editing <strong>src/routes/+page.svelte</strong>
-	</h2>
+			<div class="flex flex-col gap-2">
+				<div class="flex items-center gap-2">
+					<div class="h-[1px] flex-1 bg-black/20"></div>
+					<span class="text-[10px] font-bold text-gray-400">OR</span>
+					<div class="h-[1px] flex-1 bg-black/20"></div>
+				</div>
+				<p class="text-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
+					Corporate SSO Mandatory for all personnel
+				</p>
+			</div>
 
-	<Counter />
-</section>
+			<div class="mt-4 flex flex-col gap-2">
+				<div class="flex items-center justify-between text-[10px] font-black uppercase text-gray-500">
+					<span>STATUS: STANDBY</span>
+					<span>IP: 127.0.0.1</span>
+				</div>
+				<div class="h-1 w-full bg-gray-200">
+					<div class="h-full w-1/3 bg-black"></div>
+				</div>
+			</div>
+		</div>
+	</Card>
+</div>
 
 <style>
-	section {
+	:global(body) {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		flex: 0.6;
-	}
-
-	h1 {
-		width: 100%;
-	}
-
-	.welcome {
-		display: block;
-		position: relative;
-		width: 100%;
-		height: 0;
-		padding: 0 0 calc(100% * 495 / 2048) 0;
-	}
-
-	.welcome img {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-		top: 0;
-		display: block;
 	}
 </style>
