@@ -1,10 +1,6 @@
 /**
  * @typedef {typeof task.$inferSelect} Task
- */
-/**
  * @typedef {typeof task.$inferInsert} CreateTask
- */
-/**
  * Task table schema.
  */
 export const task: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
@@ -28,7 +24,7 @@ export const task: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {
-            length: number | undefined;
+            length: number;
         }>;
         title: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "title";
@@ -47,7 +43,7 @@ export const task: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {
-            length: number | undefined;
+            length: number;
         }>;
         priority: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "priority";
@@ -71,4 +67,7 @@ export const task: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
 }>;
 export * from "./auth.schema.js";
 export type Task = typeof task.$inferSelect;
+/**
+ * Task table schema.
+ */
 export type CreateTask = typeof task.$inferInsert;

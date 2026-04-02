@@ -3,7 +3,12 @@ import { task } from './schema.js';
 
 /**
  * @import {Task, CreateTask} from "./schema.js"
- * @typedef {import('drizzle-orm/libsql').LibSQLDatabase} Database
+ * @typedef {typeof import("./schema")} Schema
+ *
+ * @import  { LibSQLDatabase } from 'drizzle-orm/libsql' 
+ * @import  { DrizzleD1Database } from 'drizzle-orm/d1'
+ *
+ * @typedef {LibSQLDatabase<Schema> & { $client: import('@libsql/client/.').Client }} Database
  */
 
 /**

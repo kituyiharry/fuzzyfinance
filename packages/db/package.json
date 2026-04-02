@@ -3,12 +3,13 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
-	"exports": {
-		".": "./src/index.js",
-		"./schema": "./src/schema.js",
-		"./dto": "./src/dto.js",
-		"./repo": "./src/repo.js"
-	},
+    "main": "./src/index.js",
+    "exports": {
+        ".": {
+            "types":   "./types/index.d.ts",
+            "default": "./src/index.js"
+        }
+    },
 	"scripts": {
 		"build:types": "tsc"
 	},

@@ -1,6 +1,11 @@
 /**
  * @import {Task, CreateTask} from "./schema.js"
- * @typedef {import('drizzle-orm/libsql').LibSQLDatabase} Database
+ * @typedef {typeof import("./schema")} Schema
+ *
+ * @import  { LibSQLDatabase } from 'drizzle-orm/libsql'
+ * @import  { DrizzleD1Database } from 'drizzle-orm/d1'
+ *
+ * @typedef {LibSQLDatabase<Schema> & { $client: import('@libsql/client/.').Client }} Database
  */
 /**
  * @param {Database} db
@@ -26,6 +31,10 @@ export function createTaskRepository(db: Database): {
      */
     delete(id: string): Promise<void>;
 };
-export type Database = import("drizzle-orm/libsql").LibSQLDatabase;
+export type Schema = typeof import("./schema");
+export type Database = LibSQLDatabase<Schema> & {
+    $client: import("@libsql/client/.").Client;
+};
 import type { Task } from "./schema.js";
 import type { CreateTask } from "./schema.js";
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
