@@ -1,8 +1,6 @@
-import { task } from './schema.js';
-
 /**
- * @import  { Task  } from './schema.js'
- * @typedef {import('./schema.js').CreateTask} CreateTaskDTO
+ * @import  { Task  } from '../schema'
+ * @typedef {import('../schema').CreateTask} CreateTaskDTO
  */
 
 export const TaskDTO = {

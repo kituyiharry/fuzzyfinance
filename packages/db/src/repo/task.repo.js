@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm';
-import { task } from './schema.js';
+import { task } from '../schema';
 
 /**
- * @import {Task, CreateTask} from "./schema.js"
- * @typedef {typeof import("./schema")} Schema
+ * @import {Task, CreateTask} from "../schema"
+ * @typedef {typeof import("../schema")} Schema
  *
  * @import  { LibSQLDatabase } from 'drizzle-orm/libsql' 
  * @import  { DrizzleD1Database } from 'drizzle-orm/d1'
