@@ -13,15 +13,15 @@
 	});
 </script>
 
-<div class="app bg-[var(--color-bg)]">
+<div class="app bg-(--color-bg)">
 	{#if !page.url.pathname.startsWith('/dashboard')}
 		<Header />
 	{/if}
 	<main>{@render children()}</main>
 
 	{#if !page.url.pathname.startsWith('/dashboard')}
-		<footer class="border-t-2 border-[var(--color-border)] bg-[var(--header-bg)] p-4">
-			<p class="text-center font-mono text-[10px] font-bold uppercase tracking-widest text-[var(--color-fg)]">
+		<footer class="border-t-2 border-(--color-border) bg-(--header-bg) p-4">
+			<p class="text-center font-mono text-[10px] font-bold uppercase tracking-widest text-(--color-fg)">
 				FUZZYFINANCE CORE ENGINE // SYSTEM TIME: {new Date().toISOString().split('T')[1].slice(0, 8)} // ALL RIGHTS RESERVED
 			</p>
 		</footer>
