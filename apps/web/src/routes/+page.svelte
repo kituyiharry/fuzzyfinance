@@ -23,7 +23,7 @@
 			<p class="text-sm font-mono italic text-gray-600">
 				PLEASE PROVIDE GOOGLE CREDENTIALS TO ACCESS FUZZYFINANCE SPREADSHEET ENGINE V1.0
 			</p>
-			<div class="h-[2px] w-full bg-black/10"></div>
+			<div class="h-0.5 w-full bg-black/10"></div>
 		</div>
 
 		<div class="flex flex-col gap-6">
@@ -38,9 +38,9 @@
 
 			<div class="flex flex-col gap-2">
 				<div class="flex items-center gap-2">
-					<div class="h-[1px] flex-1 bg-black/20"></div>
+					<div class="h-px flex-1 bg-black/20"></div>
 					<span class="text-[10px] font-bold text-gray-400">OR</span>
-					<div class="h-[1px] flex-1 bg-black/20"></div>
+					<div class="h-px flex-1 bg-black/20"></div>
 				</div>
 				<p class="text-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
 					Corporate SSO Mandatory for all personnel

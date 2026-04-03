@@ -6,20 +6,46 @@
 	--font-body: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 	--font-mono: 'Fira Mono', monospace;
 
-	/* High Contrast Palette */
+	/* Default: High Contrast Light */
 	--color-bg: #ffffff;
 	--color-fg: #000000;
 	--color-border: #000000;
 	--color-accent: #000000;
 	--color-muted: #f3f4f6;
 	--color-muted-foreground: #6b7280;
-
-	/* Spreadsheet-like grid colors */
 	--grid-color: #e5e7eb;
+	--card-shadow: rgba(0, 0, 0, 1);
+	--header-bg: #ffffff;
+	--nav-active-bg: #000000;
+	--nav-active-fg: #ffffff;
+}
 
-	font-family: var(--font-body);
-	color: var(--color-fg);
-	background-color: var(--color-bg);
+[data-theme='dark'] {
+	--color-bg: #000000;
+	--color-fg: #ffffff;
+	--color-border: #ffffff;
+	--color-accent: #ffffff;
+	--color-muted: #1f2937;
+	--color-muted-foreground: #9ca3af;
+	--grid-color: #374151;
+	--card-shadow: rgba(255, 255, 255, 0.5);
+	--header-bg: #000000;
+	--nav-active-bg: #ffffff;
+	--nav-active-fg: #000000;
+}
+
+[data-theme='low-contrast'] {
+	--color-bg: #fdfcf0; /* Warm paper */
+	--color-fg: #4a4a4a;
+	--color-border: #b4b4b4;
+	--color-accent: #a8dadc;
+	--color-muted: #f1faee;
+	--color-muted-foreground: #7f8c8d;
+	--grid-color: #e0e0e0;
+	--card-shadow: rgba(0, 0, 0, 0.1);
+	--header-bg: #fdfcf0;
+	--nav-active-bg: #a8dadc;
+	--nav-active-fg: #4a4a4a;
 }
 
 body {
@@ -27,6 +53,7 @@ body {
 	margin: 0;
 	background-color: var(--color-bg);
 	color: var(--color-fg);
+	transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Sharp corners for everything */
@@ -116,6 +143,7 @@ input:focus {
 	border: 2px solid var(--color-border);
 	background-color: var(--color-bg);
 	padding: 2rem;
+	box-shadow: 8px 8px 0px 0px var(--card-shadow);
 }
 
 .btn-primary {

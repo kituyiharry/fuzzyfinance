@@ -11,8 +11,8 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 	socialProviders: {
 		google: {
-			clientId: env.GOOGLE_CLIENT_ID,
-			clientSecret: env.GOOGLE_CLIENT_SECRET
+			clientId:     env.GOOGLE_CLIENT_ID ?? "GCLIENT_ID_UNDEFINED",
+			clientSecret: env.GOOGLE_CLIENT_SECRET ?? "GCLIENT_SECRET_UNDEFINED"
 		}
 	},
 	plugins: [sveltekitCookies(getRequestEvent)] // make sure this is the last plugin in the array
