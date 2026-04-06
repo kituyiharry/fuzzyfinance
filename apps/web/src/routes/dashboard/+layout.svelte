@@ -39,18 +39,6 @@
 					</a>
 				</li>
 				<li>
-					<a href="/dashboard/reports" class="flex items-center gap-3 p-3 {page.url.pathname === '/dashboard/reports' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {page.url.pathname === '/dashboard/reports' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Financial Reports
-					</a>
-				</li>
-				<li>
-					<a href="/dashboard/transactions" class="flex items-center gap-3 p-3 {page.url.pathname === '/dashboard/transactions' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {page.url.pathname === '/dashboard/transactions' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Transactions
-					</a>
-				</li>
-				<li>
 					<a href="/dashboard/settings" class="flex items-center gap-3 p-3 {page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
 						<span class="w-2 h-2 {page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
 						System Config
