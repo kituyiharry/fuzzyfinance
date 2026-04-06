@@ -1,6 +1,7 @@
 <script>
 	import Card from '$lib/components/Card.svelte';
 	import { themeStore } from '$lib/theme.svelte.js';
+    import { page } from '$app/stores';
 </script>
 
 <svelte:head>
@@ -65,19 +66,27 @@
 				<div class="grid grid-cols-2 gap-4 font-mono text-[10px]">
 					<div class="flex flex-col gap-1">
 						<span class="text-(--color-muted-foreground)">IDENTIFIER:</span>
-						<span class="font-bold">PERSONNEL_ALPHA_001</span>
+						<span class="font-bold">{$page.data.user.name}</span>
 					</div>
 					<div class="flex flex-col gap-1">
-						<span class="text-(--color-muted-foreground)">CLEARANCE:</span>
-						<span class="font-bold">LEVEL_04_EXECUTIVE</span>
+						<span class="text-(--color-muted-foreground)">EMAIL:</span>
+						<span class="font-bold">{$page.data.user.email}</span>
 					</div>
 					<div class="flex flex-col gap-1">
-						<span class="text-(--color-muted-foreground)">MANDATORY_SSL:</span>
-						<span class="font-bold text-green-600">ENABLED</span>
+						<span class="text-(--color-muted-foreground)">VERIFIED:</span>
+                            {#if $page.data.user.emailVerified}
+						        <span class="font-bold text-green-600">
+                                OK 
+                                </span>
+                            {:else}
+						        <span class="font-bold text-red-600">
+                                 FALSE
+                                </span>
+                            {/if}
 					</div>
 					<div class="flex flex-col gap-1">
 						<span class="text-(--color-muted-foreground)">LAST_ACCESS:</span>
-						<span class="font-bold">{new Date().toISOString()}</span>
+						<span class="font-bold">{$page.data.session.updatedAt}</span>
 					</div>
 				</div>
 			</div>

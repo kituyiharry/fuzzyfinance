@@ -1,7 +1,8 @@
 <script>
 	import Button from '$lib/components/Button.svelte';
 	import { authClient } from '$lib/auth-client';
-	import { page } from '$app/state';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 
 	/** @type {{children: import('svelte').Snippet}} */
 	let { children } = $props();
@@ -33,20 +34,22 @@
 		<nav class="flex-1 p-4">
 			<ul class="flex flex-col gap-2">
 				<li>
-					<a href="/dashboard" class="flex items-center gap-3 p-3 {page.url.pathname === '/dashboard' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {page.url.pathname === '/dashboard' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
+					<a href="/dashboard" class="flex items-center gap-3 p-3 {$page.url.pathname === '/dashboard' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
+						<span class="w-2 h-2 {$page.url.pathname === '/dashboard' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
 						Overview
 					</a>
 				</li>
 				<li>
-					<a href="/dashboard/integrations" class="flex items-center gap-3 p-3 {page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
+					<a href="/dashboard/integrations" class="flex items-center
+                        gap-3 p-3 {$page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
+						<span class="w-2 h-2 {$page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
 						Integrations
 					</a>
 				</li>
 				<li>
-					<a href="/dashboard/settings" class="flex items-center gap-3 p-3 {page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
+					<a href="/dashboard/settings" class="flex items-center gap-3
+                        p-3 {$page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
+						<span class="w-2 h-2 {$page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
 						System Config
 					</a>
 				</li>
@@ -65,7 +68,7 @@
 		<header class="mb-8 flex items-end justify-between border-b-4 border-(--color-border) pb-4 relative">
 			<div>
 				<h1 class="text-4xl font-black uppercase tracking-tighter text-(--color-fg)">
-					{page.url.pathname.split('/').pop()?.toUpperCase() || 'EXECUTIVE DASHBOARD'}
+					{$page.url.pathname.split('/').pop()?.toUpperCase() || 'EXECUTIVE DASHBOARD'}
 				</h1>
 				<p class="text-xs font-bold uppercase tracking-[0.2em] text-(--color-muted-foreground)">Global Financial Control Center</p>
 			</div>
@@ -80,14 +83,15 @@
 					<button 
 						onclick={toggleProfileMenu}
 						class="w-12 h-12 border-2 border-(--color-border) bg-(--color-bg) flex items-center justify-center overflow-hidden hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all"
+                        style="padding: 0px;"
 					>
-						<img src="https://ui-avatars.com/api/?name=Admin&background=000&color=fff" alt="Profile" class="w-full h-full object-cover" />
+						<img src={$page.data.user.image} alt="Profile" class="w-full h-full object-cover" />
 					</button>
 
 					{#if isProfileMenuOpen}
 						<div class="absolute right-0 mt-2 w-48 bg-(--color-bg) border-2 border-(--color-border) shadow-[8px_8px_0px_0px_var(--card-shadow)] z-50">
 							<div class="p-3 border-b border-(--color-border) bg-(--nav-active-bg) text-(--nav-active-fg) text-[10px] font-black uppercase">
-								Identity: Personnel_001
+								Identity: {$page.data.user.name}
 							</div>
 							<a href="/dashboard/settings" class="block p-3 text-xs font-bold uppercase tracking-widest no-underline hover:bg-(--color-muted) text-(--color-fg)" onclick={() => isProfileMenuOpen = false}>
 								Settings
