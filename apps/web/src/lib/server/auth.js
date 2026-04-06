@@ -9,6 +9,7 @@ export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
+    trustedOrigins: ["http://localhost:5173"],
 	socialProviders: {
 		google: {
 			clientId:     env.GOOGLE_CLIENT_ID ?? "GCLIENT_ID_UNDEFINED",
