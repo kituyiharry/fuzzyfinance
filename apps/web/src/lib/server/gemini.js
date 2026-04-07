@@ -1,4 +1,7 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { SchemaType } from '@google/generative-ai';
+import { GoogleGenAI } from "@google/genai";
+
+
 import { env } from '$env/dynamic/private';
 
 /**
@@ -57,15 +60,8 @@ const SYSTEM_PROMPT = `You are a receipt data extraction assistant. Analyse the 
  * @returns {Promise<ReceiptExtraction>}
  */
 export async function extractReceiptData(fileBytes, mimeType) {
-	const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-
-	const model = genAI.getGenerativeModel({
-		model: 'gemini-2.0-flash',
-		generationConfig: {
-			responseMimeType: 'application/json',
-			responseSchema: EXTRACTION_SCHEMA
-		}
-	});
+	// const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+	const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
 	const bytes =
 		fileBytes instanceof ArrayBuffer ? new Uint8Array(fileBytes) : fileBytes;
@@ -78,13 +74,25 @@ export async function extractReceiptData(fileBytes, mimeType) {
 	}
 	const base64 = btoa(binary);
 
-	const result = await model.generateContent([
-		{ inlineData: { mimeType, data: base64 } },
-		SYSTEM_PROMPT
-	]);
+	const result = await genAI.models.generateContent({
+        //model: 'gemini-2.0-flash',
+        model: 'gemini-3-flash-preview',
+        contents: [ 
+            SYSTEM_PROMPT, 
+	        { inlineData: { mimeType, data: base64 } },
+        ],
+		config: {
+			responseMimeType: 'application/json',
+			responseSchema: EXTRACTION_SCHEMA
+		}
+	});
 
-	const text = result.response.text();
+	// const result = await model.generateContent([
+	// 	{ inlineData: { mimeType, data: base64 } },
+	// 	SYSTEM_PROMPT
+	// ]);
+
 	/** @type {ReceiptExtraction} */
-	const parsed = JSON.parse(text);
+	const parsed =  result.text ? JSON.parse(result.text) : { error: "no response from model" };
 	return parsed;
 }

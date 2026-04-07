@@ -7,7 +7,7 @@ import { searchReceipts } from '$lib/server/vectorize';
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals, platform }) {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (!platform?.env?.RECEIPTS_INDEX) error(503, 'Vector index unavailable');
+	if (!platform?.env?.VECTORIZE) error(503, 'Vector index unavailable');
 
 	const body = await request.json();
 	const query = typeof body?.query === 'string' ? body.query.trim() : '';

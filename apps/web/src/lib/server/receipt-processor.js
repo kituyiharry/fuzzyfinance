@@ -45,11 +45,11 @@ export async function processReceipt(env, receiptId) {
 	// ── Step 1: fetch file from R2 ──────────────────────────────────────
 	let fileBytes;
 	try {
-		const obj = await env.RECEIPT_BUCKET.get(receipt.r2Key ?? '');
-		if (!obj) throw new Error('R2 object not found');
+		const obj = await env.fuzzyfinance_receipts.get(receipt.r2Key ?? '');
+		if (!obj) throw new Error(`R2 object not found -> ID: ${receipt.r2Key}`);
 		fileBytes = await obj.arrayBuffer();
 	} catch (err) {
-		console.error('[receipt-processor] R2 fetch failed:', err);
+		console.error(`[receipt-processor] R2 fetch failed: ID: ${receipt.r2Key}`, err);
 		await patch({ status: 'failed', errorMessage: String(err) });
 		return;
 	}
@@ -214,7 +214,7 @@ export async function processReceipt(env, receiptId) {
 
 	// ── Step 6: delete R2 object ───────────────────────────────────────
 	try {
-		await env.RECEIPT_BUCKET.delete(receipt.r2Key ?? '');
+		await env.fuzzyfinance_receipts.delete(receipt.r2Key ?? '');
 	} catch (err) {
 		console.warn('[receipt-processor] R2 delete failed (non-fatal):', err);
 	}

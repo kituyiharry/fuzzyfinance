@@ -1,8 +1,10 @@
 import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { processReceipt } from '$lib/server/receipt-processor';
+
+const DAILY_LIMIT = 30;
 
 const ALLOWED_MIME_TYPES = new Set([
 	'image/jpeg',
@@ -16,7 +18,21 @@ const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals, platform }) {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (!platform?.env?.RECEIPT_BUCKET) error(503, 'Storage binding unavailable');
+	if (!platform?.env?.fuzzyfinance_receipts) error(503, 'Storage binding unavailable');
+
+	// Enforce daily upload limit
+	const [countRow] = await db
+		.select({ count: sql`COUNT(*)`.as('count') })
+		.from(schema.receipt)
+		.where(
+			and(
+				eq(schema.receipt.userId, locals.user.id),
+				sql`DATE(${schema.receipt.createdAt} / 1000, 'unixepoch') = DATE('now')`
+			)
+		);
+	if (Number(countRow?.count ?? 0) >= DAILY_LIMIT) {
+		error(429, `Daily upload limit reached (${DAILY_LIMIT}/day). Resets at midnight UTC.`);
+	}
 
 	const contentType = request.headers.get('content-type') ?? '';
 	if (!contentType.includes('multipart/form-data')) {
@@ -46,7 +62,7 @@ export async function POST({ request, locals, platform }) {
 
 	// Write to R2 transit buffer
 	const bytes = await file.arrayBuffer();
-	await platform.env.RECEIPT_BUCKET.put(r2Key, bytes, {
+	await platform.env.fuzzyfinance_receipts.put(r2Key, bytes, {
 		httpMetadata: { contentType: file.type }
 	});
 

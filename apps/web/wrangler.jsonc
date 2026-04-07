@@ -21,8 +21,8 @@
 		// }
         {
             "bucket_name": "fuzzyfinance-receipts",
-            "binding": "fuzzyfinance_receipts"
-			"preview_bucket_name": "fuzzyfinance-receipts-preview"
+            "binding": "fuzzyfinance_receipts",
+            "preview_bucket_name": "fuzzyfinance-receipts-preview"
         }
 	],
 

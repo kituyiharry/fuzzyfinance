@@ -16,7 +16,7 @@ export async function indexReceipt(env, receipt) {
 
 	const vector = embeddingResult.data[0];
 
-	await env.RECEIPTS_INDEX.upsert([
+	await env.VECTORIZE.upsert([
 		{
 			id: receipt.id,
 			values: vector,
@@ -53,7 +53,7 @@ export async function searchReceipts(env, userId, query, topK = 10) {
 
 	const queryVector = embeddingResult.data[0];
 
-	const result = await env.RECEIPTS_INDEX.query(queryVector, {
+	const result = await env.VECTORIZE.query(queryVector, {
 		topK,
 		filter: { userId },
 		returnMetadata: 'all'
@@ -73,7 +73,7 @@ export async function searchReceipts(env, userId, query, topK = 10) {
  * @param {string} receiptId
  */
 export async function deleteReceiptVector(env, receiptId) {
-	await env.RECEIPTS_INDEX.deleteByIds([receiptId]);
+	await env.VECTORIZE.deleteByIds([receiptId]);
 }
 
 /**

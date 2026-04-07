@@ -66,6 +66,8 @@ export const receipt = sqliteTable(
   (table) => [
     index("receipt_userId_idx").on(table.userId),
     index("receipt_status_idx").on(table.status),
+    index("receipt_userId_receiptDate_idx").on(table.userId, table.receiptDate),
+    index("receipt_userId_createdAt_idx").on(table.userId, table.createdAt),
   ]
 );
 

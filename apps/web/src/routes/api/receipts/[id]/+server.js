@@ -37,16 +37,16 @@ export async function DELETE({ params, locals, platform }) {
 	if (!receipt) error(404, 'Receipt not found');
 
 	// Delete from R2 if still present
-	if (receipt.r2Key && platform?.env?.RECEIPT_BUCKET) {
+	if (receipt.r2Key && platform?.env?.fuzzyfinance_receipts) {
 		try {
-			await platform.env.RECEIPT_BUCKET.delete(receipt.r2Key);
+			await platform.env.fuzzyfinance_receipts.delete(receipt.r2Key);
 		} catch {
 			// Non-fatal
 		}
 	}
 
 	// Delete vector if indexed
-	if (receipt.vectorId && platform?.env?.RECEIPTS_INDEX) {
+	if (receipt.vectorId && platform?.env?.VECTORIZE) {
 		try {
 			await deleteReceiptVector(platform.env, receipt.id);
 		} catch {
