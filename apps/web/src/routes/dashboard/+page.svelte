@@ -71,6 +71,29 @@
 		</div>
 	</div>
 
+	<!-- Staging panel -->
+	{#if data.stagedCount > 0 || data.editedCount > 0}
+		<div class="grid grid-cols-3 gap-4">
+			<MetricCard
+				label="Staged"
+				value={data.stagedCount}
+				sublabel="awaiting review"
+				accent={data.stagedCount > 0}
+			/>
+			<MetricCard
+				label="Edited"
+				value={data.editedCount}
+				sublabel="AI corrections made"
+			/>
+			<MetricCard
+				label="Committed"
+				value={data.committedCount}
+				sublabel="synced to cloud"
+				accent={data.committedCount > 0}
+			/>
+		</div>
+	{/if}
+
 	<!-- Spending charts -->
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 		<Card title="Spending by Receipt Date">
@@ -114,7 +137,7 @@
 				View All Receipts →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1">
-				{data.successCount} processed · {data.failedCount} failed
+				{data.successCount} committed · {data.stagedCount} staged · {data.failedCount} failed
 			</p>
 		</a>
 	</div>

@@ -7,13 +7,16 @@ const DAILY_LIMIT = 30;
 
 /**
  * @typedef {{
- *   successCount:            number;
- *   failedCount:             number;
- *   totalStorageBytes:       number;
- *   todayCount:              number;
- *   dailyLimit:              number;
- *   integrationStatus:       import('./integration-health.js').IntegrationStatus;
- *   spendingByReceiptDate:   DaySpend[];
+ *   successCount:             number;
+ *   failedCount:              number;
+ *   stagedCount:              number;
+ *   editedCount:              number;
+ *   committedCount:           number;
+ *   totalStorageBytes:        number;
+ *   todayCount:               number;
+ *   dailyLimit:               number;
+ *   integrationStatus:        import('./integration-health.js').IntegrationStatus;
+ *   spendingByReceiptDate:    DaySpend[];
  *   spendingByProcessingDate: DaySpend[];
  * }} DashboardMetrics
  *
@@ -104,6 +107,26 @@ export async function getDashboardMetrics(userId) {
 		getIntegrationStatus(userId)
 	]);
 
+	const [stagedResult, editedResult] = await Promise.all([
+		// Staged count
+		db
+			.select({ count: sql`COUNT(*)`.as('count') })
+			.from(schema.receipt)
+			.where(and(eq(schema.receipt.userId, userId), eq(schema.receipt.status, 'staged'))),
+
+		// Edited count — receipts where user made corrections vs AI snapshot
+		db
+			.select({ count: sql`COUNT(*)`.as('count') })
+			.from(schema.receipt)
+			.where(
+				and(
+					eq(schema.receipt.userId, userId),
+					sql`${schema.receipt.correctedFields} IS NOT NULL`,
+					sql`${schema.receipt.correctedFields} != '[]'`
+				)
+			)
+	]);
+
 	// Tally success / failed from the grouped status results
 	let successCount = 0;
 	let failedCount  = 0;
@@ -113,9 +136,15 @@ export async function getDashboardMetrics(userId) {
 		if (row.status === 'failed') failedCount += n;
 	}
 
+	const stagedCount    = Number(stagedResult[0]?.count  ?? 0);
+	const editedCount    = Number(editedResult[0]?.count  ?? 0);
+
 	return {
 		successCount,
 		failedCount,
+		stagedCount,
+		editedCount,
+		committedCount:           successCount,
 		totalStorageBytes:        Number(storageResult[0]?.total ?? 0),
 		todayCount:               Number(todayResult[0]?.count ?? 0),
 		dailyLimit:               DAILY_LIMIT,

@@ -8,7 +8,7 @@ import {
 import { user } from "./auth.schema.js";
 
 /**
- * @typedef {'pending' | 'processing' | 'complete' | 'failed' | 'complete_no_sync'} ReceiptStatus
+ * @typedef {'pending' | 'processing' | 'staged' | 'complete' | 'failed' | 'complete_no_sync'} ReceiptStatus
  */
 
 export const receipt = sqliteTable(
@@ -54,6 +54,12 @@ export const receipt = sqliteTable(
 
     // Last error for failed steps
     errorMessage: text("error_message"),
+
+    // AI extraction snapshot (set once at extraction time, never mutated)
+    aiExtractedJson: text("ai_extracted_json"),
+
+    // JSON string[] of field names the user corrected vs AI snapshot
+    correctedFields: text("corrected_fields"),
 
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)

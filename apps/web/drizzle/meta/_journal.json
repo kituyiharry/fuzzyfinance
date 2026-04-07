@@ -15,6 +15,13 @@
       "when": 1775538754870,
       "tag": "0001_zippy_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775557668641,
+      "tag": "0002_slim_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }

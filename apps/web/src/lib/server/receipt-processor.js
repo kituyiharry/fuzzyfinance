@@ -2,10 +2,6 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq } from 'drizzle-orm';
 import { extractReceiptData } from '$lib/server/gemini';
-import { getValidAccessToken } from '$lib/server/token-refresh';
-import { ensureReceiptFolder as driveFolder, uploadFileToDrive } from '$lib/server/google-drive';
-import { ensureLedgerSheet, appendReceiptRow } from '$lib/server/google-sheets';
-import { ensureReceiptFolder as oneDriveFolder, uploadFileToOneDrive, ensureLedgerWorkbook, appendReceiptRowExcel } from '$lib/server/onedrive';
 import { indexReceipt } from '$lib/server/vectorize';
 
 /**
@@ -15,11 +11,9 @@ import { indexReceipt } from '$lib/server/vectorize';
  * Steps:
  *  1. Fetch file bytes from R2
  *  2. Gemini AI extraction
- *  3. Persist extracted data + line items to DB
+ *  3. Persist extracted data + line items to DB (saves aiExtractedJson snapshot)
  *  4. Vectorize indexing
- *  5. Cloud storage + spreadsheet sync (Google or Microsoft)
- *  6. Delete R2 object
- *  7. Mark receipt complete
+ *  5. Set status to 'staged' — R2 kept for Drive upload at commit time
  *
  * @param {App.Platform['env']} env
  * @param {string} receiptId
@@ -68,6 +62,21 @@ export async function processReceipt(env, receiptId) {
 	const receiptDate = extraction.date ? new Date(extraction.date) : null;
 	const lineItemsJson = JSON.stringify(extraction.lineItems ?? []);
 
+	// Snapshot of raw AI output — used to compute correctedFields when user edits
+	const aiExtractedJson = JSON.stringify({
+		merchantName:  extraction.merchant     || null,
+		receiptDate:   extraction.date         || null,  // raw ISO string for diffing
+		total:         extraction.total        || null,
+		subtotal:      extraction.subtotal     || null,
+		tax:           extraction.tax          || null,
+		tip:           extraction.tip          || null,
+		currency:      extraction.currency     || null,
+		paymentMethod: extraction.paymentMethod || null,
+		category:      extraction.category     || null,
+		notes:         extraction.notes        || null,
+		lineItems:     extraction.lineItems    ?? []
+	});
+
 	await patch({
 		status:        'processing',
 		merchantName:  extraction.merchant   || null,
@@ -80,7 +89,8 @@ export async function processReceipt(env, receiptId) {
 		paymentMethod: extraction.paymentMethod || null,
 		category:      extraction.category    || null,
 		notes:         extraction.notes       || null,
-		lineItemsJson
+		lineItemsJson,
+		aiExtractedJson
 	});
 
 	// Persist normalised line items
@@ -113,118 +123,7 @@ export async function processReceipt(env, receiptId) {
 
 	if (vectorId) await patch({ vectorId });
 
-	// ── Step 5: cloud sync ─────────────────────────────────────────────
-	// Find connected integrations for this user
-	const integrations = await db
-		.select()
-		.from(schema.integration)
-		.where(eq(schema.integration.userId, receipt.userId));
-
-	let driveFileId   = null;
-	let driveProvider = null;
-	let sheetId       = null;
-	let sheetProvider = null;
-	let syncError     = null;
-
-	for (const integration of integrations) {
-		const provider = /** @type {'google' | 'microsoft'} */ (integration.provider);
-
-		let accessToken;
-		try {
-			accessToken = await getValidAccessToken(receipt.userId, provider);
-		} catch (err) {
-			console.warn(`[receipt-processor] Could not get token for ${provider}:`, err);
-			continue;
-		}
-		if (!accessToken) continue;
-
-		/** @type {{ folderId?: string; ledgerFileId?: string }} */
-		const meta = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
-
-		if (provider === 'google') {
-			try {
-				// Ensure folder
-				const folderId = meta.folderId ?? await driveFolder(accessToken);
-
-				// Upload file
-				const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
-				const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
-				const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
-				driveFileId = await uploadFileToDrive(accessToken, folderId, fileName, receipt.rawMimeType ?? 'application/octet-stream', fileBytes);
-				driveProvider = 'google';
-
-				// Ensure ledger sheet
-				const ledgerFileId = meta.ledgerFileId ?? await ensureLedgerSheet(accessToken, folderId);
-				sheetId       = ledgerFileId;
-				sheetProvider = 'google';
-
-				// Update receipt with driveFileId before appending row (sheet row includes it)
-				await patch({ driveFileId, driveProvider: 'google', sheetId, sheetProvider: 'google' });
-
-				const [receiptWithDriveId] = await db
-					.select()
-					.from(schema.receipt)
-					.where(eq(schema.receipt.id, receiptId));
-				await appendReceiptRow(accessToken, ledgerFileId, receiptWithDriveId);
-
-				// Cache folder + ledger IDs on the integration row
-				if (!meta.folderId || !meta.ledgerFileId) {
-					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ folderId, ledgerFileId }) })
-						.where(eq(schema.integration.id, integration.id));
-				}
-			} catch (err) {
-				console.error('[receipt-processor] Google sync failed:', err);
-				syncError = String(err);
-			}
-		}
-
-		if (provider === 'microsoft') {
-			try {
-				const folderId = meta.folderId ?? await oneDriveFolder(accessToken);
-				const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
-				const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
-				const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
-				driveFileId = await uploadFileToOneDrive(accessToken, folderId, fileName, receipt.rawMimeType ?? 'application/octet-stream', fileBytes);
-				driveProvider = 'microsoft';
-
-				const workbookId = meta.ledgerFileId ?? await ensureLedgerWorkbook(accessToken, folderId);
-				sheetId       = workbookId;
-				sheetProvider = 'microsoft';
-
-				await patch({ driveFileId, driveProvider: 'microsoft', sheetId, sheetProvider: 'microsoft' });
-
-				const [receiptWithDriveId] = await db
-					.select()
-					.from(schema.receipt)
-					.where(eq(schema.receipt.id, receiptId));
-				await appendReceiptRowExcel(accessToken, workbookId, receiptWithDriveId);
-
-				if (!meta.folderId || !meta.ledgerFileId) {
-					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ folderId, ledgerFileId: workbookId }) })
-						.where(eq(schema.integration.id, integration.id));
-				}
-			} catch (err) {
-				console.error('[receipt-processor] Microsoft sync failed:', err);
-				syncError = String(err);
-			}
-		}
-	}
-
-	// ── Step 6: delete R2 object ───────────────────────────────────────
-	try {
-		await env.fuzzyfinance_receipts.delete(receipt.r2Key ?? '');
-	} catch (err) {
-		console.warn('[receipt-processor] R2 delete failed (non-fatal):', err);
-	}
-
-	// ── Step 7: final status ───────────────────────────────────────────
-	const hasSync = integrations.length > 0;
-	const finalStatus = hasSync && syncError && !driveFileId ? 'complete_no_sync' : 'complete';
-
-	await patch({
-		status: finalStatus,
-		...(syncError && !driveFileId ? { errorMessage: syncError } : {})
-	});
+	// ── Step 5: stage for user review ─────────────────────────────────────
+	// R2 object intentionally kept — commitReceipt() will upload it to Drive then delete it
+	await patch({ status: 'staged' });
 }

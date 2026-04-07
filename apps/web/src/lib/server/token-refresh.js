@@ -37,9 +37,9 @@ export async function getValidAccessToken(userId, provider) {
  * @returns {Promise<string>}
  */
 async function _ensureFresh(integration, provider) {
-	const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+	const thirtyMinutesFromNow = new Date(Date.now() + 30 * 60 * 1000);
 	const isExpired =
-		!integration.tokenExpiresAt || integration.tokenExpiresAt <= fiveMinutesFromNow;
+		!integration.tokenExpiresAt || integration.tokenExpiresAt <= thirtyMinutesFromNow;
 
 	if (!isExpired) return integration.accessToken ?? '';
 

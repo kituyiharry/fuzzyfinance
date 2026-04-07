@@ -5,7 +5,7 @@ const LEDGER_NAME = 'FuzzyFinance Ledger';
 const HEADERS = [
 	'Receipt ID', 'Merchant', 'Date', 'Total', 'Subtotal',
 	'Tax', 'Tip', 'Currency', 'Payment Method', 'Category', 'Notes',
-	'Drive File ID', 'Uploaded At'
+	'Drive File ID', 'Drive Link', 'Uploaded At'
 ];
 
 /**
@@ -96,6 +96,7 @@ export async function appendReceiptRow(accessToken, spreadsheetId, receipt) {
 		receipt.category   ?? '',
 		receipt.notes      ?? '',
 		receipt.driveFileId ?? '',
+		receipt.driveFileId ? `https://drive.google.com/file/d/${receipt.driveFileId}/view` : '',
 		new Date().toISOString()
 	];
 

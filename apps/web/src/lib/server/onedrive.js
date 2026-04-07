@@ -5,7 +5,7 @@ const WORKBOOK_NAME = 'FuzzyFinance Ledger.xlsx';
 const HEADERS = [
 	'Receipt ID', 'Merchant', 'Date', 'Total', 'Subtotal',
 	'Tax', 'Tip', 'Currency', 'Payment Method', 'Category', 'Notes',
-	'OneDrive File ID', 'Uploaded At'
+	'OneDrive File ID', 'File Name', 'Uploaded At'
 ];
 
 /**
@@ -146,10 +146,11 @@ export async function appendReceiptRowExcel(accessToken, workbookId, receipt) {
 		receipt.category       ?? '',
 		receipt.notes          ?? '',
 		receipt.driveFileId    ?? '',
+		receipt.rawFileName    ?? '',
 		new Date().toISOString()
 	];
 
-	const colEnd = String.fromCharCode(65 + row.length - 1); // 'M'
+	const colEnd = String.fromCharCode(65 + row.length - 1); // 'N'
 	await _writeRow(accessToken, workbookId, `A${nextRow}:${colEnd}${nextRow}`, row);
 }
 

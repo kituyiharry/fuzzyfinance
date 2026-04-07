@@ -10,6 +10,7 @@
 	const CONFIG = /** @type {Record<string, { label: string; color: string }>} */ ({
 		pending:         { label: 'PENDING',     color: 'border-(--color-border) text-(--color-muted-foreground)' },
 		processing:      { label: 'PROCESSING',  color: 'border-yellow-500 text-yellow-600' },
+		staged:          { label: 'STAGED',      color: 'border-blue-500 text-blue-600' },
 		complete:        { label: 'COMPLETE',     color: 'border-green-600 text-green-600' },
 		complete_no_sync:{ label: 'SYNC FAILED', color: 'border-yellow-500 text-yellow-600' },
 		failed:          { label: 'FAILED',       color: 'border-red-600 text-red-600' }
