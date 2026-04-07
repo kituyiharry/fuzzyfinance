@@ -18,6 +18,11 @@ export const integration = sqliteTable(
     tokenExpiresAt: integer("token_expires_at", { mode: "timestamp_ms" }),
     /** JSON-encoded string array of granted OAuth scopes */
     scopes: text("scopes"),
+    /**
+     * Provider-specific metadata JSON — stores folder/sheet IDs created on
+     * first sync so we can reuse them: { folderId, ledgerFileId }
+     */
+    metadataJson: text("metadata_json"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

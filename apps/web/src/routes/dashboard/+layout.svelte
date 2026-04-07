@@ -40,6 +40,12 @@
 					</a>
 				</li>
 				<li>
+					<a href="/dashboard/receipts" class="flex items-center gap-3 p-3 {$page.url.pathname.startsWith('/dashboard/receipts') ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
+						<span class="w-2 h-2 {$page.url.pathname.startsWith('/dashboard/receipts') ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
+						Receipts
+					</a>
+				</li>
+				<li>
 					<a href="/dashboard/integrations" class="flex items-center
                         gap-3 p-3 {$page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
 						<span class="w-2 h-2 {$page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>

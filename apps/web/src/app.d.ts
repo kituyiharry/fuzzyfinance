@@ -22,4 +22,14 @@ declare global {
 	}
 }
 
+interface Env {
+	ASSETS: Fetcher;
+	/** Cloudflare R2 bucket — transit buffer for receipt file uploads */
+	RECEIPT_BUCKET: R2Bucket;
+	/** Workers AI — used for receipt text embedding */
+	AI: Ai;
+	/** Cloudflare Vectorize — semantic receipt search */
+	RECEIPTS_INDEX: VectorizeIndex;
+}
+
 export {};

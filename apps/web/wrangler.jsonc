@@ -9,5 +9,38 @@
 		"directory": ".svelte-kit/cloudflare"
 	},
 	"workers_dev": true,
-	"preview_urls": true
+	"preview_urls": true,
+
+	// Cloudflare R2 — transit buffer for uploaded receipt files
+	// Create with: wrangler r2 bucket create fuzzyfinance-receipts
+	"r2_buckets": [
+		// {
+		// 	"binding": "RECEIPT_BUCKET",
+		// 	"bucket_name": "fuzzyfinance-receipts",
+		// 	"preview_bucket_name": "fuzzyfinance-receipts-preview"
+		// }
+        {
+            "bucket_name": "fuzzyfinance-receipts",
+            "binding": "fuzzyfinance_receipts"
+			"preview_bucket_name": "fuzzyfinance-receipts-preview"
+        }
+	],
+
+	// Workers AI — used for receipt text embedding (bge-base-en-v1.5, 768 dims)
+	"ai": {
+		"binding": "AI"
+	},
+
+	// Cloudflare Vectorize — semantic receipt search index
+	// Create with: wrangler vectorize create receipts-index --dimensions=768 --metric=cosine
+	"vectorize": [
+		// {
+		// 	"binding": "RECEIPTS_INDEX",
+		// 	"index_name": "receipts-index"
+		// }
+        {
+            "binding": "VECTORIZE",
+            "index_name": "receipts-index"
+        }
+	]
 }
