@@ -16,6 +16,7 @@ import { env } from '$env/dynamic/private';
  *   paymentMethod: string;
  *   category:      string;
  *   notes:         string;
+ *   tags:          string[];
  *   lineItems:     Array<{ description: string; qty: string; unitPrice: string; total: string }>;
  * }} ReceiptExtraction
  */
@@ -33,6 +34,11 @@ const EXTRACTION_SCHEMA = {
 		paymentMethod: { type: SchemaType.STRING, description: 'e.g. Visa, Cash, Apple Pay' },
 		category:      { type: SchemaType.STRING, description: 'Business expense category, e.g. Meals, Travel, Office Supplies' },
 		notes:         { type: SchemaType.STRING, description: 'Qualitative context — what was purchased, any unusual items, business purpose' },
+		tags: {
+			type: SchemaType.ARRAY,
+			items: { type: SchemaType.STRING },
+			description: 'Up to 5 short keyword tags inferred from the receipt context, e.g. "business-meal", "recurring", "technology", "transport", "refundable".'
+		},
 		lineItems: {
 			type: SchemaType.ARRAY,
 			items: {
@@ -50,7 +56,7 @@ const EXTRACTION_SCHEMA = {
 	required: ['merchant', 'date', 'total', 'currency', 'lineItems']
 };
 
-const SYSTEM_PROMPT = `You are a receipt data extraction assistant. Analyse the provided receipt image or PDF and extract all financial and contextual information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array.`;
+const SYSTEM_PROMPT = `You are a receipt data extraction assistant. Analyse the provided receipt image or PDF and extract all financial and contextual information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array. For tags, infer up to 5 short lowercase keyword tags that describe the nature of this expense (e.g. "business-meal", "transport", "recurring", "technology", "office-supplies", "entertainment", "refundable").`;
 
 /**
  * Extracts structured receipt data from file bytes using Gemini 2.0 Flash.

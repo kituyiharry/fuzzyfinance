@@ -1,5 +1,5 @@
 /**
- * @typedef {'pending' | 'processing' | 'complete' | 'failed' | 'complete_no_sync'} ReceiptStatus
+ * @typedef {'pending' | 'processing' | 'staged' | 'complete' | 'failed' | 'complete_no_sync'} ReceiptStatus
  */
 export const receipt: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
     name: "receipt";
@@ -457,6 +457,44 @@ export const receipt: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
+        aiExtractedJson: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "ai_extracted_json";
+            tableName: "receipt";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        correctedFields: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "corrected_fields";
+            tableName: "receipt";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "created_at";
             tableName: "receipt";
@@ -639,4 +677,4 @@ export const receiptRelations: import("drizzle-orm").Relations<"receipt", {
 export const receiptLineItemRelations: import("drizzle-orm").Relations<"receipt_line_item", {
     receipt: import("drizzle-orm").One<"receipt", true>;
 }>;
-export type ReceiptStatus = "pending" | "processing" | "complete" | "failed" | "complete_no_sync";
+export type ReceiptStatus = "pending" | "processing" | "staged" | "complete" | "failed" | "complete_no_sync";

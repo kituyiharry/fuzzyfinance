@@ -8,9 +8,9 @@
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
 
-	// Gate: block uploading when no/expired integrations or daily limit reached
+	// Gate: block uploading when no integration connected or daily limit reached
 	let uploadBlocked = $derived(
-		data.integrationStatus !== 'ok' || data.todayCount >= data.dailyLimit
+		data.integrationStatus === 'none' || data.todayCount >= data.dailyLimit
 	);
 
 	/** @type {File | null} */
@@ -107,7 +107,7 @@
 <div class="max-w-2xl mx-auto flex flex-col gap-6">
 
 	<!-- Integration / limit warning banner -->
-	{#if data.integrationStatus !== 'ok'}
+	{#if data.integrationStatus === 'none'}
 		<IntegrationWarningBanner status={data.integrationStatus} />
 	{:else if data.todayCount >= data.dailyLimit}
 		<div class="border-2 border-yellow-500 bg-(--color-bg) p-4 flex flex-col gap-1">

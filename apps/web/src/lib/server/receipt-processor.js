@@ -74,6 +74,7 @@ export async function processReceipt(env, receiptId) {
 		paymentMethod: extraction.paymentMethod || null,
 		category:      extraction.category     || null,
 		notes:         extraction.notes        || null,
+		tags:          extraction.tags         ?? [],
 		lineItems:     extraction.lineItems    ?? []
 	});
 
@@ -89,6 +90,7 @@ export async function processReceipt(env, receiptId) {
 		paymentMethod: extraction.paymentMethod || null,
 		category:      extraction.category    || null,
 		notes:         extraction.notes       || null,
+		tags:          JSON.stringify(extraction.tags ?? []),
 		lineItemsJson,
 		aiExtractedJson
 	});
