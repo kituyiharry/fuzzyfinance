@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import Card from '$lib/components/Card.svelte';
 
 	/** @type {{ data: import('./$types').PageData }} */
@@ -22,7 +23,7 @@
 				<p class="font-mono text-xs uppercase text-(--color-muted-foreground)">
 					NO EXPORTS YET. SELECT RECEIPTS FROM THE RECEIPTS PAGE TO EXPORT THEM.
 				</p>
-				<a href="/dashboard/receipts" class="inline-block mt-4 font-black text-xs uppercase tracking-widest underline text-(--color-fg)">
+				<a href={resolve("/dashboard/receipts")} class="inline-block mt-4 font-black text-xs uppercase tracking-widest underline text-(--color-fg)">
 					Go to Receipts →
 				</a>
 			</div>
@@ -31,7 +32,7 @@
 				<table class="w-full text-left border-collapse">
 					<thead>
 						<tr class="border-b-2 border-(--color-border)">
-							{#each ['Created', 'File', 'Receipts', 'Rows', '', ''] as col (col)}
+							{#each ['Created', 'File', 'Receipts', 'Rows', ''] as col (col)}
 								<th class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) pb-2 pr-4 font-bold">{col}</th>
 							{/each}
 						</tr>
@@ -53,7 +54,7 @@
 								</td>
 								<td class="py-3 pr-4">
 									<a
-										href="/api/exports/{exp.id}/download"
+										href={resolve(`/api/exports/${exp.id}/download`)}
 										download={exp.fileName}
 										class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) no-underline border border-(--color-border) px-3 py-1 hover:border-(--color-fg) transition-colors"
 									>

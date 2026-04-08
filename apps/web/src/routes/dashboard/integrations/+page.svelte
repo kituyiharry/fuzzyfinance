@@ -2,6 +2,7 @@
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
@@ -41,7 +42,7 @@
 		try {
 			const res = await fetch(`/api/integrations/${provider}/disconnect`, { method: 'POST' });
 			if (res.ok) {
-				await goto('/dashboard/integrations', { invalidateAll: true });
+				await goto(resolve('/dashboard/integrations'), { invalidateAll: true });
 			}
 		} finally {
 			disconnecting[provider] = false;

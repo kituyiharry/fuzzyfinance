@@ -3,6 +3,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import Card from '$lib/components/Card.svelte';
 	import ReceiptStatusBadge from '$lib/components/ReceiptStatusBadge.svelte';
+	import { resolve } from '$app/paths';
 
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
@@ -300,7 +301,8 @@
 							{@const tags = (() => { try { return JSON.parse(r.tags ?? '[]'); } catch { return []; } })()}
 							{@const isSelected = selectedIds.has(r.id)}
 							<tr
-								class="border-b border-(--color-border) transition-all group {isSelected ? 'bg-(--nav-active-bg)' : 'hover:bg-(--color-muted)'}"
+								class="border-b border-(--color-border)
+                                transition-all group {isSelected ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--color-muted)'}"
 								onclick={selecting ? () => toggleSelect(r.id) : undefined}
 								style={selecting ? 'cursor: pointer' : ''}
 							>
@@ -315,13 +317,13 @@
 										/>
 									</td>
 								{/if}
-								<td class="py-3 pr-4 font-bold text-xs text-(--color-fg) max-w-36 truncate">
+								<td class="py-3 pr-4 font-bold text-xs max-w-36 truncate">
 									{r.merchantName ?? '—'}
 								</td>
-								<td class="py-3 pr-4 font-mono text-[10px] text-(--color-fg) whitespace-nowrap">
+								<td class="py-3 pr-4 font-mono text-[10px] whitespace-nowrap">
 									{r.receiptDate ? new Date(r.receiptDate).toLocaleDateString() : '—'}
 								</td>
-								<td class="py-3 pr-4 font-mono text-[10px] text-(--color-fg) whitespace-nowrap">
+								<td class="py-3 pr-4 font-mono text-[10px] whitespace-nowrap">
 									{r.total ? `${r.total} ${r.currency ?? ''}`.trim() : '—'}
 								</td>
 								<td class="py-3 pr-4 font-mono text-[10px] text-(--color-muted-foreground) max-w-28 truncate">
@@ -356,7 +358,7 @@
 								<td class="py-3">
 									{#if !selecting}
 										<a
-											href="/dashboard/receipts/{r.id}"
+											href={resolve(`/dashboard/receipts/${r.id}`)}
 											class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) no-underline opacity-0 group-hover:opacity-100 transition-opacity"
 										>
 											VIEW →

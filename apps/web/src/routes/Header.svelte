@@ -6,7 +6,8 @@
 <header class="border-b-4 border-(--color-border) bg-(--header-bg) px-8 py-4">
 	<div class="mx-auto flex max-w-7xl items-center justify-between">
 		<div class="text-2xl font-black tracking-tighter uppercase text-(--color-fg)">
-			<a href={resolve('/')} class="no-underline hover:bg-transparent hover:text-(--color-fg)">
+			<a href={resolve('/')} class="no-underline hover:bg-transparent
+                hover:text-(--color-text)">
 				FuzzyFinance<span class="bg-(--color-fg) px-1 text-(--color-bg)">.xlsx</span>
 			</a>
 		</div>

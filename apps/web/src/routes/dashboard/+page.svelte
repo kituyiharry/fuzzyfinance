@@ -115,9 +115,9 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 		<a
 			href="/dashboard/receipts/upload"
-			class="border-2 border-(--color-border) p-5 no-underline hover:border-(--color-fg) hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all group {data.integrationStatus === 'none' ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}"
+			class="border-2 border-(--color-border) p-5 no-underline hover:text-(--color-muted-foreground) hover:border-(--color-fg) hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all group {data.integrationStatus === 'none' ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}"
 		>
-			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg) group-hover:underline">
+			<p class="font-black text-xs uppercase tracking-widest group-hover:underline">
 				Upload Receipt →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1">
@@ -131,9 +131,9 @@
 
 		<a
 			href="/dashboard/receipts"
-			class="border-2 border-(--color-border) p-5 no-underline hover:border-(--color-fg) hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all group"
+			class="border-2 border-(--color-border) p-5 no-underline hover:text-(--color-muted-foreground) hover:border-(--color-fg) hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all group"
 		>
-			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg) group-hover:underline">
+			<p class="font-black text-xs uppercase tracking-widest group-hover:underline">
 				View All Receipts →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1">

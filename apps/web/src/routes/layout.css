@@ -77,14 +77,14 @@ p {
 }
 
 a {
-	color: var(--color-fg);
+    /*color: var(--color-fg);*/
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
 
 a:hover {
-	background-color: var(--color-fg);
-	color: var(--color-bg);
+    background-color: var(--color-fg);
+	/*color: var(--color-bg);*/
 	text-decoration: none;
 }
 
@@ -124,6 +124,22 @@ textarea {
 input:focus {
 	outline: 2px solid var(--color-fg);
 	outline-offset: -2px;
+}
+
+/* Style when checked */
+input[type="checkbox"]:checked {
+    background-color: #3bb0a8;
+    border-color: #3bb0a8;
+}
+
+/* Customize the checkmark itself */
+input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 14px;
+    top: -2px;
+    left: 3px;
 }
 
 /* Grid/Spreadsheet helpers */

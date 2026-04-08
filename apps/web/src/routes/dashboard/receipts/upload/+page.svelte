@@ -4,6 +4,7 @@
 	import FileUploadDropzone from '$lib/components/FileUploadDropzone.svelte';
 	import IntegrationWarningBanner from '$lib/components/IntegrationWarningBanner.svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
@@ -90,7 +91,7 @@
 	}
 
 	function goToReceipt() {
-		if (receiptId) goto(`/dashboard/receipts/${receiptId}`);
+		if (receiptId) goto(resolve(`/dashboard/receipts/${receiptId}`));
 	}
 
 	const STAGE_STEPS = [
