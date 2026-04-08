@@ -1,8 +1,6 @@
 <script>
-	import Button from '$lib/components/Button.svelte';
 	import { authClient } from '$lib/auth-client';
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
 
 	/** @type {{children: import('svelte').Snippet}} */
 	let { children } = $props();
@@ -10,112 +8,140 @@
 	let isProfileMenuOpen = $state(false);
 
 	const logout = async () => {
-		await authClient.signOut({
-			fetchOptions: {
-				onSuccess: () => {
-					window.location.href = '/';
-				}
-			}
-		});
+		await authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = '/'; } } });
 	};
 
-	const toggleProfileMenu = () => {
-		isProfileMenuOpen = !isProfileMenuOpen;
+	const toggleProfileMenu = () => { isProfileMenuOpen = !isProfileMenuOpen; };
+
+	const NAV = [
+		{ href: '/dashboard',              label: 'Overview',     /** @param {string} p */ match: (p) => p === '/dashboard' },
+		{ href: '/dashboard/receipts',     label: 'Receipts',     /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
+		{ href: '/dashboard/exports',      label: 'Exports',      /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
+		{ href: '/dashboard/integrations', label: 'Integrations', /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
+		{ href: '/dashboard/settings',     label: 'Settings',     /** @param {string} p */ match: (p) => p === '/dashboard/settings' },
+	];
+
+	/** @type {Record<string, { title: string; sub: string }>} */
+	const PAGE_TITLES = {
+		'/dashboard':              { title: 'Overview',      sub: 'Financial control centre' },
+		'/dashboard/receipts':     { title: 'Receipts',      sub: 'Manage and review receipts' },
+		'/dashboard/exports':      { title: 'Exports',       sub: 'Download CSV reports' },
+		'/dashboard/integrations': { title: 'Integrations',  sub: 'Cloud workspace connections' },
+		'/dashboard/settings':     { title: 'Settings',      sub: 'Account and preferences' },
 	};
+
+	const currentPageInfo = $derived(
+		PAGE_TITLES[$page.url.pathname] ??
+		Object.entries(PAGE_TITLES).find(([k]) => $page.url.pathname.startsWith(k + '/'))?.[1] ??
+		{ title: $page.url.pathname.split('/').pop()?.toUpperCase() ?? 'DASHBOARD', sub: '' }
+	);
 </script>
 
 <div class="flex flex-1 overflow-hidden bg-(--color-bg) text-(--color-fg)">
-	<!-- Navigation Drawer -->
-	<aside class="w-64 border-r-4 border-(--color-border) bg-(--header-bg) flex flex-col">
-		<div class="p-6 border-b-2 border-(--color-border) bg-(--nav-active-bg) text-(--nav-active-fg)">
-			<h3 class="text-xs font-black uppercase tracking-widest">Navigation</h3>
+	<!-- Sidebar -->
+	<aside class="w-56 border-r-2 border-(--color-border) bg-(--color-bg) flex flex-col shrink-0">
+		<!-- Brand -->
+		<div class="px-5 py-5 border-b-2 border-(--color-border)">
+			<a href="/dashboard" class="no-underline block">
+				<p class="font-black text-base uppercase tracking-tighter text-(--color-fg) leading-none">FuzzyFinance</p>
+                <p class="font-mono text-[6px] uppercase tracking-[0.2em] text-(--color-muted-foreground) mt-0.5">v1.0 </p>
+			</a>
 		</div>
-		
-		<nav class="flex-1 p-4">
-			<ul class="flex flex-col gap-2">
-				<li>
-					<a href="/dashboard" class="flex items-center gap-3 p-3 {$page.url.pathname === '/dashboard' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {$page.url.pathname === '/dashboard' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Overview
-					</a>
-				</li>
-				<li>
-					<a href="/dashboard/receipts" class="flex items-center gap-3 p-3 {$page.url.pathname.startsWith('/dashboard/receipts') ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {$page.url.pathname.startsWith('/dashboard/receipts') ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Receipts
-					</a>
-				</li>
-				<li>
-					<a href="/dashboard/exports" class="flex items-center gap-3 p-3 {$page.url.pathname === '/dashboard/exports' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {$page.url.pathname === '/dashboard/exports' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Exports
-					</a>
-				</li>
-				<li>
-					<a href="/dashboard/integrations" class="flex items-center gap-3 p-3 {$page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {$page.url.pathname === '/dashboard/integrations' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Integrations
-					</a>
-				</li>
-				<li>
-					<a href="/dashboard/settings" class="flex items-center gap-3
-                        p-3 {$page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--nav-active-bg) hover:text-(--nav-active-fg)'} font-bold uppercase text-xs tracking-widest no-underline transition-all">
-						<span class="w-2 h-2 {$page.url.pathname === '/dashboard/settings' ? 'bg-(--nav-active-fg)' : 'border border-(--color-border)'}"></span>
-						Settings
-					</a>
-				</li>
+
+		<!-- Nav links -->
+		<nav class="flex-1 py-3 px-2" aria-label="Main navigation">
+			<ul class="flex flex-col gap-0.5">
+				{#each NAV as item (item.href)}
+					{@const active = item.match($page.url.pathname)}
+					<li>
+						<a
+							href={item.href}
+							class="flex items-center gap-2.5 px-3 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest no-underline transition-all
+								{active
+									? 'bg-(--nav-active-bg) text-(--nav-active-fg)'
+									: 'text-(--color-muted-foreground) hover:bg-(--color-muted) hover:text-(--color-fg)'}"
+							aria-current={active ? 'page' : undefined}
+						>
+							<span class="w-1.5 h-1.5 shrink-0 {active ? 'bg-(--nav-active-fg)' : 'border border-(--color-border-subtle)'}"></span>
+							{item.label}
+						</a>
+					</li>
+				{/each}
 			</ul>
 		</nav>
 
-		<div class="p-4 border-t-2 border-(--color-border)">
-			<Button onclick={logout} variant="secondary" class="w-full text-xs font-black">
-                LOG OUT
-			</Button>
+		<!-- User / logout -->
+		<div class="p-3 border-t-2 border-(--color-border)">
+			<div class="relative">
+				<button
+					onclick={toggleProfileMenu}
+					class="w-full flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent hover:bg-(--color-muted) transition-all text-left"
+					aria-expanded={isProfileMenuOpen}
+					aria-haspopup="true"
+				>
+					<img
+						src={$page.data.user?.image ?? ''}
+						alt="Profile"
+						class="w-7 h-7 object-cover border border-(--color-border-subtle) shrink-0"
+					/>
+					<div class="min-w-0 flex-1">
+						<p class="font-mono text-[9px] font-black uppercase tracking-wide text-(--color-fg) truncate leading-tight">
+							{$page.data.user?.name ?? 'User'}
+						</p>
+						<p class="font-mono text-[8px] text-(--color-muted-foreground) truncate leading-tight">
+							{$page.data.user?.email ?? ''}
+						</p>
+					</div>
+					<span class="font-mono text-[9px] text-(--color-muted-foreground) shrink-0">{isProfileMenuOpen ? '▲' : '▼'}</span>
+				</button>
+
+				{#if isProfileMenuOpen}
+					<div class="absolute bottom-full left-0 right-0 mb-1 bg-(--color-bg) border-2 border-(--color-border) shadow-(--shadow-md) z-50">
+						<a
+							href="/dashboard/settings"
+							class="block px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest no-underline text-(--color-fg) hover:bg-(--color-muted) transition-all"
+							onclick={() => (isProfileMenuOpen = false)}
+						>
+							Settings
+						</a>
+						<div class="border-t border-(--color-border-subtle)"></div>
+						<button
+							onclick={logout}
+							class="w-full text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest border-0 bg-transparent text-(--color-danger) hover:bg-(--color-danger-muted) transition-all"
+						>
+							Log out
+						</button>
+					</div>
+				{/if}
+			</div>
 		</div>
 	</aside>
 
-	<!-- Main Content Area -->
-	<main class="flex-1 overflow-y-auto p-8 bg-(--color-muted)">
-		<header class="mb-8 flex items-end justify-between border-b-4 border-(--color-border) pb-4 relative">
-			<div>
-				<h1 class="text-4xl font-black uppercase tracking-tighter text-(--color-fg)">
-					{$page.url.pathname.split('/').pop()?.toUpperCase() || 'EXECUTIVE DASHBOARD'}
-				</h1>
-				<p class="text-xs font-bold uppercase tracking-[0.2em] text-(--color-muted-foreground)">Global Financial Control Center</p>
-			</div>
-			
-			<div class="flex items-center gap-4">
-				<div class="text-right font-mono text-[10px] font-bold uppercase text-(--color-fg) hidden sm:block">
-					<p>SECURE CHANNEL: ACTIVE</p>
-					<p>CLEARANCE: LVL_04</p>
-				</div>
-				
-				<div class="relative">
-					<button 
-						onclick={toggleProfileMenu}
-						class="w-12 h-12 border-2 border-(--color-border) bg-(--color-bg) flex items-center justify-center overflow-hidden hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all"
-                        style="padding: 0px;"
-					>
-						<img src={$page.data.user.image} alt="Profile" class="w-full h-full object-cover" />
-					</button>
-
-					{#if isProfileMenuOpen}
-						<div class="absolute right-0 mt-2 w-48 bg-(--color-bg) border-2 border-(--color-border) shadow-[8px_8px_0px_0px_var(--card-shadow)] z-50">
-							<div class="p-3 border-b border-(--color-border) bg-(--nav-active-bg) text-(--nav-active-fg) text-[10px] font-black uppercase">
-								Identity: {$page.data.user.name}
-							</div>
-							<a href="/dashboard/settings" class="block p-3 text-xs font-bold uppercase tracking-widest no-underline hover:bg-(--color-muted) text-(--color-fg)" onclick={() => isProfileMenuOpen = false}>
-								Settings
-							</a>
-							<button onclick={logout} class="w-full text-left p-3 text-xs font-bold tracking-widest hover:bg-(--color-muted) text-red-600 ">
-								Log out
-							</button>
-						</div>
+	<!-- Main area -->
+	<main class="flex-1 overflow-y-auto flex flex-col bg-(--color-muted)">
+		<!-- Page header -->
+		<header class="bg-(--color-bg) border-b-2 border-(--color-border) px-8 py-5 shrink-0">
+			<div class="flex items-center justify-between max-w-5xl mx-auto">
+				<div>
+					<h1 class="font-black text-xl uppercase tracking-tight text-(--color-fg) leading-none">
+						{currentPageInfo.title}
+					</h1>
+					{#if currentPageInfo.sub}
+						<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) mt-1">{currentPageInfo.sub}</p>
 					{/if}
+				</div>
+				<div class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hidden md:flex items-center gap-4">
+					<span>Secure Channel: Active</span>
+					<span class="flex items-center gap-1.5">
+						<span class="w-1.5 h-1.5 bg-green-500 inline-block animate-pulse shrink-0"></span>
+						Online
+					</span>
 				</div>
 			</div>
 		</header>
 
-		{@render children()}
+		<div class="flex-1 p-8">
+			{@render children()}
+		</div>
 	</main>
 </div>

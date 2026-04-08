@@ -21,39 +21,48 @@
 					<!-- Light Mode Option -->
 					<button
 						onclick={() => themeStore.set('light')}
-						class="flex flex-col gap-3 p-4 border-2 transition-all {themeStore.current === 'light' ? 'border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) shadow-[4px_4px_0px_0px_var(--card-shadow)]' : 'border-(--color-border) bg-(--color-bg) text-(--color-fg) hover:border-(--color-fg)'}"
+						class="flex flex-col gap-3 p-4 border-2 transition-all text-left {themeStore.current === 'light' ? 'border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) shadow-(--shadow-sm)' : 'border-(--color-border) bg-(--color-bg) text-(--color-fg) hover:border-(--color-fg)'}"
 					>
-						<span class="text-xs font-black uppercase tracking-tighter">High Contrast Light</span>
-						<div class="h-2 w-full bg-white border border-black"></div>
-						<div class="flex gap-1">
-							<div class="h-1 w-1/3 bg-black"></div>
-							<div class="h-1 w-2/3 bg-gray-200"></div>
+						<span class="text-[10px] font-black uppercase tracking-widest font-mono">High Contrast Light</span>
+						<!-- Mini swatch: white bg, black accent -->
+						<div class="flex flex-col gap-1 w-full">
+							<div class="h-2 w-full" style="background:#ffffff; border: 1px solid #000000;"></div>
+							<div class="flex gap-1">
+								<div class="h-1.5 w-1/3" style="background:#000000;"></div>
+								<div class="h-1.5 w-2/3" style="background:#e5e5e5;"></div>
+							</div>
 						</div>
 					</button>
 
 					<!-- Dark Mode Option -->
 					<button
 						onclick={() => themeStore.set('dark')}
-						class="flex flex-col gap-3 p-4 border-2 transition-all {themeStore.current === 'dark' ? 'border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) shadow-[4px_4px_0px_0px_var(--card-shadow)]' : 'border-(--color-border) bg-(--color-bg) text-(--color-fg) hover:border-(--color-fg)'}"
+						class="flex flex-col gap-3 p-4 border-2 transition-all text-left {themeStore.current === 'dark' ? 'border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) shadow-(--shadow-sm)' : 'border-(--color-border) bg-(--color-bg) text-(--color-fg) hover:border-(--color-fg)'}"
 					>
-						<span class="text-xs font-black uppercase tracking-tighter">High Contrast Dark</span>
-						<div class="h-2 w-full bg-black border border-white"></div>
-						<div class="flex gap-1">
-							<div class="h-1 w-1/3 bg-white"></div>
-							<div class="h-1 w-2/3 bg-gray-800"></div>
+						<span class="text-[10px] font-black uppercase tracking-widest font-mono">High Contrast Dark</span>
+						<!-- Mini swatch: black bg, white accent -->
+						<div class="flex flex-col gap-1 w-full">
+							<div class="h-2 w-full" style="background:#0a0a0a; border: 1px solid #ffffff;"></div>
+							<div class="flex gap-1">
+								<div class="h-1.5 w-1/3" style="background:#ffffff;"></div>
+								<div class="h-1.5 w-2/3" style="background:#1a1a1a;"></div>
+							</div>
 						</div>
 					</button>
 
 					<!-- Pastel Mode Option -->
 					<button
 						onclick={() => themeStore.set('low-contrast')}
-						class="flex flex-col gap-3 p-4 border-2 transition-all {themeStore.current === 'low-contrast' ? 'border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) shadow-[4px_4px_0px_0px_var(--card-shadow)]' : 'border-(--color-border) bg-(--color-bg) text-(--color-fg) hover:border-(--color-fg)'}"
+						class="flex flex-col gap-3 p-4 border-2 transition-all text-left {themeStore.current === 'low-contrast' ? 'border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) shadow-(--shadow-sm)' : 'border-(--color-border) bg-(--color-bg) text-(--color-fg) hover:border-(--color-fg)'}"
 					>
-						<span class="text-xs font-black uppercase tracking-tighter">Low Contrast Pastel</span>
-						<div class="h-2 w-full bg-[#fdfcf0] border border-[#b4b4b4]"></div>
-						<div class="flex gap-1">
-							<div class="h-1 w-1/3 bg-[#a8dadc]"></div>
-							<div class="h-1 w-2/3 bg-[#f1faee]"></div>
+						<span class="text-[10px] font-black uppercase tracking-widest font-mono">Low Contrast Pastel</span>
+						<!-- Mini swatch: cream bg, teal accent -->
+						<div class="flex flex-col gap-1 w-full">
+							<div class="h-2 w-full" style="background:#fdfcf0; border: 1px solid #b4b4b4;"></div>
+							<div class="flex gap-1">
+								<div class="h-1.5 w-1/3" style="background:#a8dadc;"></div>
+								<div class="h-1.5 w-2/3" style="background:#f1faee;"></div>
+							</div>
 						</div>
 					</button>
 				</div>
@@ -74,15 +83,11 @@
 					</div>
 					<div class="flex flex-col gap-1">
 						<span class="text-(--color-muted-foreground)">VERIFIED:</span>
-                            {#if $page.data.user.emailVerified}
-						        <span class="font-bold text-green-600">
-                                OK 
-                                </span>
-                            {:else}
-						        <span class="font-bold text-red-600">
-                                 FALSE
-                                </span>
-                            {/if}
+    						{#if $page.data.user.emailVerified}
+							<span class="font-bold text-(--color-success)">OK</span>
+						{:else}
+							<span class="font-bold text-(--color-danger)">FALSE</span>
+						{/if}
 					</div>
 					<div class="flex flex-col gap-1">
 						<span class="text-(--color-muted-foreground)">LAST_ACCESS:</span>
@@ -97,7 +102,7 @@
 		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-4">
 			SESSION TERMINATION PROTOCOL. ALL CACHED OPERATIONAL DATA WILL BE WIPED UPON DE-AUTHORIZATION.
 		</p>
-		<button class="w-full p-4 border-2 border-red-600 text-red-600 font-black uppercase tracking-[0.2em] text-xs hover:bg-red-600 hover:text-white transition-all">
+		<button class="w-full p-4 border-2 border-(--color-danger-border) text-(--color-danger) font-black uppercase tracking-[0.2em] text-xs hover:bg-(--color-danger-muted) transition-all">
 			Initiate Global Sign-Out
 		</button>
 	</Card>

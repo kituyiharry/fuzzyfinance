@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import Card from '$lib/components/Card.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
@@ -19,14 +20,12 @@
 <div class="flex flex-col gap-6 max-w-5xl mx-auto">
 	<Card title="CSV Exports ({data.exports.length})">
 		{#if data.exports.length === 0}
-			<div class="py-12 text-center">
-				<p class="font-mono text-xs uppercase text-(--color-muted-foreground)">
-					NO EXPORTS YET. SELECT RECEIPTS FROM THE RECEIPTS PAGE TO EXPORT THEM.
-				</p>
-				<a href={resolve("/dashboard/receipts")} class="inline-block mt-4 font-black text-xs uppercase tracking-widest underline text-(--color-fg)">
-					Go to Receipts →
-				</a>
-			</div>
+			<EmptyState
+				message="No exports yet"
+				submessage="Select receipts from the receipts page and click Export to generate a CSV."
+				ctaLabel="Go to Receipts"
+				ctaHref={resolve("/dashboard/receipts")}
+			/>
 		{:else}
 			<div class="overflow-x-auto">
 				<table class="w-full text-left border-collapse">
@@ -66,7 +65,7 @@
 										<input type="hidden" name="id" value={exp.id} />
 										<button
 											type="submit"
-											class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-muted-foreground) opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all"
+											class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-muted-foreground) opacity-0 group-hover:opacity-100 hover:text-(--color-danger) transition-all"
 										>
 											DELETE
 										</button>

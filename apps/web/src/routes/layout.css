@@ -6,143 +6,298 @@
 	--font-body: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 	--font-mono: 'Fira Mono', monospace;
 
-	/* Default: High Contrast Light */
-	--color-bg: #ffffff;
-	--color-fg: #000000;
-	--color-border: #000000;
-	--color-accent: #000000;
-	--color-muted: #f3f4f6;
+	/* ── Structural tokens ───────────────────────────────────────────────── */
+	--shadow-sm:  4px 4px 0px 0px var(--card-shadow);
+	--shadow-md:  8px 8px 0px 0px var(--card-shadow);
+	--shadow-lg: 12px 12px 0px 0px var(--card-shadow);
+	--transition: all 0.12s ease;
+
+	/* ── High Contrast Light (default) ──────────────────────────────────── */
+	--color-bg:               #ffffff;
+	--color-fg:               #000000;
+	--color-border:           #000000;
+	--color-border-subtle:    #d1d5db;
+	--color-accent:           #000000;
+	--color-muted:            #f3f4f6;
 	--color-muted-foreground: #6b7280;
-	--grid-color: #e5e7eb;
-	--card-shadow: rgba(0, 0, 0, 1);
-	--header-bg: #ffffff;
-	--nav-active-bg: #000000;
-	--nav-active-fg: #ffffff;
+	--grid-color:             #e5e7eb;
+	--card-shadow:            rgba(0, 0, 0, 1);
+	--header-bg:              #ffffff;
+	--nav-active-bg:          #000000;
+	--nav-active-fg:          #ffffff;
+
+	/* Semantic status tokens */
+	--color-success:          #15803d;
+	--color-success-muted:    #f0fdf4;
+	--color-success-border:   #16a34a;
+	--color-warning:          #b45309;
+	--color-warning-muted:    #fefce8;
+	--color-warning-border:   #d97706;
+	--color-danger:           #b91c1c;
+	--color-danger-muted:     #fef2f2;
+	--color-danger-border:    #dc2626;
+	--color-info:             #1d4ed8;
+	--color-info-muted:       #eff6ff;
+	--color-info-border:      #2563eb;
 }
 
 [data-theme='dark'] {
-	--color-bg: #000000;
-	--color-fg: #ffffff;
-	--color-border: #ffffff;
-	--color-accent: #ffffff;
-	--color-muted: #1f2937;
+	--color-bg:               #0a0a0a;
+	--color-fg:               #f0f0f0;
+	--color-border:           #e0e0e0;
+	--color-border-subtle:    #374151;
+	--color-accent:           #f0f0f0;
+	--color-muted:            #111111;
 	--color-muted-foreground: #9ca3af;
-	--grid-color: #374151;
-	--card-shadow: rgba(255, 255, 255, 0.5);
-	--header-bg: #000000;
-	--nav-active-bg: #ffffff;
-	--nav-active-fg: #000000;
+	--grid-color:             #1f2937;
+	--card-shadow:            rgba(255, 255, 255, 0.15);
+	--header-bg:              #0a0a0a;
+	--nav-active-bg:          #f0f0f0;
+	--nav-active-fg:          #0a0a0a;
+
+	--color-success:          #4ade80;
+	--color-success-muted:    #052e16;
+	--color-success-border:   #22c55e;
+	--color-warning:          #fbbf24;
+	--color-warning-muted:    #1c1007;
+	--color-warning-border:   #f59e0b;
+	--color-danger:           #f87171;
+	--color-danger-muted:     #1f0707;
+	--color-danger-border:    #ef4444;
+	--color-info:             #60a5fa;
+	--color-info-muted:       #07101f;
+	--color-info-border:      #3b82f6;
 }
 
 [data-theme='low-contrast'] {
-	--color-bg: #fdfcf0; /* Warm paper */
-	--color-fg: #4a4a4a;
-	--color-border: #b4b4b4;
-	--color-accent: #a8dadc;
-	--color-muted: #f1faee;
-	--color-muted-foreground: #7f8c8d;
-	--grid-color: #e0e0e0;
-	--card-shadow: rgba(0, 0, 0, 0.1);
-	--header-bg: #fdfcf0;
-	--nav-active-bg: #a8dadc;
-	--nav-active-fg: #4a4a4a;
+	--color-bg:               #fdfcf0;
+	--color-fg:               #3a3a3a;
+	--color-border:           #c0b8a8;
+	--color-border-subtle:    #d8d0c0;
+	--color-accent:           #a8dadc;
+	--color-muted:            #f5f0e8;
+	--color-muted-foreground: #7a7060;
+	--grid-color:             #e0d8c8;
+	--card-shadow:            rgba(0, 0, 0, 0.08);
+	--header-bg:              #fdfcf0;
+	--nav-active-bg:          #3a3a3a;
+	--nav-active-fg:          #fdfcf0;
+
+	--color-success:          #166534;
+	--color-success-muted:    #f0fdf4;
+	--color-success-border:   #15803d;
+	--color-warning:          #92400e;
+	--color-warning-muted:    #fffbeb;
+	--color-warning-border:   #b45309;
+	--color-danger:           #991b1b;
+	--color-danger-muted:     #fff1f2;
+	--color-danger-border:    #b91c1c;
+	--color-info:             #1e40af;
+	--color-info-muted:       #eff6ff;
+	--color-info-border:      #1d4ed8;
 }
+
+/* ── Base reset ────────────────────────────────────────────────────────── */
 
 body {
 	min-height: 100vh;
 	margin: 0;
+	font-family: var(--font-body);
 	background-color: var(--color-bg);
 	color: var(--color-fg);
-	transition: background-color 0.3s ease, color 0.3s ease;
+	transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Sharp corners for everything */
+/* Sharp corners everywhere — core identity of this design */
 * {
 	border-radius: 0 !important;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-	font-weight: 700;
+h1, h2, h3, h4, h5, h6 {
+	font-weight: 900;
 	text-transform: uppercase;
-	letter-spacing: 0.05em;
+	letter-spacing: -0.01em;
 }
 
-p {
-	line-height: 1.6;
-}
+p { line-height: 1.65; }
+
+/* ── Links ─────────────────────────────────────────────────────────────── */
 
 a {
-    /*color: var(--color-fg);*/
+	color: inherit;
 	text-decoration: underline;
-	text-underline-offset: 2px;
+	text-underline-offset: 3px;
 }
 
 a:hover {
-    background-color: var(--color-fg);
-	/*color: var(--color-bg);*/
+	background-color: var(--color-fg);
+	color: var(--color-bg);
 	text-decoration: none;
 }
 
-/* Base Component Styles */
+/* Nav/utility links that manage their own hover should opt out */
+a.no-underline {
+	text-decoration: none;
+}
+
+/* ── Focus-visible (keyboard nav accessibility) ─────────────────────────  */
+
+:focus-visible {
+	outline: 2px solid var(--color-fg);
+	outline-offset: 2px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
 
 button {
 	cursor: pointer;
-	border: 1px solid var(--color-border);
-	background-color: var(--color-bg);
+	border: 2px solid var(--color-border);
+	background-color: transparent;
 	color: var(--color-fg);
 	padding: 0.5rem 1rem;
-	font-weight: 600;
-	transition: all 0.1s ease-in-out;
+	font-weight: 700;
+	font-family: inherit;
+	transition: var(--transition);
 	text-transform: uppercase;
-	font-size: 0.875rem;
+	font-size: 0.75rem;
+	letter-spacing: 0.08em;
 }
 
-button:hover {
+button:hover:not(:disabled) {
 	background-color: var(--color-fg);
 	color: var(--color-bg);
 }
 
-button:active {
-	transform: translateY(1px);
+button:active:not(:disabled) {
+	transform: translate(2px, 2px);
 }
+
+button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* Primary — filled */
+.btn-primary {
+	background-color: var(--color-fg);
+	color: var(--color-bg);
+	border-color: var(--color-fg);
+}
+
+.btn-primary:hover:not(:disabled) {
+	background-color: transparent;
+	color: var(--color-fg);
+}
+
+/* Secondary — outlined (default button feel) */
+.btn-secondary {
+	background-color: transparent;
+	color: var(--color-fg);
+	border-color: var(--color-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+	background-color: var(--color-fg);
+	color: var(--color-bg);
+}
+
+/* Ghost — no border, text only */
+.btn-ghost {
+	background-color: transparent;
+	color: var(--color-muted-foreground);
+	border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+	background-color: var(--color-muted);
+	color: var(--color-fg);
+	border-color: var(--color-border-subtle);
+}
+
+/* Danger — destructive actions */
+.btn-danger {
+	background-color: transparent;
+	color: var(--color-danger);
+	border-color: var(--color-danger-border);
+}
+
+.btn-danger:hover:not(:disabled) {
+	background-color: var(--color-danger-border);
+	color: #ffffff;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────────────────── */
 
 input,
 select,
 textarea {
-	border: 1px solid var(--color-border);
-	padding: 0.5rem;
+	border: 2px solid var(--color-border);
+	padding: 0.5rem 0.75rem;
 	background-color: var(--color-bg);
 	color: var(--color-fg);
+	font-family: inherit;
 	width: 100%;
+	transition: border-color 0.12s ease;
 }
 
-input:focus {
-	outline: 2px solid var(--color-fg);
-	outline-offset: -2px;
+input:focus,
+select:focus,
+textarea:focus {
+	outline: none;
+	border-color: var(--color-fg);
 }
 
-/* Style when checked */
-input[type="checkbox"]:checked {
-    background-color: #3bb0a8;
-    border-color: #3bb0a8;
+input::placeholder,
+textarea::placeholder {
+	color: var(--color-muted-foreground);
+	opacity: 1;
 }
 
-/* Customize the checkmark itself */
-input[type="checkbox"]:checked::after {
-    content: '✓';
+/* Checkbox — theme-aware */
+input[type='checkbox'] {
+	width: 1rem;
+	height: 1rem;
+	cursor: pointer;
+	accent-color: var(--color-fg);
+}
+
+input[type='checkbox']:checked:after + label::after {
+    content: "\2714"; /* Heavy Check Mark */
+	accent-color: var(--color-fg);
+    /* 
+    * The following positions my tick in the center, 
+    * but you could just overlay the entire box
+    * with a full after element with a background if you want to 
+    */
     position: absolute;
-    color: white;
-    font-size: 14px;
-    top: -2px;
-    left: 3px;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%,-50%);
+    -moz-transform: translate(-50%,-50%);
+    -ms-transform: translate(-50%,-50%);
+    transform: translate(-50%,-50%);
+    /*
+     * If you want to fully change the check appearance, use the following:
+     * content: " ";
+     * width: 100%;
+     * height: 100%;
+     * background: blue;
+     * top: 0;
+     * left: 0;
+    */
 }
 
-/* Grid/Spreadsheet helpers */
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.card {
+	border: 2px solid var(--color-border);
+	background-color: var(--color-bg);
+	padding: 1.5rem;
+	box-shadow: var(--shadow-md);
+}
+
+/* ── Grid/Spreadsheet helpers ───────────────────────────────────────────── */
+
 .grid-container {
 	display: grid;
 	border-top: 1px solid var(--grid-color);
@@ -155,22 +310,24 @@ input[type="checkbox"]:checked::after {
 	padding: 0.5rem;
 }
 
-.card {
-	border: 2px solid var(--color-border);
-	background-color: var(--color-bg);
-	padding: 2rem;
-	box-shadow: 8px 8px 0px 0px var(--card-shadow);
-}
+/* ── Scrollbar styling ─────────────────────────────────────────────────── */
 
-.btn-primary {
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+::-webkit-scrollbar-track { background: var(--color-muted); }
+::-webkit-scrollbar-thumb { background: var(--color-border-subtle); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-fg); }
+
+/* ── Selection ──────────────────────────────────────────────────────────── */
+
+::selection {
 	background-color: var(--color-fg);
 	color: var(--color-bg);
 }
 
-.btn-primary:hover {
-	background-color: var(--color-bg);
-	color: var(--color-fg);
-}
+/* ── Utility ────────────────────────────────────────────────────────────── */
 
 .visually-hidden {
 	border: 0;

@@ -196,7 +196,7 @@
 												<li
 													class="font-mono text-[10px] text-(--color-fg) flex items-center gap-2"
 												>
-													<span class="text-green-600">+</span>
+													<span class="text-(--color-success)">+</span>
 													{label}
 												</li>
 											{/if}
@@ -211,9 +211,9 @@
 					<div class="flex gap-3 pt-2">
 						{#if connected}
 							<Button
-								variant="secondary"
+								variant="danger"
 								onclick={() => disconnect(provider.id)}
-								class="text-xs font-black uppercase tracking-widest border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+								class="text-xs font-black uppercase tracking-widest"
 							>
 								{disconnecting[provider.id] ? 'REVOKING...' : 'REVOKE ACCESS'}
 							</Button>

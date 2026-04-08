@@ -1,6 +1,7 @@
 <script>
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Badge from '$lib/components/Badge.svelte';
 	import ReceiptStatusBadge from '$lib/components/ReceiptStatusBadge.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 
@@ -169,7 +170,7 @@
 			<ReceiptStatusBadge status={receipt.status} />
 
 			{#if receipt.status !== 'staged' && correctedCount > 0}
-				<span class="font-mono text-[9px] border border-yellow-500 text-yellow-600 px-2 py-0.5 font-bold uppercase">
+				<span class="font-mono text-[9px] border border-(--color-warning-border) text-(--color-warning) bg-(--color-warning-muted) px-2 py-0.5 font-bold uppercase">
 					EDITED · {correctedCount} FIELD{correctedCount === 1 ? '' : 'S'}
 				</span>
 			{/if}
@@ -190,7 +191,7 @@
 				<Button variant="secondary" onclick={doCommit} class="text-xs font-black uppercase tracking-widest" disabled={committing || editing}>
 					{committing ? 'COMMITTING...' : 'COMMIT'}
 				</Button>
-				<Button variant="secondary" onclick={doAbort} class="text-xs font-black uppercase tracking-widest border-red-600 text-red-600 hover:bg-red-600 hover:text-white" disabled={aborting}>
+				<Button variant="danger" onclick={doAbort} class="text-xs font-black uppercase tracking-widest" disabled={aborting}>
 					{aborting ? 'ABORTING...' : 'ABORT'}
 				</Button>
 			{:else}
@@ -199,7 +200,7 @@
 						{retrying ? 'RETRYING...' : 'RETRY SYNC'}
 					</Button>
 				{/if}
-				<Button variant="secondary" onclick={deleteReceipt} class="text-xs font-black uppercase tracking-widest border-red-600 text-red-600 hover:bg-red-600 hover:text-white" disabled={deleting}>
+				<Button variant="danger" onclick={deleteReceipt} class="text-xs font-black uppercase tracking-widest" disabled={deleting}>
 					{deleting ? 'DELETING...' : 'DELETE'}
 				</Button>
 			{/if}
@@ -207,7 +208,7 @@
 	</div>
 
 	{#if saveError}
-		<div class="border-2 border-red-600 p-3 font-mono text-[10px] text-red-600 uppercase">
+		<div class="border-2 border-(--color-danger-border) bg-(--color-danger-muted) p-3 font-mono text-[10px] text-(--color-danger) uppercase">
 			SAVE ERROR: {saveError}
 		</div>
 	{/if}
@@ -289,7 +290,7 @@
 						<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">TAGS</span>
 						<div class="flex flex-wrap gap-1">
 							{#each receiptTags as tag (tag)}
-								<span class="font-mono text-[9px] border border-(--color-border) px-2 py-0.5 text-(--color-muted-foreground)">{tag}</span>
+								<Badge label={tag} size="xs" />
 							{/each}
 						</div>
 					</div>
@@ -350,7 +351,7 @@
 								<td class="py-1 w-8">
 									<button
 										onclick={() => removeLineItem(li.id)}
-										class="font-mono text-[10px] text-red-600 hover:text-red-800 font-black"
+										class="font-mono text-[10px] text-(--color-danger) hover:opacity-70 font-black"
 										type="button"
 									>×</button>
 								</td>
@@ -400,7 +401,7 @@
 				<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">CLOUD STORAGE</span>
 				{#if receipt.driveFileId}
 					<span class="font-black text-xs text-(--color-fg) uppercase">{receipt.driveProvider === 'google' ? 'GOOGLE DRIVE' : 'ONEDRIVE'}</span>
-					<span class="font-mono text-[9px] text-green-600 uppercase font-bold">UPLOADED</span>
+					<span class="font-mono text-[9px] text-(--color-success) uppercase font-bold">UPLOADED</span>
 				{:else}
 					<span class="font-mono text-[9px] text-(--color-muted-foreground) uppercase">{receipt.status === 'staged' ? 'PENDING COMMIT' : 'NOT SYNCED'}</span>
 				{/if}
@@ -410,7 +411,7 @@
 				<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">SPREADSHEET</span>
 				{#if receipt.sheetId}
 					<span class="font-black text-xs text-(--color-fg) uppercase">{receipt.sheetProvider === 'google' ? 'GOOGLE SHEETS' : 'EXCEL'}</span>
-					<span class="font-mono text-[9px] text-green-600 uppercase font-bold">ROW APPENDED</span>
+					<span class="font-mono text-[9px] text-(--color-success) uppercase font-bold">ROW APPENDED</span>
 				{:else}
 					<span class="font-mono text-[9px] text-(--color-muted-foreground) uppercase">{receipt.status === 'staged' ? 'PENDING COMMIT' : 'NOT SYNCED'}</span>
 				{/if}
@@ -420,7 +421,7 @@
 				<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">SEMANTIC INDEX</span>
 				{#if receipt.vectorId}
 					<span class="font-black text-xs text-(--color-fg) uppercase">VECTORIZE</span>
-					<span class="font-mono text-[9px] text-green-600 uppercase font-bold">INDEXED</span>
+					<span class="font-mono text-[9px] text-(--color-success) uppercase font-bold">INDEXED</span>
 				{:else}
 					<span class="font-mono text-[9px] text-(--color-muted-foreground) uppercase">NOT INDEXED</span>
 				{/if}
@@ -428,7 +429,7 @@
 		</div>
 
 		{#if receipt.errorMessage}
-			<div class="mt-4 border-2 border-red-600 p-3 font-mono text-[10px] text-red-600 uppercase">
+			<div class="mt-4 border-2 border-(--color-danger-border) bg-(--color-danger-muted) p-3 font-mono text-[10px] text-(--color-danger) uppercase">
 				LAST ERROR: {receipt.errorMessage}
 			</div>
 		{/if}

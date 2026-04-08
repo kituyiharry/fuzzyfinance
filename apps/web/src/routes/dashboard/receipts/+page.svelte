@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Card from '$lib/components/Card.svelte';
+	import Badge from '$lib/components/Badge.svelte';
 	import ReceiptStatusBadge from '$lib/components/ReceiptStatusBadge.svelte';
 	import { resolve } from '$app/paths';
 
@@ -180,7 +181,7 @@
 					<a
 						href="/api/exports/{exportResult.id}/download"
 						download={exportResult.fileName}
-						class="font-mono text-[9px] uppercase font-black tracking-widest text-green-600 border border-green-600 px-3 py-1 hover:bg-green-600 hover:text-white transition-colors no-underline"
+						class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-success) border border-(--color-success-border) px-3 py-1 hover:bg-(--color-success-muted) transition-colors no-underline"
 					>
 						DOWNLOAD ({exportResult.rowCount} ROWS) ↓
 					</a>
@@ -333,7 +334,7 @@
 									{#if tags.length > 0}
 										<div class="flex flex-wrap gap-1">
 											{#each tags.slice(0, 3) as tag (tag)}
-												<span class="font-mono text-[8px] border border-(--color-border) px-1 py-0.5 text-(--color-muted-foreground)">{tag}</span>
+												<Badge label={tag} size="xs" />
 											{/each}
 											{#if tags.length > 3}
 												<span class="font-mono text-[8px] text-(--color-muted-foreground)">+{tags.length - 3}</span>
@@ -348,7 +349,7 @@
 								</td>
 								<td class="py-3 pr-4">
 									{#if r.driveFileId}
-										<span class="font-mono text-[9px] text-green-600 uppercase font-bold">
+										<span class="font-mono text-[9px] text-(--color-success) uppercase font-bold">
 											{r.driveProvider === 'google' ? 'DRIVE' : 'ONEDRIVE'}
 										</span>
 									{:else}

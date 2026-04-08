@@ -20,19 +20,19 @@
 	let msg = $derived(MESSAGE[status]);
 </script>
 
-<div class="border-2 border-yellow-500 bg-(--color-bg) p-4 flex flex-col gap-2 {className}">
+<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2 {className}">
 	<div class="flex items-center gap-2">
-		<span class="w-2 h-2 bg-yellow-500 shrink-0"></span>
-		<span class="font-mono text-[10px] font-black uppercase tracking-widest text-yellow-600">
+		<span class="w-2 h-2 bg-(--color-warning-border) shrink-0 animate-pulse"></span>
+		<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">
 			{msg.headline}
 		</span>
 	</div>
-	<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+	<p class="font-mono text-[10px] text-(--color-warning) opacity-80 pl-4">
 		{msg.body}
 	</p>
 	<a
 		href="/dashboard/integrations"
-		class="pl-4 font-mono text-[10px] font-black uppercase tracking-widest text-yellow-600 no-underline hover:underline"
+		class="pl-4 font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning) no-underline hover:underline"
 	>
 		{msg.cta}
 	</a>
