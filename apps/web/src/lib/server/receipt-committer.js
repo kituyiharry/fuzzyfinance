@@ -2,12 +2,14 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq } from 'drizzle-orm';
 import { getValidAccessToken } from '$lib/server/token-refresh';
-import { ensureReceiptFolder as driveFolder, uploadFileToDrive } from '$lib/server/google-drive';
-import { ensureLedgerSheet, appendReceiptRow } from '$lib/server/google-sheets';
+import { ensureReceiptFolder as driveFolder, ensureMonthFolder as driveMonthFolder, uploadFileToDrive } from '$lib/server/google-drive';
+import { ensureLedgerSheet, ensureMonthTab, appendReceiptRow } from '$lib/server/google-sheets';
 import {
 	ensureReceiptFolder as oneDriveFolder,
+	ensureMonthFolder as oneDriveMonthFolder,
 	uploadFileToOneDrive,
 	ensureLedgerWorkbook,
+	ensureMonthWorksheet,
 	appendReceiptRowExcel
 } from '$lib/server/onedrive';
 
@@ -47,6 +49,12 @@ export async function commitReceipt(env, receiptId) {
 		return;
 	}
 
+	// ── Resolve file date, year, and month name ────────────────────────────
+	const fileDate = receipt.receiptDate ? new Date(receipt.receiptDate) : new Date();
+	const year = fileDate.getFullYear();
+	const month = fileDate.getMonth() + 1;
+	const monthName = fileDate.toLocaleString('en-US', { month: 'long' }); // e.g. 'April'
+
 	// ── Cloud sync ─────────────────────────────────────────────────────────
 	const integrations = await db
 		.select()
@@ -68,34 +76,39 @@ export async function commitReceipt(env, receiptId) {
 		}
 		if (!accessToken) continue;
 
-		/** @type {{ folderId?: string; ledgerFileId?: string }} */
+		/** @type {{ folderId?: string }} */
 		const meta = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
 
 		if (provider === 'google') {
 			try {
-				const folderId = meta.folderId ?? await driveFolder(accessToken);
+				const rootFolderId = meta.folderId ?? await driveFolder(accessToken);
+				const uploadFolderId = await driveMonthFolder(accessToken, rootFolderId, year, month);
 
 				const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
 				const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
 				const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
 				driveFileId = await uploadFileToDrive(
-					accessToken, folderId, fileName,
+					accessToken, uploadFolderId, fileName,
 					receipt.rawMimeType ?? 'application/octet-stream', fileBytes
 				);
 
-				const ledgerFileId = meta.ledgerFileId ?? await ensureLedgerSheet(accessToken, folderId);
+				await patch({ driveFileId, driveProvider: 'google' });
 
-				await patch({ driveFileId, driveProvider: 'google', sheetId: ledgerFileId, sheetProvider: 'google' });
+				// Resolve year ledger + month tab
+				const ledgerFileId = await ensureLedgerSheet(accessToken, rootFolderId, year);
+				await ensureMonthTab(accessToken, ledgerFileId, monthName);
+
+				await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
 
 				const [receiptWithDriveId] = await db
 					.select()
 					.from(schema.receipt)
 					.where(eq(schema.receipt.id, receiptId));
-				await appendReceiptRow(accessToken, ledgerFileId, receiptWithDriveId);
+				await appendReceiptRow(accessToken, ledgerFileId, monthName, receiptWithDriveId);
 
-				if (!meta.folderId || !meta.ledgerFileId) {
+				if (!meta.folderId) {
 					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ folderId, ledgerFileId }) })
+						.set({ metadataJson: JSON.stringify({ folderId: rootFolderId }) })
 						.where(eq(schema.integration.id, integration.id));
 				}
 			} catch (err) {
@@ -106,27 +119,34 @@ export async function commitReceipt(env, receiptId) {
 
 		if (provider === 'microsoft') {
 			try {
-				const folderId = meta.folderId ?? await oneDriveFolder(accessToken);
+				const rootFolderId = meta.folderId ?? await oneDriveFolder(accessToken);
+				const uploadFolderId = await oneDriveMonthFolder(accessToken, rootFolderId, year, month);
+
 				const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
 				const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
 				const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
 				driveFileId = await uploadFileToOneDrive(
-					accessToken, folderId, fileName,
+					accessToken, uploadFolderId, fileName,
 					receipt.rawMimeType ?? 'application/octet-stream', fileBytes
 				);
-				const workbookId = meta.ledgerFileId ?? await ensureLedgerWorkbook(accessToken, folderId);
 
-				await patch({ driveFileId, driveProvider: 'microsoft', sheetId: workbookId, sheetProvider: 'microsoft' });
+				await patch({ driveFileId, driveProvider: 'microsoft' });
+
+				// Resolve year workbook + month worksheet
+				const workbookId = await ensureLedgerWorkbook(accessToken, rootFolderId, year);
+				await ensureMonthWorksheet(accessToken, workbookId, monthName);
+
+				await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
 
 				const [receiptWithDriveId] = await db
 					.select()
 					.from(schema.receipt)
 					.where(eq(schema.receipt.id, receiptId));
-				await appendReceiptRowExcel(accessToken, workbookId, receiptWithDriveId);
+				await appendReceiptRowExcel(accessToken, workbookId, monthName, receiptWithDriveId);
 
-				if (!meta.folderId || !meta.ledgerFileId) {
+				if (!meta.folderId) {
 					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ folderId, ledgerFileId: workbookId }) })
+						.set({ metadataJson: JSON.stringify({ folderId: rootFolderId }) })
 						.where(eq(schema.integration.id, integration.id));
 				}
 			} catch (err) {

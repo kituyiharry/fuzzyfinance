@@ -28,8 +28,8 @@
 
 <div class="flex flex-col gap-6 max-w-5xl mx-auto">
 
-	<!-- Integration warning -->
-	{#if data.integrationStatus !== 'ok'}
+	<!-- Integration warning (only shown when no integration is connected) -->
+	{#if data.integrationStatus === 'none'}
 		<IntegrationWarningBanner status={data.integrationStatus} />
 	{/if}
 
@@ -115,13 +115,13 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 		<a
 			href="/dashboard/receipts/upload"
-			class="border-2 border-(--color-border) p-5 no-underline hover:border-(--color-fg) hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all group {data.integrationStatus !== 'ok' ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}"
+			class="border-2 border-(--color-border) p-5 no-underline hover:border-(--color-fg) hover:shadow-[4px_4px_0px_0px_var(--card-shadow)] transition-all group {data.integrationStatus === 'none' ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}"
 		>
 			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg) group-hover:underline">
 				Upload Receipt →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1">
-				{data.integrationStatus !== 'ok'
+				{data.integrationStatus === 'none'
 					? 'Connect an integration first'
 					: data.todayCount >= data.dailyLimit
 						? 'Daily limit reached'

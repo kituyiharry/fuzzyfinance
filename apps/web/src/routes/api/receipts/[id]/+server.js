@@ -76,7 +76,7 @@ export async function PATCH({ params, locals, request }) {
 	if (receipt.status !== 'staged') error(409, 'Only staged receipts can be edited');
 
 	const body = await request.json();
-	const { merchantName, receiptDate, total, subtotal, tax, tip, currency, paymentMethod, category, notes, lineItems = [] } = body;
+	const { merchantName, receiptDate, total, subtotal, tax, tip, currency, paymentMethod, category, notes, lineItems = [], tags = [] } = body;
 
 	// ── Compute corrected fields vs AI snapshot ─────────────────────────
 	const correctedFields = [];
@@ -105,6 +105,11 @@ export async function PATCH({ params, locals, request }) {
 		if (JSON.stringify(incomingItems) !== JSON.stringify(originalItems)) {
 			correctedFields.push('lineItems');
 		}
+
+		// Compare tags (order-insensitive)
+		const incomingTagsSorted = [...(tags ?? [])].sort().join(',');
+		const originalTagsSorted = [...(ai.tags ?? [])].sort().join(',');
+		if (incomingTagsSorted !== originalTagsSorted) correctedFields.push('tags');
 	}
 
 	// ── Upsert line items ────────────────────────────────────────────────
@@ -138,6 +143,7 @@ export async function PATCH({ params, locals, request }) {
 		paymentMethod:  paymentMethod  || null,
 		category:       category       || null,
 		notes:          notes          || null,
+		tags:           JSON.stringify(Array.isArray(tags) ? tags : []),
 		lineItemsJson:  JSON.stringify(lineItems),
 		correctedFields: JSON.stringify(correctedFields)
 	}).where(eq(schema.receipt.id, params.id));

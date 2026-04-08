@@ -61,6 +61,9 @@ export const receipt = sqliteTable(
     // JSON string[] of field names the user corrected vs AI snapshot
     correctedFields: text("corrected_fields"),
 
+    // JSON string[] of AI-inferred keyword tags, e.g. '["business-meal","transport"]'
+    tags: text("tags"),
+
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

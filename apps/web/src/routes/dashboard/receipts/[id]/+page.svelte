@@ -33,6 +33,8 @@
 		paymentMethod: '',
 		category:      '',
 		notes:         '',
+		/** Comma-separated tags string — transformed to array before PATCH */
+		tags:          '',
 		/** @type {FormLineItem[]} */
 		lineItems:     []
 	});
@@ -49,6 +51,7 @@
 		form.paymentMethod = receipt.paymentMethod ?? '';
 		form.category      = receipt.category      ?? '';
 		form.notes         = receipt.notes         ?? '';
+		form.tags          = (() => { try { return JSON.parse(receipt.tags ?? '[]').join(', '); } catch { return ''; } })();
 		form.lineItems     = lineItems.map(li => ({
 			id:          li.id,
 			description: li.description ?? '',
@@ -87,7 +90,10 @@
 			const res = await fetch(`/api/receipts/${receipt.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(form)
+				body: JSON.stringify({
+					...form,
+					tags: form.tags.split(',').map(t => t.trim()).filter(Boolean)
+				})
 			});
 			if (!res.ok) {
 				saveError = await res.text();
@@ -133,6 +139,15 @@
 
 	/** @param {Date | null | undefined} d */
 	const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+
+	/** Compute a direct link to the receipt file in Drive, if available */
+	let driveFileUrl = $derived.by(() => {
+		if (!receipt.driveFileId) return null;
+		if (receipt.driveProvider === 'google') {
+			return `https://drive.google.com/file/d/${receipt.driveFileId}/view`;
+		}
+		return null; // OneDrive direct URL requires stored webUrl
+	});
 
 	let correctedCount = $derived.by(() => {
 		if (!receipt.correctedFields) return 0;
@@ -238,7 +253,19 @@
 					bind:value={form.notes}
 				></textarea>
 			</div>
+
+			<div class="mt-4 flex flex-col gap-1">
+				<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">TAGS <span class="normal-case tracking-normal font-normal text-(--color-muted-foreground)">(comma-separated)</span></span>
+				<input
+					type="text"
+					placeholder="e.g. business-meal, transport, recurring"
+					class="border-2 border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-xs px-2 py-1 w-full focus:outline-none focus:border-(--color-fg)"
+					bind:value={form.tags}
+				/>
+			</div>
 		{:else}
+			<!-- TAGS -->
+			{@const receiptTags = (() => { try { return JSON.parse(receipt.tags ?? '[]'); } catch { return []; } })()}
 			<div class="grid grid-cols-2 gap-x-8 gap-y-4">
 				{#each [
 					['MERCHANT',        receipt.merchantName],
@@ -249,14 +276,39 @@
 					['TIP',             receipt.tip],
 					['CURRENCY',        receipt.currency],
 					['PAYMENT METHOD',  receipt.paymentMethod],
-					['CATEGORY',        receipt.category],
-					['FILE',            receipt.rawFileName]
+					['CATEGORY',        receipt.category]
 				] as [label, value] (label)}
 					<div class="flex flex-col gap-1">
 						<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">{label}</span>
 						<span class="font-bold text-xs text-(--color-fg)">{value ?? '—'}</span>
 					</div>
 				{/each}
+
+				{#if receiptTags.length > 0}
+					<div class="flex flex-col gap-1 col-span-2">
+						<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">TAGS</span>
+						<div class="flex flex-wrap gap-1">
+							{#each receiptTags as tag (tag)}
+								<span class="font-mono text-[9px] border border-(--color-border) px-2 py-0.5 text-(--color-muted-foreground)">{tag}</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- FILE — links to Drive when committed -->
+				<div class="flex flex-col gap-1">
+					<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">FILE</span>
+					{#if driveFileUrl}
+						<a
+							href={driveFileUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="font-bold text-xs text-(--color-fg) underline decoration-dotted hover:decoration-solid"
+						>{receipt.rawFileName ?? '—'}</a>
+					{:else}
+						<span class="font-bold text-xs text-(--color-fg)">{receipt.rawFileName ?? '—'}</span>
+					{/if}
+				</div>
 			</div>
 
 			{#if receipt.notes}
