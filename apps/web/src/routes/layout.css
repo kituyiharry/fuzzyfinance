@@ -123,17 +123,18 @@ p { line-height: 1.65; }
 
 /* ── Links ─────────────────────────────────────────────────────────────── */
 
-a {
-	color: inherit;
-	text-decoration: underline;
-	text-underline-offset: 3px;
-}
+/** NB: Commented out due to interference with tailwind */
+/*a {*/
+	/*color: inherit;*/
+	/*text-decoration: underline;*/
+	/*text-underline-offset: 3px;*/
+/*}*/
 
-a:hover {
-	background-color: var(--color-fg);
-	color: var(--color-bg);
-	text-decoration: none;
-}
+/*a:hover {*/
+	/*background-color: var(--color-fg);*/
+	/*color: var(--color-bg);*/
+	/*text-decoration: none;*/
+/*}*/
 
 /* Nav/utility links that manage their own hover should opt out */
 a.no-underline {
@@ -228,64 +229,31 @@ button:disabled {
 
 /* ── Inputs ─────────────────────────────────────────────────────────────── */
 
-input,
-select,
-textarea {
-	border: 2px solid var(--color-border);
-	padding: 0.5rem 0.75rem;
-	background-color: var(--color-bg);
-	color: var(--color-fg);
-	font-family: inherit;
-	width: 100%;
-	transition: border-color 0.12s ease;
-}
+/** NB: Commented out due to tailwind interference */
+/*input,*/
+/*select,*/
+/*textarea {*/
+	/*border: 2px solid var(--color-border);*/
+	/*padding: 0.5rem 0.75rem;*/
+	/*background-color: var(--color-bg);*/
+	/*color: var(--color-fg);*/
+	/*font-family: inherit;*/
+	/*width: 100%;*/
+	/*transition: border-color 0.12s ease;*/
+/*}*/
 
-input:focus,
-select:focus,
-textarea:focus {
-	outline: none;
-	border-color: var(--color-fg);
-}
+/*input:focus,*/
+/*select:focus,*/
+/*textarea:focus {*/
+	/*outline: none;*/
+	/*border-color: var(--color-fg);*/
+/*}*/
 
-input::placeholder,
-textarea::placeholder {
-	color: var(--color-muted-foreground);
-	opacity: 1;
-}
-
-/* Checkbox — theme-aware */
-input[type='checkbox'] {
-	width: 1rem;
-	height: 1rem;
-	cursor: pointer;
-	accent-color: var(--color-fg);
-}
-
-input[type='checkbox']:checked:after + label::after {
-    content: "\2714"; /* Heavy Check Mark */
-	accent-color: var(--color-fg);
-    /* 
-    * The following positions my tick in the center, 
-    * but you could just overlay the entire box
-    * with a full after element with a background if you want to 
-    */
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    -webkit-transform: translate(-50%,-50%);
-    -moz-transform: translate(-50%,-50%);
-    -ms-transform: translate(-50%,-50%);
-    transform: translate(-50%,-50%);
-    /*
-     * If you want to fully change the check appearance, use the following:
-     * content: " ";
-     * width: 100%;
-     * height: 100%;
-     * background: blue;
-     * top: 0;
-     * left: 0;
-    */
-}
+/*input::placeholder,*/
+/*textarea::placeholder {*/
+	/*color: var(--color-muted-foreground);*/
+	/*opacity: 1;*/
+/*}*/
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */
 

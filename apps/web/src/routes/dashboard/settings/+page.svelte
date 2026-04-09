@@ -12,10 +12,7 @@
 	<Card title="Personnel Configuration">
 		<div class="flex flex-col gap-6">
 			<div>
-				<h3 class="text-xs font-black uppercase tracking-widest mb-4">Interface Appearance</h3>
-				<p class="text-xs text-(--color-muted-foreground) mb-6 font-mono italic">
-					SELECT OPERATIONAL COLOR SCHEME. SETTINGS ARE PERSISTED TO LOCAL STORAGE FOR AUTOMATIC INITIALIZATION.
-				</p>
+				<h3 class="text-xs font-black uppercase tracking-widest mb-4">Appearance</h3>
 
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<!-- Light Mode Option -->
@@ -96,14 +93,5 @@
 				</div>
 			</div>
 		</div>
-	</Card>
-
-	<Card title="Security Protocols">
-		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-4">
-			SESSION TERMINATION PROTOCOL. ALL CACHED OPERATIONAL DATA WILL BE WIPED UPON DE-AUTHORIZATION.
-		</p>
-		<button class="w-full p-4 border-2 border-(--color-danger-border) text-(--color-danger) font-black uppercase tracking-[0.2em] text-xs hover:bg-(--color-danger-muted) transition-all">
-			Initiate Global Sign-Out
-		</button>
 	</Card>
 </div>
