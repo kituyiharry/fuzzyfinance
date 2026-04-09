@@ -7,17 +7,23 @@ import { eq, desc, sql } from 'drizzle-orm';
 export async function load({ locals }) {
 	if (!locals.user) redirect(302, '/');
 
-	const exports = await db
+	const rows = await db
 		.select({
 			id:           schema.receiptExport.id,
 			fileName:     schema.receiptExport.fileName,
 			receiptCount: schema.receiptExport.receiptCount,
 			rowCount:     schema.receiptExport.rowCount,
+			receiptIds:   schema.receiptExport.receiptIds,
 			createdAt:    schema.receiptExport.createdAt
 		})
 		.from(schema.receiptExport)
 		.where(eq(schema.receiptExport.userId, locals.user.id))
 		.orderBy(desc(schema.receiptExport.createdAt));
+
+	const exports = rows.map((ex) => ({
+		...ex,
+		receiptIds: (() => { try { return JSON.parse(ex.receiptIds ?? '[]'); } catch { return []; } })(),
+	}));
 
 	return { exports };
 }

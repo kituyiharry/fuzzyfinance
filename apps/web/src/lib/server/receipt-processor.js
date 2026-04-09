@@ -52,9 +52,13 @@ export async function processReceipt(env, receiptId) {
 	let extraction;
 	try {
 		extraction = await extractReceiptData(fileBytes, receipt.rawMimeType ?? 'image/jpeg');
-	} catch (err) {
+	} catch (/** @type {any} */ err) {
 		console.error('[receipt-processor] Gemini extraction failed:', err);
-		await patch({ status: 'failed', errorMessage: `Extraction failed: ${err}` });
+		if (err?.code === 'RATE_LIMITED') {
+			await patch({ status: 'failed', errorMessage: 'Gemini API rate limit reached. Please re-upload this receipt in a few minutes.' });
+		} else {
+			await patch({ status: 'failed', errorMessage: `Extraction failed: ${err}` });
+		}
 		return;
 	}
 

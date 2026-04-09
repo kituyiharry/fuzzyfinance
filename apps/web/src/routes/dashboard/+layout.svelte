@@ -7,6 +7,13 @@
 
 	let isProfileMenuOpen = $state(false);
 
+	let sidebarOpen = $state(false);
+
+	$effect(() => {
+		$page.url; // reactive: close sidebar on any route change
+		sidebarOpen = false;
+	});
+
 	const logout = async () => {
 		await authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = '/'; } } });
 	};
@@ -14,20 +21,22 @@
 	const toggleProfileMenu = () => { isProfileMenuOpen = !isProfileMenuOpen; };
 
 	const NAV = [
-		{ href: '/dashboard',              label: 'Overview',     /** @param {string} p */ match: (p) => p === '/dashboard' },
-		{ href: '/dashboard/receipts',     label: 'Receipts',     /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
-		{ href: '/dashboard/exports',      label: 'Exports',      /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
-		{ href: '/dashboard/integrations', label: 'Integrations', /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
-		{ href: '/dashboard/settings',     label: 'Settings',     /** @param {string} p */ match: (p) => p === '/dashboard/settings' },
+		{ href: '/dashboard',                   label: 'Overview',       /** @param {string} p */ match: (p) => p === '/dashboard' },
+		{ href: '/dashboard/receipts',          label: 'Receipts',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
+		{ href: '/dashboard/exports',           label: 'Exports',        /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
+		{ href: '/dashboard/conversations',     label: 'Conversations',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/conversations') },
+		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
+		{ href: '/dashboard/settings',          label: 'Settings',       /** @param {string} p */ match: (p) => p === '/dashboard/settings' },
 	];
 
 	/** @type {Record<string, { title: string; sub: string }>} */
 	const PAGE_TITLES = {
-		'/dashboard':              { title: 'Overview',      sub: 'Financial control centre' },
-		'/dashboard/receipts':     { title: 'Receipts',      sub: 'Manage and review receipts' },
-		'/dashboard/exports':      { title: 'Exports',       sub: 'Download CSV reports' },
-		'/dashboard/integrations': { title: 'Integrations',  sub: 'Cloud workspace connections' },
-		'/dashboard/settings':     { title: 'Settings',      sub: 'Account and preferences' },
+		'/dashboard':                   { title: 'Overview',       sub: 'Financial control centre' },
+		'/dashboard/receipts':          { title: 'Receipts',       sub: 'Manage and review receipts' },
+		'/dashboard/exports':           { title: 'Exports',        sub: 'Download CSV reports' },
+		'/dashboard/conversations':     { title: 'Conversations',  sub: 'Saved query sessions' },
+		'/dashboard/integrations':      { title: 'Integrations',   sub: 'Cloud workspace connections' },
+		'/dashboard/settings':          { title: 'Settings',       sub: 'Account and preferences' },
 	};
 
 	const currentPageInfo = $derived(
@@ -39,7 +48,8 @@
 
 <div class="flex flex-1 overflow-hidden bg-(--color-bg) text-(--color-fg)">
 	<!-- Sidebar -->
-	<aside class="w-56 border-r-2 border-(--color-border) bg-(--color-bg) flex flex-col shrink-0">
+	<aside class="flex-col border-r-2 border-(--color-border) bg-(--color-bg) shrink-0
+		{sidebarOpen ? 'fixed inset-y-0 left-0 z-50 flex w-72' : 'hidden md:flex md:w-56 md:relative md:shrink-0'}">
 		<!-- Brand -->
 		<div class="px-5 py-5 border-b-2 border-(--color-border)">
 			<a href="/dashboard" class="no-underline block">
@@ -56,6 +66,7 @@
 					<li>
 						<a
 							href={item.href}
+							onclick={() => (sidebarOpen = false)}
 							class="flex items-center gap-2.5 px-3 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest no-underline transition-all
 								{active
 									? 'bg-(--nav-active-bg) text-(--nav-active-fg)'
@@ -117,6 +128,15 @@
 		</div>
 	</aside>
 
+	<!-- Mobile backdrop -->
+	{#if sidebarOpen}
+		<div
+			class="fixed inset-0 z-40 bg-black/60 md:hidden"
+			onclick={() => (sidebarOpen = false)}
+			aria-hidden="true"
+		></div>
+	{/if}
+
 	<!-- Main area -->
 	<main class="flex-1 overflow-y-auto flex flex-col bg-(--color-muted)">
 		<!-- Page header -->
@@ -130,6 +150,12 @@
 						<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) mt-1">{currentPageInfo.sub}</p>
 					{/if}
 				</div>
+				<button
+					onclick={() => (sidebarOpen = !sidebarOpen)}
+					class="md:hidden border-2 border-(--color-border) px-3 py-2 font-mono text-sm leading-none text-(--color-fg) hover:bg-(--color-muted) transition-colors"
+					aria-label="Toggle navigation"
+					aria-expanded={sidebarOpen}
+				>☰</button>
 				<div class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hidden md:flex items-center gap-4">
 					<span>Secure Channel: Active</span>
 					<span class="flex items-center gap-1.5">

@@ -43,6 +43,13 @@
       "when": 1775708970485,
       "tag": "0005_next_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1775732577004,
+      "tag": "0006_large_supernaut",
+      "breakpoints": true
     }
   ]
 }

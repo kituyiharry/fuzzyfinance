@@ -84,25 +84,32 @@ export async function extractReceiptData(fileBytes, mimeType) {
 	}
 	const base64 = btoa(binary);
 
-	const result = await genAI.models.generateContent({
-        //model: 'gemini-2.0-flash',
-        model: 'gemini-3-flash-preview',
-        contents: [ 
-            SYSTEM_PROMPT, 
-	        { inlineData: { mimeType, data: base64 } },
-        ],
-		config: {
-			responseMimeType: 'application/json',
-			responseSchema: EXTRACTION_SCHEMA
+	/** @type {import('@google/genai').GenerateContentResponse} */
+	let result;
+	try {
+		result = await genAI.models.generateContent({
+			model: 'gemini-3-flash-preview',
+			contents: [
+				SYSTEM_PROMPT,
+				{ inlineData: { mimeType, data: base64 } },
+			],
+			config: {
+				responseMimeType: 'application/json',
+				responseSchema: EXTRACTION_SCHEMA
+			}
+		});
+	} catch (/** @type {any} */ err) {
+		const msg = String(err?.message ?? err);
+		if (err?.status === 429 || /429|rate.?limit|quota|resource.?exhausted/i.test(msg)) {
+			const rateLimitErr = new Error('Gemini API rate limit reached. Please wait a moment and try again.');
+			// @ts-ignore
+			rateLimitErr.code = 'RATE_LIMITED';
+			throw rateLimitErr;
 		}
-	});
-
-	// const result = await model.generateContent([
-	// 	{ inlineData: { mimeType, data: base64 } },
-	// 	SYSTEM_PROMPT
-	// ]);
+		throw err;
+	}
 
 	/** @type {ReceiptExtraction} */
-	const parsed =  result.text ? JSON.parse(result.text) : { error: "no response from model" };
+	const parsed = result.text ? JSON.parse(result.text) : { error: 'no response from model' };
 	return parsed;
 }

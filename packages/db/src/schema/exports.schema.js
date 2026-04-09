@@ -22,6 +22,9 @@ export const receiptExport = sqliteTable(
     /** The full CSV content */
     csvData: text("csv_data").notNull(),
 
+    /** JSON: string[] of receipt UUIDs included in this export */
+    receiptIds: text("receipt_ids").notNull().default('[]'),
+
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

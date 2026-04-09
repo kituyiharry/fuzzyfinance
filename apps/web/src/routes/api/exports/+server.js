@@ -108,7 +108,8 @@ export async function POST({ locals, request }) {
 		fileName,
 		receiptCount: receipts.length,
 		rowCount,
-		csvData
+		csvData,
+		receiptIds: JSON.stringify(receipts.map(r => r.id)),
 	}).returning({ id: schema.receiptExport.id });
 
 	return json({ id: exported.id, fileName, receiptCount: receipts.length, rowCount });
