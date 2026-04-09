@@ -14,7 +14,8 @@ export async function GET({ params, locals }) {
 			errorMessage: schema.receipt.errorMessage,
 			merchantName: schema.receipt.merchantName,
 			total:        schema.receipt.total,
-			currency:     schema.receipt.currency
+			currency:     schema.receipt.currency,
+			duplicateOf:  schema.receipt.duplicateOf
 		})
 		.from(schema.receipt)
 		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));

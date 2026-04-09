@@ -26,8 +26,17 @@
 	/** @type {string | null} */
 	let errorMsg = $state(null);
 
-	/** @type {{ status: string; merchantName?: string | null; total?: string | null; currency?: string | null } | null} */
+	/** @type {{ status: string; merchantName?: string | null; total?: string | null; currency?: string | null; duplicateOf?: string | null } | null} */
 	let pollData = $state(null);
+
+	/** @type {string | null} — receiptId of the file-hash match (Stage 1) */
+	let duplicateReceiptId = $state(null);
+
+	/** @type {boolean} */
+	let forceUpload = $state(false);
+
+	/** @type {string | null} — receiptId of the receipt/invoice number match (Stage 2) */
+	let semanticDuplicateId = $state(null);
 
 	/** @type {ReturnType<typeof setInterval> | null} */
 	let pollInterval = $state(null);
@@ -48,24 +57,43 @@
 		if (!selectedFile || uploadBlocked) return;
 		stage    = 'uploading';
 		errorMsg = null;
+		duplicateReceiptId  = null;
+		semanticDuplicateId = null;
 
 		const form = new FormData();
 		form.append('file', selectedFile);
+		if (forceUpload) form.append('force', 'true');
 
 		try {
 			const res = await fetch('/api/receipts', { method: 'POST', body: form });
+
+			if (res.status === 409) {
+				const body = await res.json();
+				duplicateReceiptId = body.duplicateReceiptId ?? null;
+				stage = 'idle';
+				return;
+			}
+
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({ message: res.statusText }));
 				throw new Error(body.message ?? res.statusText);
 			}
+
 			const body = await res.json();
-			receiptId = body.receiptId;
-			stage = 'processing';
+			receiptId   = body.receiptId;
+			stage       = 'processing';
+			forceUpload = false;
 			startPolling();
 		} catch (err) {
 			stage    = 'failed';
 			errorMsg = String(err);
 		}
+	}
+
+	function uploadAnyway() {
+		duplicateReceiptId = null;
+		forceUpload = true;
+		upload();
 	}
 
 	function startPolling() {
@@ -83,6 +111,7 @@
 					pollInterval = null;
 					stage = status.status === 'failed' ? 'failed' : 'complete';
 					if (status.status === 'failed') errorMsg = status.errorMessage ?? 'Processing failed';
+					if (status.duplicateOf) semanticDuplicateId = status.duplicateOf;
 				}
 			} catch {
 				// ignore transient poll errors
@@ -111,10 +140,10 @@
 	{#if data.integrationStatus === 'none'}
 		<IntegrationWarningBanner status={data.integrationStatus} />
 	{:else if data.todayCount >= data.dailyLimit}
-		<div class="border-2 border-yellow-500 bg-(--color-bg) p-4 flex flex-col gap-1">
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-1">
 			<div class="flex items-center gap-2">
-				<span class="w-2 h-2 bg-yellow-500 shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-yellow-600">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">
 					DAILY LIMIT REACHED
 				</span>
 			</div>
@@ -124,10 +153,36 @@
 		</div>
 	{:else if data.todayCount >= data.dailyLimit * 0.8}
 		<div class="border-2 border-(--color-border) bg-(--color-bg) p-3 flex items-center gap-2">
-			<span class="w-2 h-2 bg-yellow-500 shrink-0"></span>
+			<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
 			<span class="font-mono text-[10px] text-(--color-muted-foreground)">
 				{data.todayCount} / {data.dailyLimit} uploads used today
 			</span>
+		</div>
+	{/if}
+
+	{#if duplicateReceiptId && stage === 'idle'}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">FILE ALREADY UPLOADED</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				This exact file or a similar file has already been uploaded. View the existing receipt or upload anyway.
+			</p>
+			<div class="pl-4 flex gap-3 mt-1">
+				<a
+					href="/dashboard/receipts/{duplicateReceiptId}"
+					class="btn-secondary text-[10px] font-black uppercase tracking-widest no-underline inline-flex items-center px-3 py-1.5"
+				>
+					VIEW EXISTING →
+				</a>
+				<button
+					onclick={uploadAnyway}
+					class="font-mono text-[10px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) border border-dashed border-(--color-border) px-3 py-1.5 transition-colors"
+				>
+					UPLOAD ANYWAY
+				</button>
+			</div>
 		</div>
 	{/if}
 
@@ -206,7 +261,7 @@
 			{/if}
 
 			{#if stage === 'failed'}
-				<div class="mt-4 border-2 border-red-600 p-4 font-mono text-[10px] text-red-600 uppercase">
+				<div class="mt-4 border-2 border-(--color-danger-border) bg-(--color-danger-muted) p-4 font-mono text-[10px] text-(--color-danger) uppercase">
 					PROCESSING FAILED: {errorMsg}
 				</div>
 			{/if}
@@ -217,12 +272,32 @@
 						VIEW RECEIPT →
 					</button>
 					<a
-						href="/dashboard/receipts/upload"
+						href={resolve("/dashboard/receipts/upload")}
 						class="btn-secondary text-xs font-black uppercase tracking-widest no-underline inline-flex items-center px-4 py-2"
 					>
 						UPLOAD ANOTHER
 					</a>
 				</div>
+
+				{#if semanticDuplicateId}
+					<div class="mt-4 border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+						<div class="flex items-center gap-2">
+							<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+							<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">POSSIBLE DUPLICATE</span>
+						</div>
+						<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+							This receipt shares a receipt or invoice number with an existing entry.
+						</p>
+						<div class="pl-4 mt-1">
+							<a
+								href="/dashboard/receipts/{semanticDuplicateId}"
+								class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-fg) underline decoration-dotted hover:decoration-solid"
+							>
+								VIEW SUSPECTED DUPLICATE →
+							</a>
+						</div>
+					</div>
+				{/if}
 			{/if}
 		{/if}
 	</Card>

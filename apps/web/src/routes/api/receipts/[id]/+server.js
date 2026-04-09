@@ -4,7 +4,7 @@ import { schema } from '@fuzzyfinance/db';
 import { eq, and } from 'drizzle-orm';
 import { deleteReceiptVector } from '$lib/server/vectorize';
 
-const TEXT_FIELDS = ['merchantName', 'total', 'subtotal', 'tax', 'tip', 'currency', 'paymentMethod', 'category', 'notes'];
+const TEXT_FIELDS = ['merchantName', 'total', 'subtotal', 'tax', 'tip', 'currency', 'paymentMethod', 'receiptNumber', 'invoiceNumber', 'category', 'notes'];
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, locals }) {
@@ -76,7 +76,7 @@ export async function PATCH({ params, locals, request }) {
 	if (receipt.status !== 'staged') error(409, 'Only staged receipts can be edited');
 
 	const body = await request.json();
-	const { merchantName, receiptDate, total, subtotal, tax, tip, currency, paymentMethod, category, notes, lineItems = [], tags = [] } = body;
+	const { merchantName, receiptDate, total, subtotal, tax, tip, currency, paymentMethod, receiptNumber, invoiceNumber, category, notes, lineItems = [], tags = [] } = body;
 
 	// ── Compute corrected fields vs AI snapshot ─────────────────────────
 	const correctedFields = [];
@@ -141,6 +141,8 @@ export async function PATCH({ params, locals, request }) {
 		tip:            tip            || null,
 		currency:       currency       || null,
 		paymentMethod:  paymentMethod  || null,
+		receiptNumber:  receiptNumber  || null,
+		invoiceNumber:  invoiceNumber  || null,
 		category:       category       || null,
 		notes:          notes          || null,
 		tags:           JSON.stringify(Array.isArray(tags) ? tags : []),

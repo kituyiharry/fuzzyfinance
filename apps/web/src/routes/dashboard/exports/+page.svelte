@@ -53,7 +53,9 @@
 								</td>
 								<td class="py-3 pr-4">
 									<a
-										href={resolve(`/api/exports/${exp.id}/download`)}
+										href={resolve(`/api/exports/[id]/download`, {
+                                            id: exp.id
+                                        })}
 										download={exp.fileName}
 										class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) no-underline border border-(--color-border) px-3 py-1 hover:border-(--color-fg) transition-colors"
 									>
@@ -63,10 +65,7 @@
 								<td class="py-3">
 									<form method="POST" action="?/delete" use:enhance>
 										<input type="hidden" name="id" value={exp.id} />
-										<button
-											type="submit"
-											class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-muted-foreground) opacity-0 group-hover:opacity-100 hover:text-(--color-danger) transition-all"
-										>
+										<button type="submit" class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-muted-foreground) opacity-0 group-hover:opacity-100 hover:text-(--color-danger) transition-all">
 											DELETE
 										</button>
 									</form>

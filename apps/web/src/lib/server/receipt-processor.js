@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import { extractReceiptData } from '$lib/server/gemini';
 import { indexReceipt } from '$lib/server/vectorize';
 
@@ -62,6 +62,9 @@ export async function processReceipt(env, receiptId) {
 	const receiptDate = extraction.date ? new Date(extraction.date) : null;
 	const lineItemsJson = JSON.stringify(extraction.lineItems ?? []);
 
+	const receiptNum = (extraction.receiptNumber || '').trim() || null;
+	const invoiceNum = (extraction.invoiceNumber || '').trim() || null;
+
 	// Snapshot of raw AI output — used to compute correctedFields when user edits
 	const aiExtractedJson = JSON.stringify({
 		merchantName:  extraction.merchant     || null,
@@ -72,6 +75,8 @@ export async function processReceipt(env, receiptId) {
 		tip:           extraction.tip          || null,
 		currency:      extraction.currency     || null,
 		paymentMethod: extraction.paymentMethod || null,
+		receiptNumber: receiptNum,
+		invoiceNumber: invoiceNum,
 		category:      extraction.category     || null,
 		notes:         extraction.notes        || null,
 		tags:          extraction.tags         ?? [],
@@ -88,6 +93,8 @@ export async function processReceipt(env, receiptId) {
 		tip:           extraction.tip         || null,
 		currency:      extraction.currency    || null,
 		paymentMethod: extraction.paymentMethod || null,
+		receiptNumber: receiptNum,
+		invoiceNumber: invoiceNum,
 		category:      extraction.category    || null,
 		notes:         extraction.notes       || null,
 		tags:          JSON.stringify(extraction.tags ?? []),
@@ -107,6 +114,39 @@ export async function processReceipt(env, receiptId) {
 			sortOrder:   i
 		}));
 		await db.insert(schema.receiptLineItem).values(items);
+	}
+
+	// ── Step 3.5: Stage 2 — receipt identifier dedup ──────────────────
+	let duplicateOf = null;
+
+	if (receiptNum) {
+		const [rMatch] = await db
+			.select({ id: schema.receipt.id })
+			.from(schema.receipt)
+			.where(and(
+				eq(schema.receipt.userId, receipt.userId),
+				eq(schema.receipt.receiptNumber, receiptNum),
+				ne(schema.receipt.id, receiptId)
+			))
+			.limit(1);
+		if (rMatch) duplicateOf = rMatch.id;
+	}
+
+	if (!duplicateOf && invoiceNum) {
+		const [iMatch] = await db
+			.select({ id: schema.receipt.id })
+			.from(schema.receipt)
+			.where(and(
+				eq(schema.receipt.userId, receipt.userId),
+				eq(schema.receipt.invoiceNumber, invoiceNum),
+				ne(schema.receipt.id, receiptId)
+			))
+			.limit(1);
+		if (iMatch) duplicateOf = iMatch.id;
+	}
+
+	if (duplicateOf) {
+		await patch({ duplicateOf });
 	}
 
 	// ── Step 4: vectorize ──────────────────────────────────────────────

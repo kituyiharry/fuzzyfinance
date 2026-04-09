@@ -14,6 +14,8 @@ import { env } from '$env/dynamic/private';
  *   tip:           string;
  *   currency:      string;
  *   paymentMethod: string;
+ *   receiptNumber: string;
+ *   invoiceNumber: string;
  *   category:      string;
  *   notes:         string;
  *   tags:          string[];
@@ -32,6 +34,8 @@ const EXTRACTION_SCHEMA = {
 		tip:           { type: SchemaType.STRING, description: 'Tip or gratuity as a decimal string' },
 		currency:      { type: SchemaType.STRING, description: 'ISO 4217 currency code, e.g. USD, GBP' },
 		paymentMethod: { type: SchemaType.STRING, description: 'e.g. Visa, Cash, Apple Pay' },
+		receiptNumber: { type: SchemaType.STRING, description: 'Receipt number, transaction ID, confirmation code, or order number printed on the receipt. Empty string if not present.' },
+		invoiceNumber: { type: SchemaType.STRING, description: 'Invoice number or bill number if this is a formal invoice. Empty string if not present.' },
 		category:      { type: SchemaType.STRING, description: 'Business expense category, e.g. Meals, Travel, Office Supplies' },
 		notes:         { type: SchemaType.STRING, description: 'Qualitative context — what was purchased, any unusual items, business purpose' },
 		tags: {
@@ -56,7 +60,7 @@ const EXTRACTION_SCHEMA = {
 	required: ['merchant', 'date', 'total', 'currency', 'lineItems']
 };
 
-const SYSTEM_PROMPT = `You are a receipt data extraction assistant. Analyse the provided receipt image or PDF and extract all financial and contextual information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array. For tags, infer up to 5 short lowercase keyword tags that describe the nature of this expense (e.g. "business-meal", "transport", "recurring", "technology", "office-supplies", "entertainment", "refundable").`;
+const SYSTEM_PROMPT = `You are a receipt data extraction assistant. Analyse the provided receipt image or PDF and extract all financial and contextual information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array. For tags, infer up to 5 short lowercase keyword tags that describe the nature of this expense (e.g. "business-meal", "transport", "recurring", "technology", "office-supplies", "entertainment", "refundable"). For receiptNumber, extract any printed receipt number, transaction reference, confirmation code, or order number. For invoiceNumber, extract any printed invoice or bill number. Use empty strings if not visible.`;
 
 /**
  * Extracts structured receipt data from file bytes using Gemini 2.0 Flash.

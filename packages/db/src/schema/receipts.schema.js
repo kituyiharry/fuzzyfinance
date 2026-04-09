@@ -64,6 +64,12 @@ export const receipt = sqliteTable(
     // JSON string[] of AI-inferred keyword tags, e.g. '["business-meal","transport"]'
     tags: text("tags"),
 
+    // Duplicate detection
+    fileHash:      text("file_hash"),      // SHA-256 hex of raw uploaded file bytes
+    receiptNumber: text("receipt_number"), // e.g. "RCP-1234", "TXN-5678"
+    invoiceNumber: text("invoice_number"), // e.g. "INV-2024-001"
+    duplicateOf:   text("duplicate_of"),   // receipt.id of suspected duplicate (soft ref)
+
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
@@ -77,6 +83,8 @@ export const receipt = sqliteTable(
     index("receipt_status_idx").on(table.status),
     index("receipt_userId_receiptDate_idx").on(table.userId, table.receiptDate),
     index("receipt_userId_createdAt_idx").on(table.userId, table.createdAt),
+    index("receipt_userId_fileHash_idx").on(table.userId, table.fileHash),
+    index("receipt_userId_receiptNumber_idx").on(table.userId, table.receiptNumber),
   ]
 );
 

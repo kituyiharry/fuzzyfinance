@@ -32,6 +32,8 @@
 		tip:           '',
 		currency:      '',
 		paymentMethod: '',
+		receiptNumber: '',
+		invoiceNumber: '',
 		category:      '',
 		notes:         '',
 		/** Comma-separated tags string — transformed to array before PATCH */
@@ -50,6 +52,8 @@
 		form.tip           = receipt.tip           ?? '';
 		form.currency      = receipt.currency      ?? '';
 		form.paymentMethod = receipt.paymentMethod ?? '';
+		form.receiptNumber = receipt.receiptNumber ?? '';
+		form.invoiceNumber = receipt.invoiceNumber ?? '';
 		form.category      = receipt.category      ?? '';
 		form.notes         = receipt.notes         ?? '';
 		form.tags          = (() => { try { return JSON.parse(receipt.tags ?? '[]').join(', '); } catch { return ''; } })();
@@ -213,6 +217,26 @@
 		</div>
 	{/if}
 
+	{#if receipt.duplicateOf}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">POSSIBLE DUPLICATE RECEIPT</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				This receipt may be a duplicate — it shares a receipt or invoice number with an existing entry.
+			</p>
+			<div class="pl-4 mt-1">
+				<a
+					href="/dashboard/receipts/{receipt.duplicateOf}"
+					class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-fg) underline decoration-dotted hover:decoration-solid"
+				>
+					VIEW SUSPECTED DUPLICATE →
+				</a>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Main fields -->
 	<Card title={editing ? 'Edit Receipt' : (receipt.merchantName ?? 'Receipt')}>
 		{#if editing && receipt.status === 'staged'}
@@ -225,6 +249,8 @@
 					{ key: 'tip',           label: 'TIP' },
 					{ key: 'currency',      label: 'CURRENCY' },
 					{ key: 'paymentMethod', label: 'PAYMENT METHOD' },
+					{ key: 'receiptNumber', label: 'RECEIPT NO.' },
+					{ key: 'invoiceNumber', label: 'INVOICE NO.' },
 					{ key: 'category',      label: 'CATEGORY' }
 				] as field (field.key)}
 					<div class="flex flex-col gap-1">
@@ -277,6 +303,8 @@
 					['TIP',             receipt.tip],
 					['CURRENCY',        receipt.currency],
 					['PAYMENT METHOD',  receipt.paymentMethod],
+					['RECEIPT NO.',     receipt.receiptNumber],
+					['INVOICE NO.',     receipt.invoiceNumber],
 					['CATEGORY',        receipt.category]
 				] as [label, value] (label)}
 					<div class="flex flex-col gap-1">

@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, ne, sql } from 'drizzle-orm';
 import { processReceipt } from '$lib/server/receipt-processor';
 
 const DAILY_LIMIT = 30;
@@ -60,8 +60,53 @@ export async function POST({ request, locals, platform }) {
 	const receiptId = crypto.randomUUID();
 	const r2Key = `receipts/${locals.user.id}/${receiptId}/${file.name}`;
 
-	// Write to R2 transit buffer
+	// Read bytes once — used for both hash and R2 upload
 	const bytes = await file.arrayBuffer();
+
+	// Compute SHA-256 for duplicate detection
+	const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+	const hashArray  = Array.from(new Uint8Array(hashBuffer));
+	const fileHash   = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+	// Stage 1 dedup — skip if user explicitly forces the upload
+	const force = formData.get('force') === 'true';
+	if (!force) {
+		const [existing] = await db
+			.select({ id: schema.receipt.id })
+			.from(schema.receipt)
+			.where(and(
+				eq(schema.receipt.userId, locals.user.id),
+				eq(schema.receipt.fileHash, fileHash),
+				ne(schema.receipt.status, 'failed')
+			))
+			.limit(1);
+
+		if (existing) {
+			return json(
+				{ error: 'duplicate', duplicateReceiptId: existing.id },
+				{ status: 409 }
+			);
+		}
+
+        // check for similar file names
+		const [similar] = await db
+			.select({ id: schema.receipt.id })
+			.from(schema.receipt)
+			.where(
+				eq(schema.receipt.rawFileName, file.name),
+			)
+			.limit(1);
+
+		if (similar) {
+			return json(
+				{ error: 'duplicate', duplicateReceiptId: similar.id },
+				{ status: 409 }
+			);
+		}
+
+	}
+
+	// Write to R2 transit buffer
 	await platform.env.fuzzyfinance_receipts.put(r2Key, bytes, {
 		httpMetadata: { contentType: file.type }
 	});
@@ -74,7 +119,8 @@ export async function POST({ request, locals, platform }) {
 		r2Key,
 		rawFileName:  file.name,
 		rawMimeType:  file.type,
-		rawSizeBytes: file.size
+		rawSizeBytes: file.size,
+		fileHash
 	});
 
 	// Kick off background processing — returns 202 immediately
