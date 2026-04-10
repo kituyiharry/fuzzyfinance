@@ -1,6 +1,7 @@
 <script>
 	import { authClient } from '$lib/auth-client';
 	import { page } from '$app/stores';
+    import logo from '$lib/images/fuzzyfin.png';
 
 	/** @type {{children: import('svelte').Snippet}} */
 	let { children } = $props();
@@ -51,9 +52,10 @@
 	<aside class="flex-col border-r-2 border-(--color-border) bg-(--color-bg) shrink-0
 		{sidebarOpen ? 'fixed inset-y-0 left-0 z-50 flex w-72' : 'hidden md:flex md:w-56 md:relative md:shrink-0'}">
 		<!-- Brand -->
-		<div class="px-5 py-5 border-b-2 border-(--color-border)">
+		<div style="background-image: url({logo}); background-size: 40%; background-repeat: no-repeat; background-position: right;"  
+            class="px-5 py-5 border-b-2 border-(--color-border)">
 			<a href="/dashboard" class="no-underline block">
-				<p class="font-black text-base uppercase tracking-tighter text-(--color-fg) leading-none">FuzzyFinance</p>
+                <p class="font-black text-base uppercase tracking-tighter text-(--color-fg) leading-none">FuzzyFinance</p>
                 <p class="font-mono text-[6px] uppercase tracking-[0.2em] text-(--color-muted-foreground) mt-0.5">v1.0 </p>
 			</a>
 		</div>

@@ -1,5 +1,6 @@
 <script>
 	import { authClient } from '$lib/auth-client';
+    import logo from '$lib/images/fuzzyfin.png';
 
 	let loading = $state(false);
 
@@ -72,7 +73,7 @@
 	</div>
 
 	<!-- Right panel: auth -->
-	<div class="flex-1 flex flex-col items-center justify-center p-8 lg:p-16">
+	<div style="background-image: url({logo}); background-size: cover; background-repeat: no-repeat; background-position: center; " class="flex-1 flex flex-col items-center justify-center p-8 lg:p-16">
 
 		<!-- Mobile wordmark -->
 		<div class="lg:hidden mb-10 text-center">
@@ -80,7 +81,7 @@
 			<p class="font-mono text-[10px] uppercase tracking-widest text-(--color-muted-foreground) mt-1">Financial Operations Platform</p>
 		</div>
 
-		<div class="w-full max-w-sm">
+		<div class="w-full max-w-sm" >
 			<!-- Auth card -->
 			<div class="border-4 border-(--color-border) bg-(--color-bg) p-8 shadow-[8px_8px_0px_0px_var(--card-shadow)]">
 
