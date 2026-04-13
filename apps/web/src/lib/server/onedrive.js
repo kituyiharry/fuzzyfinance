@@ -1,9 +1,21 @@
 const GRAPH = 'https://graph.microsoft.com/v1.0/me';
-const FOLDER_NAME  = 'FuzzyFinance Receipts';
+const FETCH_TIMEOUT_MS = 25_000;
+/** @param {string} url @param {RequestInit} [init] */
+const tfetch = (url, init) => fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), ...init });
+const FOLDER_NAME       = 'FuzzyFinance Receipts';
+const SALES_FOLDER_NAME = 'FuzzyFinance Sales';
 
 const HEADERS = [
 	'Receipt ID', 'Merchant', 'Date', 'Total', 'Subtotal',
 	'Tax', 'Tip', 'Currency', 'Payment Method', 'Category', 'Notes', 'Tags',
+	'OneDrive File ID', 'File Name', 'Uploaded At'
+];
+
+const SALES_HEADERS = [
+	'Sale ID', 'Date', 'Document Title', 'Category',
+	'Total Revenue', 'Total Cost', 'Total Margin', 'Currency', 'Notes', 'Tags',
+	'Item Description', 'Item Type', 'Units Sold', 'Buy Price', 'Sell Price',
+	'Margin %', 'Item Total', 'Item Total Cost',
 	'OneDrive File ID', 'File Name', 'Uploaded At'
 ];
 
@@ -15,7 +27,7 @@ const HEADERS = [
  */
 export async function ensureReceiptFolder(accessToken) {
 	// Try to get folder by path
-	const res = await fetch(
+	const res = await tfetch(
 		`${GRAPH}/drive/root:/${FOLDER_NAME}`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
@@ -26,7 +38,7 @@ export async function ensureReceiptFolder(accessToken) {
 	}
 
 	// Create folder in root
-	const createRes = await fetch(`${GRAPH}/drive/root/children`, {
+	const createRes = await tfetch(`${GRAPH}/drive/root/children`, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
@@ -49,7 +61,7 @@ export async function ensureReceiptFolder(accessToken) {
  * @returns {Promise<string>} folder item ID
  */
 async function ensureSubfolder(accessToken, parentId, name) {
-	const res = await fetch(
+	const res = await tfetch(
 		`${GRAPH}/drive/items/${parentId}/children?$filter=name eq '${encodeURIComponent(name)}' and folder ne null`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
@@ -58,14 +70,14 @@ async function ensureSubfolder(accessToken, parentId, name) {
 		if (data.value?.length > 0) return data.value[0].id;
 	}
 
-	const createRes = await fetch(`${GRAPH}/drive/items/${parentId}/children`, {
+	const createRes = await tfetch(`${GRAPH}/drive/items/${parentId}/children`, {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ name, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
 	});
 	// 409 means folder already exists — fetch it
 	if (createRes.status === 409) {
-		const retry = await fetch(
+		const retry = await tfetch(
 			`${GRAPH}/drive/items/${parentId}:/${encodeURIComponent(name)}`,
 			{ headers: { Authorization: `Bearer ${accessToken}` } }
 		);
@@ -104,7 +116,7 @@ export async function ensureMonthFolder(accessToken, rootFolderId, year, month) 
  * @returns {Promise<string>} OneDrive item ID
  */
 export async function uploadFileToOneDrive(accessToken, folderId, fileName, mimeType, bytes) {
-	const res = await fetch(
+	const res = await tfetch(
 		`${GRAPH}/drive/items/${folderId}:/${encodeURIComponent(fileName)}:/content`,
 		{
 			method: 'PUT',
@@ -133,7 +145,7 @@ export async function ensureLedgerWorkbook(accessToken, folderId, year) {
 	const workbookName = `FuzzyFinance Ledger ${year}.xlsx`;
 
 	// Try to get workbook by path inside the folder
-	const res = await fetch(
+	const res = await tfetch(
 		`${GRAPH}/drive/items/${folderId}:/${encodeURIComponent(workbookName)}`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
@@ -146,7 +158,7 @@ export async function ensureLedgerWorkbook(accessToken, folderId, year) {
 	// Create a minimal xlsx (Excel requires a real xlsx binary; use the Graph API
 	// to create an empty workbook by uploading an empty xlsx stub)
 	const emptyXlsx = _emptyXlsx();
-	const createRes = await fetch(
+	const createRes = await tfetch(
 		`${GRAPH}/drive/items/${folderId}:/${encodeURIComponent(workbookName)}:/content`,
 		{
 			method: 'PUT',
@@ -175,7 +187,7 @@ export async function ensureLedgerWorkbook(accessToken, folderId, year) {
  */
 export async function ensureMonthWorksheet(accessToken, workbookId, monthName) {
 	// List existing worksheets
-	const listRes = await fetch(
+	const listRes = await tfetch(
 		`${GRAPH}/drive/items/${workbookId}/workbook/worksheets`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
@@ -185,7 +197,7 @@ export async function ensureMonthWorksheet(accessToken, workbookId, monthName) {
 	const exists = sheets.some(/** @param {any} s */ s => s.name === monthName);
 
 	if (!exists) {
-		const addRes = await fetch(
+		const addRes = await tfetch(
 			`${GRAPH}/drive/items/${workbookId}/workbook/worksheets`,
 			{
 				method: 'POST',
@@ -211,7 +223,7 @@ export async function ensureMonthWorksheet(accessToken, workbookId, monthName) {
  */
 export async function appendReceiptRowExcel(accessToken, workbookId, monthName, receipt) {
 	// Determine next empty row by reading used range of the month worksheet
-	const rangeRes = await fetch(
+	const rangeRes = await tfetch(
 		`${GRAPH}/drive/items/${workbookId}/workbook/worksheets('${monthName}')/usedRange(valuesOnly=true)`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
@@ -254,7 +266,7 @@ export async function appendReceiptRowExcel(accessToken, workbookId, monthName, 
  * @param {string[]} values
  */
 async function _writeRow(accessToken, workbookId, sheetName, address, values) {
-	const res = await fetch(
+	const res = await tfetch(
 		`${GRAPH}/drive/items/${workbookId}/workbook/worksheets('${sheetName}')/range(address='${address}')`,
 		{
 			method: 'PATCH',
@@ -266,6 +278,160 @@ async function _writeRow(accessToken, workbookId, sheetName, address, values) {
 		}
 	);
 	if (!res.ok) throw new Error(`Excel write failed (${address}): ${await res.text()}`);
+}
+
+// ── Sales ─────────────────────────────────────────────────────────────────
+
+/**
+ * Finds or creates the FuzzyFinance Sales folder in the user's OneDrive root.
+ *
+ * @param {string} accessToken
+ * @returns {Promise<string>} folder item ID
+ */
+export async function ensureSalesFolder(accessToken) {
+	const res = await tfetch(
+		`${GRAPH}/drive/root:/${SALES_FOLDER_NAME}`,
+		{ headers: { Authorization: `Bearer ${accessToken}` } }
+	);
+	if (res.ok) {
+		const item = await res.json();
+		return item.id;
+	}
+	const createRes = await tfetch(`${GRAPH}/drive/root/children`, {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name: SALES_FOLDER_NAME, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+	});
+	if (!createRes.ok) throw new Error(`OneDrive sales folder creation failed: ${await createRes.text()}`);
+	const folder = await createRes.json();
+	return folder.id;
+}
+
+/**
+ * Finds or creates the year-specific FuzzyFinance Sales Ledger workbook.
+ *
+ * @param {string} accessToken
+ * @param {string} folderId
+ * @param {number} year
+ * @returns {Promise<string>} workbook item ID
+ */
+export async function ensureSalesLedgerWorkbook(accessToken, folderId, year) {
+	const workbookName = `FuzzyFinance Sales Ledger ${year}.xlsx`;
+	const res = await tfetch(
+		`${GRAPH}/drive/items/${folderId}:/${encodeURIComponent(workbookName)}`,
+		{ headers: { Authorization: `Bearer ${accessToken}` } }
+	);
+	if (res.ok) {
+		const item = await res.json();
+		return item.id;
+	}
+	const emptyXlsx = _emptyXlsx();
+	const createRes = await tfetch(
+		`${GRAPH}/drive/items/${folderId}:/${encodeURIComponent(workbookName)}:/content`,
+		{
+			method: 'PUT',
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+				'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+			},
+			body: emptyXlsx
+		}
+	);
+	if (!createRes.ok) throw new Error(`Sales workbook creation failed: ${await createRes.text()}`);
+	const workbook = await createRes.json();
+	return workbook.id;
+}
+
+/**
+ * Finds or creates a worksheet tab named `monthName` in the sales workbook.
+ * Writes SALES_HEADERS on creation.
+ *
+ * @param {string} accessToken
+ * @param {string} workbookId
+ * @param {string} monthName — e.g. 'January'
+ * @returns {Promise<void>}
+ */
+export async function ensureSalesMonthWorksheet(accessToken, workbookId, monthName) {
+	const listRes = await tfetch(
+		`${GRAPH}/drive/items/${workbookId}/workbook/worksheets`,
+		{ headers: { Authorization: `Bearer ${accessToken}` } }
+	);
+	if (!listRes.ok) throw new Error(`Sales worksheet list failed: ${await listRes.text()}`);
+
+	const { value: sheets } = await listRes.json();
+	const exists = sheets.some(/** @param {any} s */ s => s.name === monthName);
+
+	if (!exists) {
+		const addRes = await tfetch(
+			`${GRAPH}/drive/items/${workbookId}/workbook/worksheets`,
+			{
+				method: 'POST',
+				headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: monthName })
+			}
+		);
+		if (!addRes.ok) throw new Error(`Add sales worksheet failed: ${await addRes.text()}`);
+		await _writeRow(accessToken, workbookId, monthName, 'A1', SALES_HEADERS);
+	}
+}
+
+/**
+ * Appends one row per line item (or a summary row) to the sales worksheet.
+ *
+ * @param {string} accessToken
+ * @param {string} workbookId
+ * @param {string} monthName — e.g. 'January'
+ * @param {import('@fuzzyfinance/db').schema.sale.$inferSelect} sale
+ * @returns {Promise<void>}
+ */
+export async function appendSaleRowExcel(accessToken, workbookId, monthName, sale) {
+	const rangeRes = await tfetch(
+		`${GRAPH}/drive/items/${workbookId}/workbook/worksheets('${monthName}')/usedRange(valuesOnly=true)`,
+		{ headers: { Authorization: `Bearer ${accessToken}` } }
+	);
+	let nextRow = 2;
+	if (rangeRes.ok) {
+		const range = await rangeRes.json();
+		nextRow = (range.rowCount ?? 1) + 1;
+	}
+
+	const tags = (() => { try { return JSON.parse(sale.tags ?? '[]'); } catch { return []; } })();
+	const lineItems = (() => { try { return JSON.parse(sale.lineItemsJson ?? '[]'); } catch { return []; } })();
+	const dateStr = sale.saleDate ? new Date(sale.saleDate).toISOString().slice(0, 10) : '';
+	const uploadedAt = new Date().toISOString();
+
+	/** @param {any} li */
+	const buildRow = (li) => [
+		sale.id,
+		dateStr,
+		sale.documentTitle ?? '',
+		sale.category      ?? '',
+		sale.totalRevenue  ?? '',
+		sale.totalCost     ?? '',
+		sale.totalMargin   ?? '',
+		sale.currency      ?? '',
+		sale.notes         ?? '',
+		tags.join(', '),
+		li?.description ?? '',
+		li?.type        ?? '',
+		li?.unitsSold   ?? '',
+		li?.buyPrice    ?? '',
+		li?.sellPrice   ?? '',
+		li?.margin      ?? '',
+		li?.total       ?? '',
+		li?.totalCost   ?? '',
+		sale.driveFileId ?? '',
+		sale.rawFileName ?? '',
+		uploadedAt
+	];
+
+	const rows = lineItems.length > 0 ? lineItems.map(buildRow) : [buildRow(null)];
+
+	for (let i = 0; i < rows.length; i++) {
+		const colEnd = String.fromCharCode(65 + rows[i].length - 1);
+		const row = nextRow + i;
+		await _writeRow(accessToken, workbookId, monthName, `A${row}:${colEnd}${row}`, rows[i]);
+	}
 }
 
 /**

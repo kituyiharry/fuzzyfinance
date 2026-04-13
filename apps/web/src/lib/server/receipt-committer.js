@@ -84,31 +84,36 @@ export async function commitReceipt(env, receiptId) {
 				const rootFolderId = meta.folderId ?? await driveFolder(accessToken);
 				const uploadFolderId = await driveMonthFolder(accessToken, rootFolderId, year, month);
 
-				const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
-				const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
-				const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
-				driveFileId = await uploadFileToDrive(
-					accessToken, uploadFolderId, fileName,
-					receipt.rawMimeType ?? 'application/octet-stream', fileBytes
-				);
+				// Idempotent: skip Drive upload if already committed to this provider
+				if (receipt.driveFileId && receipt.driveProvider === 'google') {
+					driveFileId = receipt.driveFileId;
+				} else {
+					const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
+					const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
+					const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
+					driveFileId = await uploadFileToDrive(
+						accessToken, uploadFolderId, fileName,
+						receipt.rawMimeType ?? 'application/octet-stream', fileBytes
+					);
+					await patch({ driveFileId, driveProvider: 'google' });
+				}
 
-				await patch({ driveFileId, driveProvider: 'google' });
+				// Idempotent: skip Sheets append if already done
+				if (!receipt.sheetId || receipt.sheetProvider !== 'google') {
+					const ledgerFileId = await ensureLedgerSheet(accessToken, rootFolderId, year);
+					await ensureMonthTab(accessToken, ledgerFileId, monthName);
+					await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
 
-				// Resolve year ledger + month tab
-				const ledgerFileId = await ensureLedgerSheet(accessToken, rootFolderId, year);
-				await ensureMonthTab(accessToken, ledgerFileId, monthName);
-
-				await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
-
-				const [receiptWithDriveId] = await db
-					.select()
-					.from(schema.receipt)
-					.where(eq(schema.receipt.id, receiptId));
-				await appendReceiptRow(accessToken, ledgerFileId, monthName, receiptWithDriveId);
+					const [receiptWithDriveId] = await db
+						.select()
+						.from(schema.receipt)
+						.where(eq(schema.receipt.id, receiptId));
+					await appendReceiptRow(accessToken, ledgerFileId, monthName, receiptWithDriveId);
+				}
 
 				if (!meta.folderId) {
 					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ folderId: rootFolderId }) })
+						.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
 						.where(eq(schema.integration.id, integration.id));
 				}
 			} catch (err) {
@@ -122,31 +127,36 @@ export async function commitReceipt(env, receiptId) {
 				const rootFolderId = meta.folderId ?? await oneDriveFolder(accessToken);
 				const uploadFolderId = await oneDriveMonthFolder(accessToken, rootFolderId, year, month);
 
-				const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
-				const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
-				const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
-				driveFileId = await uploadFileToOneDrive(
-					accessToken, uploadFolderId, fileName,
-					receipt.rawMimeType ?? 'application/octet-stream', fileBytes
-				);
+				// Idempotent: skip OneDrive upload if already committed to this provider
+				if (receipt.driveFileId && receipt.driveProvider === 'microsoft') {
+					driveFileId = receipt.driveFileId;
+				} else {
+					const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
+					const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
+					const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
+					driveFileId = await uploadFileToOneDrive(
+						accessToken, uploadFolderId, fileName,
+						receipt.rawMimeType ?? 'application/octet-stream', fileBytes
+					);
+					await patch({ driveFileId, driveProvider: 'microsoft' });
+				}
 
-				await patch({ driveFileId, driveProvider: 'microsoft' });
+				// Idempotent: skip Excel append if already done
+				if (!receipt.sheetId || receipt.sheetProvider !== 'microsoft') {
+					const workbookId = await ensureLedgerWorkbook(accessToken, rootFolderId, year);
+					await ensureMonthWorksheet(accessToken, workbookId, monthName);
+					await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
 
-				// Resolve year workbook + month worksheet
-				const workbookId = await ensureLedgerWorkbook(accessToken, rootFolderId, year);
-				await ensureMonthWorksheet(accessToken, workbookId, monthName);
-
-				await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
-
-				const [receiptWithDriveId] = await db
-					.select()
-					.from(schema.receipt)
-					.where(eq(schema.receipt.id, receiptId));
-				await appendReceiptRowExcel(accessToken, workbookId, monthName, receiptWithDriveId);
+					const [receiptWithDriveId] = await db
+						.select()
+						.from(schema.receipt)
+						.where(eq(schema.receipt.id, receiptId));
+					await appendReceiptRowExcel(accessToken, workbookId, monthName, receiptWithDriveId);
+				}
 
 				if (!meta.folderId) {
 					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ folderId: rootFolderId }) })
+						.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
 						.where(eq(schema.integration.id, integration.id));
 				}
 			} catch (err) {

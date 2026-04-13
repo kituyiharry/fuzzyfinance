@@ -217,6 +217,21 @@
 		</div>
 	{/if}
 
+	{#if receipt.errorMessage?.startsWith('NOT_RELEVANT:')}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A RECEIPT</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				{receipt.errorMessage.replace('NOT_RELEVANT:', '').trim()}
+			</p>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				Please upload a receipt, invoice, bill, or similar expense document.
+			</p>
+		</div>
+	{/if}
+
 	{#if receipt.duplicateOf}
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">

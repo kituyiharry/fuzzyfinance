@@ -24,6 +24,7 @@
 	const NAV = [
 		{ href: '/dashboard',                   label: 'Overview',       /** @param {string} p */ match: (p) => p === '/dashboard' },
 		{ href: '/dashboard/receipts',          label: 'Receipts',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
+		{ href: '/dashboard/sales',             label: 'Sales',          /** @param {string} p */ match: (p) => p.startsWith('/dashboard/sales') },
 		{ href: '/dashboard/exports',           label: 'Exports',        /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
 		{ href: '/dashboard/conversations',     label: 'Conversations',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/conversations') },
 		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
@@ -34,6 +35,7 @@
 	const PAGE_TITLES = {
 		'/dashboard':                   { title: 'Overview',       sub: 'Financial control centre' },
 		'/dashboard/receipts':          { title: 'Receipts',       sub: 'Manage and review receipts' },
+		'/dashboard/sales':             { title: 'Sales',          sub: 'Track sales and revenue documents' },
 		'/dashboard/exports':           { title: 'Exports',        sub: 'Download CSV reports' },
 		'/dashboard/conversations':     { title: 'Conversations',  sub: 'Saved query sessions' },
 		'/dashboard/integrations':      { title: 'Integrations',   sub: 'Cloud workspace connections' },
@@ -73,8 +75,7 @@
 								{active
 									? 'bg-(--nav-active-bg) text-(--nav-active-fg)'
 									: 'text-(--color-muted-foreground) hover:bg-(--color-muted) hover:text-(--color-fg)'}"
-							aria-current={active ? 'page' : undefined}
-						>
+							aria-current={active ? 'page' : undefined}>
 							<span class="w-1.5 h-1.5 shrink-0 {active ? 'bg-(--nav-active-fg)' : 'border border-(--color-border-subtle)'}"></span>
 							{item.label}
 						</a>

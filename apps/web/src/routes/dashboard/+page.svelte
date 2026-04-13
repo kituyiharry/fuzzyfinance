@@ -15,9 +15,16 @@
 		return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 	}
 
-	const limitPct = $derived(Math.min(100, Math.round((data.todayCount / data.dailyLimit) * 100)));
-	const limitNearOrReached = $derived(data.todayCount >= data.dailyLimit * 0.8);
-	const limitReached       = $derived(data.todayCount >= data.dailyLimit);
+	const receiptLimitPct        = $derived(Math.min(100, Math.round((data.todayCount / data.dailyLimit) * 100)));
+	const receiptLimitNearOrReached = $derived(data.todayCount >= data.dailyLimit * 0.8);
+	const receiptLimitReached    = $derived(data.todayCount >= data.dailyLimit);
+
+	const salesLimitPct          = $derived(Math.min(100, Math.round((data.salesTodayCount / data.dailyLimit) * 100)));
+	const salesLimitNearOrReached = $derived(data.salesTodayCount >= data.dailyLimit * 0.8);
+	const salesLimitReached      = $derived(data.salesTodayCount >= data.dailyLimit);
+
+	const combinedSuccessCount = $derived(data.successCount + data.salesSuccessCount);
+	const combinedFailedCount  = $derived(data.failedCount + data.salesFailedCount);
 
 	// ── Query interface ──────────────────────────────────────────────────────
 	/** @type {Array<{ role: 'user' | 'assistant'; content: string }>} */
@@ -76,7 +83,6 @@
 			messages = [...messages, { role: 'assistant', content: 'Failed to reach the query service. Please try again.' }];
 		} finally {
 			querying = false;
-			// Scroll bubbles to bottom
 			setTimeout(() => { if (bubblesEl) bubblesEl.scrollTop = bubblesEl.scrollHeight; }, 50);
 		}
 	}
@@ -138,7 +144,7 @@
 			<div class="flex items-center gap-2">
 				<span class="w-1.5 h-1.5 bg-(--color-fg) shrink-0"></span>
 				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-fg)">
-					Query your receipts
+					Query your documents
 				</span>
 			</div>
 			{#if hasMessages}
@@ -223,7 +229,7 @@
 				bind:value={queryInput}
 				onkeydown={handleKeydown}
 				rows={2}
-				placeholder="Ask anything about your receipts — e.g. 'How much did I spend at coffee shops last month?'"
+				placeholder="Ask anything about your receipts or sales — e.g. 'How much revenue did I generate last month?'"
 				class="flex-1 resize-none border-2 border-(--color-border) border-r-0 bg-(--color-bg) text-(--color-fg) font-mono text-[11px] px-4 py-3 placeholder:text-(--color-muted-foreground) focus:outline-none focus:border-(--color-fg) transition-colors"
 				disabled={querying}
 			></textarea>
@@ -245,45 +251,65 @@
 	<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 		<MetricCard
 			label="Completed"
-			value={data.successCount}
-			sublabel="receipts synced"
-			accent={data.successCount > 0}
+			value={combinedSuccessCount}
+			sublabel="documents synced"
+			accent={combinedSuccessCount > 0}
 		/>
 		<MetricCard
 			label="Failed"
-			value={data.failedCount}
-			sublabel={data.failedCount === 0 ? 'no errors' : 'need attention'}
+			value={combinedFailedCount}
+			sublabel={combinedFailedCount === 0 ? 'no errors' : 'need attention'}
 		/>
 		<MetricCard
 			label="Storage Used"
 			value={formatBytes(data.totalStorageBytes)}
-			sublabel="across all uploads"
+			sublabel="receipts + sales"
 		/>
 
-		<!-- Daily limit card — uses semantic warning tokens instead of hardcoded yellow -->
-		<div class="border-2 {limitNearOrReached ? 'border-(--color-warning-border)' : 'border-(--color-border)'} p-5 flex flex-col gap-2 bg-(--color-bg)">
+		<!-- Daily uploads card — two progress bars (receipts / sales) -->
+		<div class="border-2 border-(--color-border) p-5 flex flex-col gap-3 bg-(--color-bg)">
 			<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold leading-none">
 				Today's Uploads
 			</span>
-			<span class="font-black text-3xl tracking-tight leading-none tabular-nums {limitNearOrReached ? 'text-(--color-warning)' : 'text-(--color-fg)'}" style="font-family: var(--font-mono)">
-				{data.todayCount}<span class="text-lg font-bold text-(--color-muted-foreground)"> / {data.dailyLimit}</span>
-			</span>
-			<div class="w-full h-1 bg-(--color-muted) mt-1">
-				<div
-					class="h-1 transition-all {limitReached ? 'bg-(--color-danger-border)' : limitNearOrReached ? 'bg-(--color-warning-border)' : 'bg-(--color-fg)'}"
-					style="width: {limitPct}%"
-				></div>
+
+			<!-- Receipts row -->
+			<div class="flex flex-col gap-1">
+				<div class="flex items-center justify-between">
+					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">Receipts</span>
+					<span class="font-mono text-[9px] font-black {receiptLimitNearOrReached ? 'text-(--color-warning)' : 'text-(--color-fg)'}">
+						{data.todayCount} / {data.dailyLimit}
+					</span>
+				</div>
+				<div class="w-full h-1 bg-(--color-muted)">
+					<div
+						class="h-1 transition-all {receiptLimitReached ? 'bg-(--color-danger-border)' : receiptLimitNearOrReached ? 'bg-(--color-warning-border)' : 'bg-(--color-fg)'}"
+						style="width: {receiptLimitPct}%"
+					></div>
+				</div>
 			</div>
-			<span class="font-mono text-[10px] text-(--color-muted-foreground)">
-				{limitReached ? 'Limit reached — resets midnight UTC' : `${data.dailyLimit - data.todayCount} remaining today`}
-			</span>
+
+			<!-- Sales row -->
+			<div class="flex flex-col gap-1">
+				<div class="flex items-center justify-between">
+					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">Sales</span>
+					<span class="font-mono text-[9px] font-black {salesLimitNearOrReached ? 'text-(--color-warning)' : 'text-(--color-fg)'}">
+						{data.salesTodayCount} / {data.dailyLimit}
+					</span>
+				</div>
+				<div class="w-full h-1 bg-(--color-muted)">
+					<div
+						class="h-1 transition-all {salesLimitReached ? 'bg-(--color-danger-border)' : salesLimitNearOrReached ? 'bg-(--color-warning-border)' : 'bg-(--color-fg)'}"
+						style="width: {salesLimitPct}%"
+					></div>
+				</div>
+			</div>
 		</div>
 	</div>
 
-	<!-- Staging panel — only shown when relevant -->
+	<!-- Receipt staging panel -->
 	{#if data.stagedCount > 0 || data.editedCount > 0}
 		<div>
-			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Pending Review</p>
+			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Receipts — Pending Review</p>
 			<div class="grid grid-cols-3 gap-3">
 				<MetricCard label="Staged"    value={data.stagedCount}    sublabel="awaiting review"     accent={data.stagedCount > 0} />
 				<MetricCard label="Edited"    value={data.editedCount}    sublabel="AI corrections made" />
@@ -292,14 +318,42 @@
 		</div>
 	{/if}
 
+	<!-- Sales staging panel -->
+	{#if data.salesStagedCount > 0 || data.salesEditedCount > 0}
+		<div>
+			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Sales — Pending Review</p>
+			<div class="grid grid-cols-3 gap-3">
+				<MetricCard label="Staged"    value={data.salesStagedCount}    sublabel="awaiting review"     accent={data.salesStagedCount > 0} />
+				<MetricCard label="Edited"    value={data.salesEditedCount}    sublabel="AI corrections made" />
+				<MetricCard label="Committed" value={data.salesSuccessCount}   sublabel="synced to cloud"     accent={data.salesSuccessCount > 0} />
+			</div>
+		</div>
+	{/if}
+
 	<!-- Spending charts -->
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-		<Card title="Spending by Receipt Date">
-			<SpendingChart data={data.spendingByReceiptDate} label="Amount (receipt date)" />
-		</Card>
-		<Card title="Spending by Upload Date">
-			<SpendingChart data={data.spendingByProcessingDate} label="Amount (uploaded)" />
-		</Card>
+	<div>
+		<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Spending — Receipts</p>
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+			<Card title="Spending by Receipt Date">
+				<SpendingChart data={data.spendingByReceiptDate} label="Amount (receipt date)" />
+			</Card>
+			<Card title="Spending by Upload Date">
+				<SpendingChart data={data.spendingByProcessingDate} label="Amount (uploaded)" />
+			</Card>
+		</div>
+	</div>
+
+	<!-- Revenue charts -->
+	<div>
+		<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Revenue — Sales</p>
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+			<Card title="Revenue by Sale Date">
+				<SpendingChart data={data.revenueByDate} label="Revenue (sale date)" />
+			</Card>
+			<Card title="Revenue by Upload Date">
+				<SpendingChart data={data.revenueByProcessingDate} label="Revenue (uploaded)" />
+			</Card>
+		</div>
 	</div>
 
 	<!-- Quick actions -->
@@ -315,7 +369,7 @@
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
 				{data.integrationStatus === 'none'
 					? 'Connect an integration first'
-					: limitReached
+					: receiptLimitReached
 						? 'Daily limit reached'
 						: `${data.dailyLimit - data.todayCount} uploads remaining today`}
 			</p>
@@ -330,6 +384,35 @@
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
 				{data.successCount} committed · {data.stagedCount} staged · {data.failedCount} failed
+			</p>
+		</a>
+
+		<a
+			href="/dashboard/sales/upload"
+			class="border-2 border-(--color-border) p-5 no-underline group transition-all hover:border-(--color-fg) hover:shadow-(--shadow-sm)
+				{data.integrationStatus === 'none' ? 'opacity-50 pointer-events-none' : ''}"
+		>
+			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg)">
+				Upload Sale →
+			</p>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
+				{data.integrationStatus === 'none'
+					? 'Connect an integration first'
+					: salesLimitReached
+						? 'Daily limit reached'
+						: `${data.dailyLimit - data.salesTodayCount} uploads remaining today`}
+			</p>
+		</a>
+
+		<a
+			href="/dashboard/sales"
+			class="border-2 border-(--color-border) p-5 no-underline group transition-all hover:border-(--color-fg) hover:shadow-(--shadow-sm)"
+		>
+			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg)">
+				View All Sales →
+			</p>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
+				{data.salesSuccessCount} committed · {data.salesStagedCount} staged · {data.salesFailedCount} failed
 			</p>
 		</a>
 	</div>

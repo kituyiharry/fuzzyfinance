@@ -17,7 +17,7 @@
 	/** @type {File | null} */
 	let selectedFile = $state(null);
 
-	/** @type {'idle' | 'uploading' | 'processing' | 'complete' | 'failed'} */
+	/** @type {'idle' | 'uploading' | 'processing' | 'complete' | 'failed' | 'not_relevant'} */
 	let stage = $state('idle');
 
 	/** @type {string | null} */
@@ -109,8 +109,12 @@
 				if (TERMINAL_STATUSES.has(status.status)) {
 					clearInterval(pollInterval ?? undefined);
 					pollInterval = null;
-					stage = status.status === 'failed' ? 'failed' : 'complete';
-					if (status.status === 'failed') errorMsg = status.errorMessage ?? 'Processing failed';
+					errorMsg = status.status === 'failed' ? (status.errorMessage ?? 'Processing failed') : null;
+					if (errorMsg?.startsWith('NOT_RELEVANT:')) {
+						stage = 'not_relevant';
+					} else {
+						stage = status.status === 'failed' ? 'failed' : 'complete';
+					}
 					if (status.duplicateOf) semanticDuplicateId = status.duplicateOf;
 				}
 			} catch {
@@ -212,6 +216,29 @@
 					</button>
 				</div>
 			{/if}
+		{/if}
+
+		{#if stage === 'not_relevant'}
+			<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-5 flex flex-col gap-3">
+				<div class="flex items-center gap-2">
+					<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+					<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A RECEIPT</span>
+				</div>
+				<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+					{errorMsg?.replace('NOT_RELEVANT:', '').trim() ?? 'The uploaded document does not appear to be a receipt, invoice, or expense record.'}
+				</p>
+				<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+					Please upload a receipt, invoice, bill, or similar expense document.
+				</p>
+				<div class="pl-4 flex gap-3 mt-1">
+					<button
+						onclick={() => { stage = 'idle'; selectedFile = null; errorMsg = null; }}
+						class="btn-primary text-[10px] font-black uppercase tracking-widest px-3 py-1.5"
+					>
+						TRY ANOTHER FILE
+					</button>
+				</div>
+			</div>
 		{/if}
 
 		{#if stage === 'processing' || stage === 'complete' || stage === 'failed'}

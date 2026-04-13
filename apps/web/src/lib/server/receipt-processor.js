@@ -56,6 +56,10 @@ export async function processReceipt(env, receiptId) {
 		console.error('[receipt-processor] Gemini extraction failed:', err);
 		if (err?.code === 'RATE_LIMITED') {
 			await patch({ status: 'failed', errorMessage: 'Gemini API rate limit reached. Please re-upload this receipt in a few minutes.' });
+		} else if (err?.code === 'NOT_RELEVANT') {
+			await patch({ status: 'failed', errorMessage: `NOT_RELEVANT: ${err.message}` });
+		} else if (err?.code === 'TIMED_OUT') {
+			await patch({ status: 'failed', errorMessage: 'Extraction timed out. Please re-upload this receipt.' });
 		} else {
 			await patch({ status: 'failed', errorMessage: `Extraction failed: ${err}` });
 		}

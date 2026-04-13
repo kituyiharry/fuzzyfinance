@@ -18,6 +18,13 @@ const DAILY_LIMIT = 30;
  *   integrationStatus:        import('./integration-health.js').IntegrationStatus;
  *   spendingByReceiptDate:    DaySpend[];
  *   spendingByProcessingDate: DaySpend[];
+ *   salesSuccessCount:        number;
+ *   salesFailedCount:         number;
+ *   salesStagedCount:         number;
+ *   salesEditedCount:         number;
+ *   salesTodayCount:          number;
+ *   revenueByDate:            DaySpend[];
+ *   revenueByProcessingDate:  DaySpend[];
  * }} DashboardMetrics
  *
  * @typedef {{ day: string; totalAmount: number; receiptCount: number }} DaySpend
@@ -30,15 +37,22 @@ const DAILY_LIMIT = 30;
  * @returns {Promise<DashboardMetrics>}
  */
 export async function getDashboardMetrics(userId) {
+	const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
 	const [
 		statusCounts,
 		storageResult,
 		todayResult,
 		spendingByReceiptDate,
 		spendingByProcessingDate,
+		salesStatusCounts,
+		salesStorageResult,
+		salesTodayResult,
+		revenueByDate,
+		revenueByProcessingDate,
 		integrationStatus
 	] = await Promise.all([
-		// Success + failed counts in one query
+		// Receipt success + failed counts
 		db
 			.select({
 				status: schema.receipt.status,
@@ -48,7 +62,7 @@ export async function getDashboardMetrics(userId) {
 			.where(eq(schema.receipt.userId, userId))
 			.groupBy(schema.receipt.status),
 
-		// Total storage
+		// Receipt total storage
 		db
 			.select({
 				total: sql`COALESCE(SUM(${schema.receipt.rawSizeBytes}), 0)`.as('total')
@@ -56,7 +70,7 @@ export async function getDashboardMetrics(userId) {
 			.from(schema.receipt)
 			.where(eq(schema.receipt.userId, userId)),
 
-		// Today's upload count — DATE() operates in seconds, createdAt is ms
+		// Receipt today's upload count
 		db
 			.select({ count: sql`COUNT(*)`.as('count') })
 			.from(schema.receipt)
@@ -67,7 +81,7 @@ export async function getDashboardMetrics(userId) {
 				)
 			),
 
-		// Spending grouped by the date printed on the receipt (last 30 days)
+		// Spending grouped by receipt date (last 30 days)
 		db
 			.select({
 				day:          sql`DATE(${schema.receipt.receiptDate} / 1000, 'unixepoch')`.as('day'),
@@ -80,13 +94,13 @@ export async function getDashboardMetrics(userId) {
 					eq(schema.receipt.userId, userId),
 					inArray(schema.receipt.status, ['complete', 'complete_no_sync']),
 					isNotNull(schema.receipt.receiptDate),
-					sql`${schema.receipt.receiptDate} >= ${Date.now() - 30 * 24 * 60 * 60 * 1000}`
+					sql`${schema.receipt.receiptDate} >= ${thirtyDaysAgo}`
 				)
 			)
 			.groupBy(sql`DATE(${schema.receipt.receiptDate} / 1000, 'unixepoch')`)
 			.orderBy(sql`DATE(${schema.receipt.receiptDate} / 1000, 'unixepoch')`),
 
-		// Spending grouped by processing date (createdAt, last 30 days)
+		// Spending grouped by processing date (last 30 days)
 		db
 			.select({
 				day:          sql`DATE(${schema.receipt.createdAt} / 1000, 'unixepoch')`.as('day'),
@@ -98,23 +112,87 @@ export async function getDashboardMetrics(userId) {
 				and(
 					eq(schema.receipt.userId, userId),
 					inArray(schema.receipt.status, ['complete', 'complete_no_sync']),
-					sql`${schema.receipt.createdAt} >= ${Date.now() - 30 * 24 * 60 * 60 * 1000}`
+					sql`${schema.receipt.createdAt} >= ${thirtyDaysAgo}`
 				)
 			)
 			.groupBy(sql`DATE(${schema.receipt.createdAt} / 1000, 'unixepoch')`)
 			.orderBy(sql`DATE(${schema.receipt.createdAt} / 1000, 'unixepoch')`),
 
+		// Sales status counts
+		db
+			.select({
+				status: schema.sale.status,
+				count: sql`COUNT(*)`.as('count')
+			})
+			.from(schema.sale)
+			.where(eq(schema.sale.userId, userId))
+			.groupBy(schema.sale.status),
+
+		// Sales total storage
+		db
+			.select({
+				total: sql`COALESCE(SUM(${schema.sale.rawSizeBytes}), 0)`.as('total')
+			})
+			.from(schema.sale)
+			.where(eq(schema.sale.userId, userId)),
+
+		// Sales today's upload count
+		db
+			.select({ count: sql`COUNT(*)`.as('count') })
+			.from(schema.sale)
+			.where(
+				and(
+					eq(schema.sale.userId, userId),
+					sql`DATE(${schema.sale.createdAt} / 1000, 'unixepoch') = DATE('now')`
+				)
+			),
+
+		// Revenue grouped by sale date (last 30 days)
+		db
+			.select({
+				day:          sql`DATE(${schema.sale.saleDate} / 1000, 'unixepoch')`.as('day'),
+				totalAmount:  sql`COALESCE(SUM(CAST(${schema.sale.totalRevenue} AS REAL)), 0)`.as('totalAmount'),
+				receiptCount: sql`COUNT(*)`.as('receiptCount')
+			})
+			.from(schema.sale)
+			.where(
+				and(
+					eq(schema.sale.userId, userId),
+					inArray(schema.sale.status, ['complete', 'complete_no_sync']),
+					isNotNull(schema.sale.saleDate),
+					sql`${schema.sale.saleDate} >= ${thirtyDaysAgo}`
+				)
+			)
+			.groupBy(sql`DATE(${schema.sale.saleDate} / 1000, 'unixepoch')`)
+			.orderBy(sql`DATE(${schema.sale.saleDate} / 1000, 'unixepoch')`),
+
+		// Revenue grouped by processing date (last 30 days)
+		db
+			.select({
+				day:          sql`DATE(${schema.sale.createdAt} / 1000, 'unixepoch')`.as('day'),
+				totalAmount:  sql`COALESCE(SUM(CAST(${schema.sale.totalRevenue} AS REAL)), 0)`.as('totalAmount'),
+				receiptCount: sql`COUNT(*)`.as('receiptCount')
+			})
+			.from(schema.sale)
+			.where(
+				and(
+					eq(schema.sale.userId, userId),
+					inArray(schema.sale.status, ['complete', 'complete_no_sync']),
+					sql`${schema.sale.createdAt} >= ${thirtyDaysAgo}`
+				)
+			)
+			.groupBy(sql`DATE(${schema.sale.createdAt} / 1000, 'unixepoch')`)
+			.orderBy(sql`DATE(${schema.sale.createdAt} / 1000, 'unixepoch')`),
+
 		getIntegrationStatus(userId)
 	]);
 
-	const [stagedResult, editedResult] = await Promise.all([
-		// Staged count
+	const [stagedResult, editedResult, salesStagedResult, salesEditedResult] = await Promise.all([
 		db
 			.select({ count: sql`COUNT(*)`.as('count') })
 			.from(schema.receipt)
 			.where(and(eq(schema.receipt.userId, userId), eq(schema.receipt.status, 'staged'))),
 
-		// Edited count — receipts where user made corrections vs AI snapshot
 		db
 			.select({ count: sql`COUNT(*)`.as('count') })
 			.from(schema.receipt)
@@ -124,10 +202,26 @@ export async function getDashboardMetrics(userId) {
 					sql`${schema.receipt.correctedFields} IS NOT NULL`,
 					sql`${schema.receipt.correctedFields} != '[]'`
 				)
+			),
+
+		db
+			.select({ count: sql`COUNT(*)`.as('count') })
+			.from(schema.sale)
+			.where(and(eq(schema.sale.userId, userId), eq(schema.sale.status, 'staged'))),
+
+		db
+			.select({ count: sql`COUNT(*)`.as('count') })
+			.from(schema.sale)
+			.where(
+				and(
+					eq(schema.sale.userId, userId),
+					sql`${schema.sale.correctedFields} IS NOT NULL`,
+					sql`${schema.sale.correctedFields} != '[]'`
+				)
 			)
 	]);
 
-	// Tally success / failed from the grouped status results
+	// Tally receipt success / failed
 	let successCount = 0;
 	let failedCount  = 0;
 	for (const row of statusCounts) {
@@ -136,8 +230,22 @@ export async function getDashboardMetrics(userId) {
 		if (row.status === 'failed') failedCount += n;
 	}
 
-	const stagedCount    = Number(stagedResult[0]?.count  ?? 0);
-	const editedCount    = Number(editedResult[0]?.count  ?? 0);
+	// Tally sales success / failed
+	let salesSuccessCount = 0;
+	let salesFailedCount  = 0;
+	for (const row of salesStatusCounts) {
+		const n = Number(row.count);
+		if (row.status === 'complete' || row.status === 'complete_no_sync') salesSuccessCount += n;
+		if (row.status === 'failed') salesFailedCount += n;
+	}
+
+	const stagedCount      = Number(stagedResult[0]?.count      ?? 0);
+	const editedCount      = Number(editedResult[0]?.count      ?? 0);
+	const salesStagedCount = Number(salesStagedResult[0]?.count ?? 0);
+	const salesEditedCount = Number(salesEditedResult[0]?.count ?? 0);
+
+	const receiptStorageBytes = Number(storageResult[0]?.total      ?? 0);
+	const salesStorageBytes   = Number(salesStorageResult[0]?.total ?? 0);
 
 	return {
 		successCount,
@@ -145,12 +253,19 @@ export async function getDashboardMetrics(userId) {
 		stagedCount,
 		editedCount,
 		committedCount:           successCount,
-		totalStorageBytes:        Number(storageResult[0]?.total ?? 0),
+		totalStorageBytes:        receiptStorageBytes + salesStorageBytes,
 		todayCount:               Number(todayResult[0]?.count ?? 0),
 		dailyLimit:               DAILY_LIMIT,
 		integrationStatus,
 		spendingByReceiptDate:    /** @type {DaySpend[]} */ (spendingByReceiptDate.map(normalise)),
-		spendingByProcessingDate: /** @type {DaySpend[]} */ (spendingByProcessingDate.map(normalise))
+		spendingByProcessingDate: /** @type {DaySpend[]} */ (spendingByProcessingDate.map(normalise)),
+		salesSuccessCount,
+		salesFailedCount,
+		salesStagedCount,
+		salesEditedCount,
+		salesTodayCount:          Number(salesTodayResult[0]?.count ?? 0),
+		revenueByDate:            /** @type {DaySpend[]} */ (revenueByDate.map(normalise)),
+		revenueByProcessingDate:  /** @type {DaySpend[]} */ (revenueByProcessingDate.map(normalise))
 	};
 }
 

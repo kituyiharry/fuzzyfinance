@@ -1,6 +1,10 @@
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
+const FETCH_TIMEOUT_MS = 25_000;
+/** @param {string} url @param {RequestInit} [init] */
+const tfetch = (url, init) => fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), ...init });
 const FOLDER_NAME = 'FuzzyFinance Receipts';
+const SALES_FOLDER_NAME = 'FuzzyFinance Sales';
 
 /**
  * Finds or creates the FuzzyFinance Receipts folder in the user's Drive root.
@@ -13,7 +17,7 @@ export async function ensureReceiptFolder(accessToken) {
 	const q = encodeURIComponent(
 		`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
 	);
-	const searchRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
+	const searchRes = await tfetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
 		headers: { Authorization: `Bearer ${accessToken}` }
 	});
 	if (!searchRes.ok) throw new Error(`Drive folder search failed: ${await searchRes.text()}`);
@@ -22,7 +26,7 @@ export async function ensureReceiptFolder(accessToken) {
 	if (files?.length > 0) return files[0].id;
 
 	// Create folder
-	const createRes = await fetch(`${DRIVE_API}/files`, {
+	const createRes = await tfetch(`${DRIVE_API}/files`, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
@@ -40,6 +44,35 @@ export async function ensureReceiptFolder(accessToken) {
 }
 
 /**
+ * Finds or creates the FuzzyFinance Sales folder in the user's Drive root.
+ *
+ * @param {string} accessToken
+ * @returns {Promise<string>} folder ID
+ */
+export async function ensureSalesFolder(accessToken) {
+	const q = encodeURIComponent(
+		`name='${SALES_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+	);
+	const searchRes = await tfetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
+		headers: { Authorization: `Bearer ${accessToken}` }
+	});
+	if (!searchRes.ok) throw new Error(`Drive sales folder search failed: ${await searchRes.text()}`);
+
+	const { files } = await searchRes.json();
+	if (files?.length > 0) return files[0].id;
+
+	const createRes = await tfetch(`${DRIVE_API}/files`, {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name: SALES_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+	});
+	if (!createRes.ok) throw new Error(`Drive sales folder creation failed: ${await createRes.text()}`);
+
+	const folder = await createRes.json();
+	return folder.id;
+}
+
+/**
  * Finds or creates a subfolder with the given name inside a parent folder.
  *
  * @param {string} accessToken
@@ -51,7 +84,7 @@ async function ensureSubfolder(accessToken, parentId, name) {
 	const q = encodeURIComponent(
 		`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`
 	);
-	const searchRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
+	const searchRes = await tfetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
 		headers: { Authorization: `Bearer ${accessToken}` }
 	});
 	if (!searchRes.ok) throw new Error(`Drive subfolder search failed: ${await searchRes.text()}`);
@@ -59,7 +92,7 @@ async function ensureSubfolder(accessToken, parentId, name) {
 	const { files } = await searchRes.json();
 	if (files?.length > 0) return files[0].id;
 
-	const createRes = await fetch(`${DRIVE_API}/files`, {
+	const createRes = await tfetch(`${DRIVE_API}/files`, {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] })
@@ -112,7 +145,7 @@ export async function uploadFileToDrive(accessToken, folderId, fileName, mimeTyp
 		fileName
 	);
 
-	const res = await fetch(
+	const res = await tfetch(
 		`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`,
 		{
 			method: 'POST',
