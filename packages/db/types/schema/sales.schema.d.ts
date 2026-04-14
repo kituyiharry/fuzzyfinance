@@ -340,6 +340,23 @@ export const sale: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
+        r2ExpiresAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "r2_expires_at";
+            tableName: "sale";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         driveFileId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "drive_file_id";
             tableName: "sale";

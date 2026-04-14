@@ -153,12 +153,8 @@ export async function commitSale(env, saleId) {
 		}
 	}
 
-	// ── Delete R2 object ───────────────────────────────────────────────────
-	try {
-		await env.fuzzyfinance_receipts.delete(sale.r2Key ?? '');
-	} catch (err) {
-		console.warn('[sales-committer] R2 delete failed (non-fatal):', err);
-	}
+	// ── Set R2 expiry (7 days from now) — cron deletes it later ──────────────
+	const r2ExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
 	// ── Final status ───────────────────────────────────────────────────────
 	const hasSync = integrations.length > 0;
@@ -166,6 +162,7 @@ export async function commitSale(env, saleId) {
 
 	await patch({
 		status: finalStatus,
+		r2ExpiresAt,
 		...(syncError && !driveFileId ? { errorMessage: syncError } : {})
 	});
 }

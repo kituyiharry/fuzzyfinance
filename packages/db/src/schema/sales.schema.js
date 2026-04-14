@@ -35,6 +35,10 @@ export const sale = sqliteTable(
     rawSizeBytes: integer("raw_size_bytes"),
     /** SHA-256 hex of raw file bytes */
     fileHash:     text("file_hash"),
+    /** Timestamp after which the R2 object may be deleted by the cleanup cron.
+     *  Set to now+7d at commit time. NULL = not yet synced; cron falls back to
+     *  createdAt+30d for abandoned uploads. */
+    r2ExpiresAt:  integer("r2_expires_at", { mode: "timestamp_ms" }),
 
     // ── Cloud sync ───────────────────────────────────────────────────────
     driveFileId:   text("drive_file_id"),

@@ -3,13 +3,19 @@
 	"name": "fuzzyfinance",
 	"compatibility_date": "2026-04-01",
 	"compatibility_flags": ["nodejs_als"],
-	"main": ".svelte-kit/cloudflare/_worker.js",
+	"main": "./worker-entry.js",
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare"
 	},
 	"workers_dev": true,
 	"preview_urls": true,
+
+	// Cron Trigger — daily R2 cleanup at 03:00 UTC
+	// Deletes R2 objects for synced docs (7d TTL) and abandoned uploads (30d TTL)
+	"triggers": {
+		"crons": ["0 3 * * *"]
+	},
 
 	// Cloudflare D1 — primary database
 	// Create with: wrangler d1 create fuzzyfinance-db

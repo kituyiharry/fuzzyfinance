@@ -38,10 +38,14 @@ export const receipt = sqliteTable(
     lineItemsJson: text("line_items_json"),
 
     // Source file
-    r2Key:         text("r2_key"),
-    rawFileName:   text("raw_file_name"),
-    rawMimeType:   text("raw_mime_type"),
-    rawSizeBytes:  integer("raw_size_bytes"),
+    r2Key:        text("r2_key"),
+    rawFileName:  text("raw_file_name"),
+    rawMimeType:  text("raw_mime_type"),
+    rawSizeBytes: integer("raw_size_bytes"),
+    /** Timestamp after which the R2 object may be deleted by the cleanup cron.
+     *  Set to now+7d at commit time. NULL means the object hasn't been synced yet;
+     *  the cron falls back to createdAt+30d for those (abandoned uploads). */
+    r2ExpiresAt:  integer("r2_expires_at", { mode: "timestamp_ms" }),
 
     // Cloud sync
     driveFileId:   text("drive_file_id"),
