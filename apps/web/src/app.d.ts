@@ -23,12 +23,14 @@ declare global {
 }
 
 interface Env {
+	/** Cloudflare D1 — primary relational database */
+	DB: D1Database;
 	ASSETS: Fetcher;
-	/** Cloudflare R2 bucket — transit buffer for receipt file uploads */
+	/** Cloudflare R2 bucket — transit buffer for receipt/sale file uploads */
 	fuzzyfinance_receipts: R2Bucket;
-	/** Workers AI — used for receipt text embedding */
+	/** Workers AI — used for text embedding */
 	AI: Ai;
-	/** Cloudflare Vectorize — semantic receipt search */
+	/** Cloudflare Vectorize — semantic search index */
 	VECTORIZE: VectorizeIndex;
 }
 

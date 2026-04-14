@@ -11,36 +11,49 @@
 	"workers_dev": true,
 	"preview_urls": true,
 
-	// Cloudflare R2 — transit buffer for uploaded receipt files
-	// Create with: wrangler r2 bucket create fuzzyfinance-receipts
-	"r2_buckets": [
-		// {
-		// 	"binding": "RECEIPT_BUCKET",
-		// 	"bucket_name": "fuzzyfinance-receipts",
-		// 	"preview_bucket_name": "fuzzyfinance-receipts-preview"
-		// }
-        {
-            "bucket_name": "fuzzyfinance-receipts",
-            "binding": "fuzzyfinance_receipts",
-            "preview_bucket_name": "fuzzyfinance-receipts-preview"
-        }
+	// Cloudflare D1 — primary database
+	// Create with: wrangler d1 create fuzzyfinance-db
+	// Then replace database_id below with the returned ID
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "fuzzyfinance-db",
+			//"database_id": "REPLACE_WITH_D1_DATABASE_ID",
+            "database_id": "c4c82b8c-79b9-4901-a2bb-18716e423ec2",
+			"migrations_dir": "drizzle/migrations"
+		}
+        // {
+        //     "d1_databases": [
+        //         {
+        //             "binding": "fuzzyfinance_db",
+        //             "database_name": "fuzzyfinance-db",
+        //             "database_id": "c4c82b8c-79b9-4901-a2bb-18716e423ec2"
+        //         }
+        //     ]
+        // }
 	],
 
-	// Workers AI — used for receipt text embedding (bge-base-en-v1.5, 768 dims)
+	// Cloudflare R2 — transit buffer for uploaded receipt/sale files
+	// Create with: wrangler r2 bucket create fuzzyfinance-receipts
+	"r2_buckets": [
+		{
+			"bucket_name": "fuzzyfinance-receipts",
+			"binding": "fuzzyfinance_receipts",
+			"preview_bucket_name": "fuzzyfinance-receipts-preview"
+		}
+	],
+
+	// Workers AI — used for text embedding (bge-base-en-v1.5, 768 dims)
 	"ai": {
 		"binding": "AI"
 	},
 
-	// Cloudflare Vectorize — semantic receipt search index
+	// Cloudflare Vectorize — semantic search index
 	// Create with: wrangler vectorize create receipts-index --dimensions=768 --metric=cosine
 	"vectorize": [
-		// {
-		// 	"binding": "RECEIPTS_INDEX",
-		// 	"index_name": "receipts-index"
-		// }
-        {
-            "binding": "VECTORIZE",
-            "index_name": "receipts-index"
-        }
+		{
+			"binding": "VECTORIZE",
+			"index_name": "receipts-index"
+		}
 	]
 }
