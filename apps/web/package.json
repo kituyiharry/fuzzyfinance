@@ -16,7 +16,7 @@
 		"test": "npm run test:unit -- --run",
 		"gen": "wrangler types",
 		"db:generate": "drizzle-kit generate",
-		"db:push": "wrangler d1 migrations apply DB",
+		"db:push:remote": "wrangler d1 migrations apply DB --remote",
 		"db:push:local": "wrangler d1 migrations apply DB --local",
 		"db:studio": "drizzle-kit studio",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.js --output ../../packages/db/src/schema/auth.schema.js --yes"

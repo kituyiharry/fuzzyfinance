@@ -11,7 +11,7 @@
 		"dev": "npm run dev -w apps/web",
 		"build": "npm run build -w apps/web",
 		"gen": "npm run gen -w apps/web",
-		"db:push": "npm run db:push -w apps/web",
+		"db:push:remote": "npm run db:push:remote -w apps/web",
 		"db:push:local": "npm run db:push:local -w apps/web",
 		"db:generate": "npm run db:generate -w apps/web",
 		"db:migrate": "npm run db:migrate -w apps/web",
