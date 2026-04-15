@@ -1,118 +1,149 @@
-# sv
+# FuzzyFinance
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A personal finance platform for managing receipts, sales documents, and financial records with AI-powered data extraction and automatic cloud storage sync (Google Drive / OneDrive).
 
-## Creating a project
+Built with SvelteKit, Cloudflare D1, R2, Workers AI, and Vectorize.
 
-If you're seeing this, you've probably already done this step. Congrats!
+---
 
-```sh
-# create a new project
-npx sv create my-app
+## Overview
+
+- Upload receipt and sale documents (PDF, images)
+- Extract structured data via Gemini AI
+- Sync documents to Google Drive or OneDrive with auto-organized ledger spreadsheets
+- Semantic search across documents via Cloudflare Vectorize
+- Export receipts as CSV
+- Spending and revenue analytics
+
+---
+
+## Prerequisites
+
+- **Node.js** 20+
+- **Wrangler** CLI (`npm install -g wrangler`) — authenticate with `wrangler login`
+- A **Cloudflare account** with access to Workers, D1, R2, Workers AI, and Vectorize
+
+---
+
+## Cloudflare Resource Setup
+
+Run once to provision the required resources:
+
+```bash
+# D1 database
+wrangler d1 create fuzzyfinance-db
+
+# R2 buckets
+wrangler r2 bucket create fuzzyfinance-receipts
+wrangler r2 bucket create fuzzyfinance-receipts-preview   # local/preview dev only
+
+# Vectorize index (768 dims — bge-base-en-v1.5)
+wrangler vectorize create receipts-index --dimensions=768 --metric=cosine
 ```
 
-To recreate this project with the same configuration:
+Copy the `database_id` returned by `d1 create` into `wrangler.jsonc`.
 
-```sh
-# recreate this project
-npx sv@0.12.8 create --template demo --types jsdoc --add prettier eslint tailwindcss="plugins:forms" vitest="usages:unit,component" sveltekit-adapter="adapter:cloudflare+cfTarget:workers" devtools-json drizzle="database:sqlite+sqlite:libsql" better-auth="demo:password" mcp="ide:claude-code,gemini+setup:remote" --install npm fuzzyfinance
+---
+
+## Environment Variables
+
+Create a `.env` file in `apps/web/` (never commit this):
+
+```env
+# Google OAuth — from Google Cloud Console
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Microsoft OAuth — from Azure App Registration
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+
+# Better Auth — any random 32+ character string
+BETTER_AUTH_SECRET=
+
+# Gemini AI — from Google AI Studio
+GEMINI_API_KEY=
+
+# Cloudflare credentials — for drizzle-kit migrations via D1 HTTP API
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_D1_DATABASE_ID=
+CLOUDFLARE_API_TOKEN=
 ```
 
-## Developing
+> `AI` and `VECTORIZE` are accessed via Worker bindings — no separate API keys needed.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+---
 
-```sh
-npm run dev
+## Local Development
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+Runs SvelteKit via Vite with a local SQLite D1 stub and in-memory R2.
+
+```bash
+npm install
+npm run db:push:local   # seed local D1
+npm run dev             # http://localhost:5173
 ```
 
-## Building
+---
 
-To create a production version of your app:
+## Dev Remote (Wrangler Preview)
 
-```sh
+Runs a local Wrangler worker connected to your **real** Cloudflare D1 and R2. Use this to test cloud integrations before deploying.
+
+```bash
 npm run build
+npm run preview         # wrangler dev --port 4173 → http://localhost:4173
 ```
 
-You can preview the production build with `npm run preview`.
+> Preview uses the `fuzzyfinance-receipts-preview` R2 bucket. D1 data is the real database — mutations persist.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+---
 
+## Production Deploy
 
-  ---
-  What was built
+```bash
+npm run build
+wrangler deploy
+```
 
-  Database (run npm run db:generate && npm run db:push from apps/web/)
+Deploys the Worker and static assets to Cloudflare. The daily Cron Trigger (`0 3 * * *`) for R2 cleanup is registered automatically.
 
-  - receipts.schema.js — receipt table (status state machine, all extracted fields, R2/Drive/Sheet/vector IDs) + receiptLineItem table with Drizzle relations
-  - integrations.schema.js — added metadataJson column to cache Drive folder ID + ledger file ID per user (avoids re-searching on every upload)
+---
 
-  Cloudflare infra config
+## Database Migrations
 
-  - wrangler.jsonc — R2 bucket (RECEIPT_BUCKET), Workers AI (AI), Vectorize (RECEIPTS_INDEX) bindings
-  - app.d.ts — typed the new platform env bindings
+```bash
+# 1. Generate migration SQL from schema changes
+npm run db:generate
 
-  Server utilities (src/lib/server/)
+# 2. Apply to local D1 (development)
+npm run db:push:local
 
-  ┌──────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-  │         File         │                                                       Does                                                       │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ token-refresh.js     │ Checks tokenExpiresAt, calls Google/Microsoft refresh endpoints, updates DB                                      │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ gemini.js            │ Gemini 2.0 Flash with enforced JSON responseSchema — extracts merchant, date, total, line items, category, notes │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ google-drive.js      │ Creates/finds FuzzyFinance Receipts folder, multipart file upload                                                │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ google-sheets.js     │ Creates/finds FuzzyFinance Ledger spreadsheet, writes header row, appends receipt rows                           │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ onedrive.js          │ Same for OneDrive + Excel via Graph API                                                                          │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ vectorize.js         │ Workers AI text embedding → Vectorize upsert/query/delete                                                        │
-  ├──────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ receipt-processor.js │ Full pipeline orchestrator — runs as background task via ctx.waitUntil()                                         │
-  └──────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+# 3. Apply to remote D1 (production)
+npm run db:push
+```
 
-  Pipeline flow
+Remote migrations require `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`, and `CLOUDFLARE_API_TOKEN` in `.env`.
 
-  POST /api/receipts → validate → R2.put → DB insert (pending) → ctx.waitUntil(process) → 202 {receiptId}
+---
 
-  Background (receipt-processor):
-    R2.get → Gemini extract → DB update + line items insert
-    → Workers AI embed → Vectorize upsert
-    → [for each integration] Drive/OneDrive upload + Sheets/Excel row
-    → R2.delete → DB update (complete)
+## Announcements
 
-  API routes
+Announcements are written directly to the `announcement` table — there is no admin UI in this app. Rows with `show_banner = 1` appear as dismissible banners across all dashboard pages. All active (non-expired) announcements are listed at `/dashboard/announcements`.
 
-  - POST /api/receipts — upload endpoint, returns 202 {receiptId} immediately
-  - GET /api/receipts — list all receipts for user
-  - GET /api/receipts/[id] — receipt + line items
-  - DELETE /api/receipts/[id] — removes DB row, R2 object, Vectorize vector
-  - GET /api/receipts/[id]/status — lightweight polling ({status, errorMessage, merchantName, total})
-  - POST /api/receipts/[id]/retry-sync — re-runs pipeline for failed/no-sync receipts
-  - POST /api/receipts/search — semantic search via Vectorize, returns scored + sorted DB rows
+Example:
 
-  Dashboard pages
+```sql
+INSERT INTO announcement (id, title, body, type, show_banner, active, published_at)
+VALUES (
+  lower(hex(randomblob(16))),
+  'Scheduled Maintenance',
+  'The platform will be unavailable Saturday 03:00–05:00 UTC.',
+  'maintenance',
+  1,
+  1,
+  unixepoch('now') * 1000
+);
+```
 
-  - /dashboard/receipts — sortable table with inline search, status badges, sync indicators
-  - /dashboard/receipts/upload — drag-and-drop dropzone → upload → live polling progress steps
-  - /dashboard/receipts/[id] — full detail: all extracted fields, line items table, sync status cards (Drive/Sheets/Vectorize), retry/delete actions
-
-  Setup commands
-
-  # 1. Install new dependency (already done)
-  npm install @google/generative-ai
-
-  # 2. Provision Cloudflare resources (once per environment)
-  wrangler r2 bucket create fuzzyfinance-receipts
-  wrangler vectorize create receipts-index --dimensions=768 --metric=cosine
-
-  # 3. Run DB migration
-  npm run db:generate && npm run db:push   # from apps/web/
-
-  # 4. Add to .env
-  GEMINI_API_KEY=your_key_here
-
+Types: `info` | `warning` | `maintenance` | `release`

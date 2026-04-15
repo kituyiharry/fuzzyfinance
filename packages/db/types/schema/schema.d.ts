@@ -4,3 +4,4 @@ export * from "./receipts.schema.js";
 export * from "./exports.schema.js";
 export * from "./conversations.schema.js";
 export * from "./sales.schema.js";
+export * from "./announcements.schema.js";

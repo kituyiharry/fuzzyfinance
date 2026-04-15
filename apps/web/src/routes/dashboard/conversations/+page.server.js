@@ -1,11 +1,11 @@
-import { error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, desc } from 'drizzle-orm';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals }) {
-	if (!locals.user) error(401, 'Unauthorized');
+	if (!locals.user) redirect(302, '/');
 
 	const conversations = await db
 		.select({
