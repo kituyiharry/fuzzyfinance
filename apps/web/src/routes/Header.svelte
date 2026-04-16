@@ -8,7 +8,7 @@
 		<div class="text-2xl font-black tracking-tighter uppercase text-(--color-fg)">
 			<a href={resolve('/')} class="no-underline hover:bg-transparent
                 hover:text-(--color-text)">
-				FuzzyFinance<span class="bg-(--color-fg) px-1 text-(--color-bg)">.xlsx</span>
+				Fuzzies<span class="bg-(--color-fg) px-1 text-(--color-bg)">.app</span>
 			</a>
 		</div>
 

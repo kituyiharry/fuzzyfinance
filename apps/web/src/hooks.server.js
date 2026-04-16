@@ -3,9 +3,16 @@ import { auth } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { runWithDb } from '$lib/server/db';
+import { env } from '$env/dynamic/private';
 
 /** @type {import('@sveltejs/kit').Handle} */
 const handleBetterAuth = async ({ event, resolve }) => {
+
+    if(!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.GEMINI_API_KEY)
+    {
+        throw "UNDEFINED KEYS in ENV";
+    }
+
 	const session = await auth.api.getSession({ headers: event.request.headers });
 
 	if (session) {
