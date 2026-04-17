@@ -19,6 +19,10 @@ RUN apt-get update && apt-get upgrade && apt-get install -y --no-install-recomme
         coinor-cbc \
         coinor-libcbc-dev \
         coinor-libcbc3 \
+        libblas-dev \ 
+        liblapack-dev \
+        zlib1g-dev \ 
+        libbz2-dev \
         flex \
         bison \
         pkg-config \
@@ -89,4 +93,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -fsS http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/usr/local/bin/alloy"]
-#ENTRYPOINT ["/bin/bash"]
