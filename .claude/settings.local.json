@@ -4,7 +4,19 @@
       "mcp__svelte__list-sections",
       "mcp__svelte__svelte-autofixer",
       "Bash(ls:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(curl -s https://raw.githubusercontent.com/MiniZinc/libminizinc/master/CMakeLists.txt)",
+      "Bash(curl -s \"https://api.github.com/repos/MiniZinc/libminizinc/git/trees/master?recursive=1\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['path']\\) for i in d.get\\('tree',[]\\) if 'include' in i['path'] and i['path'].endswith\\('.h'\\)]\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MiniZinc/libminizinc/master/include/minizinc/flattener.hh\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['path']\\) for i in d.get\\('tree',[]\\) if i['path'].startswith\\('lib/'\\) and i['path'].endswith\\('.cpp'\\)]\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MiniZinc/libminizinc/master/lib/solver.cpp\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MiniZinc/libminizinc/master/include/minizinc/solver.hh\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MiniZinc/libminizinc/master/include/minizinc/solver_config.hh\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['path']\\) for i in d.get\\('tree',[]\\) if i['path'].startswith\\('solvers/'\\) and i['path'].endswith\\('.msc'\\)]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['path']\\) for i in d.get\\('tree',[]\\) if i['path'].startswith\\('solvers/'\\)]\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MiniZinc/libminizinc/master/include/minizinc/solver_instance_base.hh\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MiniZinc/libminizinc/master/include/minizinc/solver_instance.hh\")"
     ]
   },
   "enableAllProjectMcpServers": true,
