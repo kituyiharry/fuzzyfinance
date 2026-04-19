@@ -3,6 +3,7 @@
 	import Header from './Header.svelte';
 	import './layout.css';
 	import { themeStore } from '$lib/theme.svelte.js';
+	import NavigationProgress from '$lib/NavigationProgress.svelte';
 	import { onMount } from 'svelte';
 
 	/** @type {{children: import('svelte').Snippet}} */
@@ -13,6 +14,7 @@
 	});
 </script>
 
+<NavigationProgress />
 <div class="app bg-(--color-bg)">
 	{#if !page.url.pathname.startsWith('/dashboard')}
 		<Header />
