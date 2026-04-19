@@ -11,7 +11,8 @@
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.minizinc.dev)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "mcp__svelte__get-documentation"
     ]
   },
   "enableAllProjectMcpServers": true,
