@@ -12,7 +12,6 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.minizinc.dev)",
       "WebFetch(domain:www.npmjs.com)",
-      "mcp__svelte__get-documentation",
       "Bash(xargs cat *)",
       "Bash(flutter analyze *)"
     ]
