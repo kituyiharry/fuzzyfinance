@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "galvani-parser",
+    "galvani-solver",
+    "galvani-server",
+    "galvani-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+galvani-parser = { path = "galvani-parser" }
+galvani-solver = { path = "galvani-solver" }

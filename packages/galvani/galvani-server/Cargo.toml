@@ -1,0 +1,12 @@
+[package]
+name = "galvani-server"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "galvani-server"
+path = "src/main.rs"
+
+[dependencies]
+galvani-parser = { workspace = true }
+galvani-solver = { workspace = true }

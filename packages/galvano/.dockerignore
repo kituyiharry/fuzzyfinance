@@ -1,5 +1,0 @@
-target/
-**/*.lock
-.git/
-.gitignore
-*.md
