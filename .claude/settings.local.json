@@ -5,7 +5,13 @@
       "mcp__svelte__svelte-autofixer",
       "Bash(ls:*)",
       "Bash(npm run:*)",
-      "mcp__svelte__get-documentation"
+      "mcp__svelte__get-documentation",
+      "WebFetch(domain:js.minizinc.dev)",
+      "WebSearch",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.minizinc.dev)",
+      "WebFetch(domain:www.npmjs.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
