@@ -4,19 +4,20 @@ import { spawn } from 'node:child_process';
 const PORT = Number(process.env.PORT ?? 8080);
 const TIMEOUT_MS = Number(process.env.MINIZINC_TIMEOUT_MS ?? 30_000);
 
-const VALID_SOLVERS = new Set(['cp', 'cp-sat', 'gecode', 'cbc']);
+const VALID_SOLVERS = new Set(['cp', 'cp-sat', 'gecode', 'cbc', 'mip', 'float', 'api', 'osicbc', 'coinbc', ]);
 const DEFAULT_SOLVER = 'cp';
 
 /**
  * @param {string} model
  * @param {string|null} data
  * @param {string} solver
- * @returns {Promise<string>}
+ * @returns {Promise<string|Object>}
  */
 function flatten(model, data, solver) {
-  const args = ['--solver', solver, '--output-fzn-to-stdout', '--no-output-ozn', '--json-stream', '--output-mode', 'json'];
+  const args = ['--solver', solver, '--output-fzn-to-stdout', '--no-output-ozn'];
   if (data) args.push('-D', `${data}`);
-  args.push('-c', '-');
+  args.push('-c', '--input-from-stdin', '--fzn-format', 'json');
+  //args.push('-c', '--input-from-stdin');
 
   return new Promise((resolve, reject) => {
     const child = spawn('minizinc', args, { timeout: TIMEOUT_MS });
@@ -29,7 +30,12 @@ function flatten(model, data, solver) {
 
     child.on('close', code => {
       if (code !== 0) reject(new Error(stderr.trim() || `minizinc exited with code ${code}`));
-      else resolve(stdout);
+      else try
+        {
+            resolve(JSON.parse(stdout)); 
+        } catch(e) {
+            resolve(stdout);
+       };
     });
 
     child.on('error', reject);
@@ -38,6 +44,21 @@ function flatten(model, data, solver) {
     child.stdin.on('error', () => {});
     child.stdin.write(model);
     child.stdin.end();
+  });
+}
+
+function listSolvers() {
+  return new Promise((resolve, reject) => {
+    const child = spawn('minizinc', ['--solvers-json'], { timeout: TIMEOUT_MS });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.on('close', code => {
+      if (code !== 0) reject(new Error(stderr.trim() || `minizinc exited with code ${code}`));
+      else resolve(JSON.parse(stdout));
+    });
+    child.on('error', reject);
   });
 }
 
@@ -70,6 +91,15 @@ const server = http.createServer(async (req, res) => {
     return sendText(res, 200, 'ok');
   }
 
+  if (req.method === 'GET' && req.url === '/solvers') {
+    try {
+      const solvers = await listSolvers();
+      return sendJson(res, 200, solvers);
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
   if (req.url !== '/flatten') {
     return sendText(res, 404, 'Not Found');
   }
@@ -82,7 +112,6 @@ const server = http.createServer(async (req, res) => {
   let raw = '';
   for await (const chunk of req) raw += chunk;
 
-  console.log(raw);
 
   let parsed;
   try {
@@ -109,11 +138,12 @@ const server = http.createServer(async (req, res) => {
   try {
     const flatzinc = await flatten(model, typeof data === 'string' ? data : null, solver);
 
+    console.log(flatzinc);
     if (wantJson) {
       return sendJson(res, 200, { flatzinc });
     }
 
-    return sendText(res, 200, flatzinc);
+    return sendText(res, 200, JSON.stringify(flatzinc));
   } catch (err) {
     return sendJson(res, 422, { error: err.message });
   }
