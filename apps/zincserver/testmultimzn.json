@@ -1,0 +1,6 @@
+{
+    "multimodels": [
+        { "id": "a", "model": "var 1..3: x; solve satisfy;", "solver": "cbc" },
+        { "id": "b", "model": "bad model !!", "solver": "cbc" }
+    ]
+}

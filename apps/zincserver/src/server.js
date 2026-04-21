@@ -100,6 +100,48 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.url === '/flatten/batch') {
+    if (req.method !== 'POST') return sendText(res, 405, 'Method Not Allowed');
+
+    let raw = '';
+    for await (const chunk of req) raw += chunk;
+
+    let jobs;
+    try {
+      jobs = JSON.parse(raw);
+    } catch {
+      return sendJson(res, 400, { error: 'Invalid JSON body' });
+    }
+
+    if (!Array.isArray(jobs.multimodels)) {
+      return sendJson(res, 400, { error: 'Body must be an array of jobs' });
+    }
+
+    const results = await Promise.all(jobs.multimodels.map(async job => {
+      const { id, model, data, solver = DEFAULT_SOLVER } = job ?? {};
+
+      if (!id || typeof id !== 'string') {
+        return { id: id ?? null, error: '`id` string is required' };
+      }
+      if (!model || typeof model !== 'string') {
+        return { id, error: '`model` string is required' };
+      }
+      if (!VALID_SOLVERS.has(solver)) {
+        return { id, error: `unknown solver "${solver}"; valid options: ${[...VALID_SOLVERS].join(', ')}` };
+      }
+
+      try {
+        const flatzinc = await flatten(model, typeof data === 'string' ? data : null, solver);
+        return { id, flatzinc };
+      } catch (err) {
+        return { id, error: err.message };
+      }
+    }));
+
+    const byId = Object.fromEntries(results.map(({ id, ...rest }) => [id, rest]));
+    return sendJson(res, 200, byId);
+  }
+
   if (req.url !== '/flatten') {
     return sendText(res, 404, 'Not Found');
   }
