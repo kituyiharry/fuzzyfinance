@@ -1,4 +1,4 @@
-{ "model": "
+{ "model": "\n
     int: flour;  %no. grams of flour available\n
     int: banana; %no. of bananas available\n 
     int: sugar;  %no. grams of sugar available\n 
@@ -23,6 +23,7 @@
     constraint 75*c <= cocoa;\n
     % maximize our profit\n
     solve maximize 400*b + 450*c;",
+    "solver": "cbc",
     "data": "flour = 4000; banana = 6; sugar = 2000; butter = 500; cocoa = 500;" 
 }
 
