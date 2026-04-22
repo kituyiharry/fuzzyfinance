@@ -1,0 +1,10 @@
+[package]
+name = "orsolver-sys"
+version.workspace = true
+edition.workspace = true
+links = "ortools"
+
+[build-dependencies]
+bindgen = "0.71"
+cmake = "0.1"
+cc = "1"

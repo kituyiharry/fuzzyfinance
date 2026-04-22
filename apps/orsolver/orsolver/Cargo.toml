@@ -1,0 +1,7 @@
+[package]
+name = "orsolver"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+orsolver-sys = { workspace = true }

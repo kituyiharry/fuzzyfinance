@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["orsolver-sys", "orsolver", "orsolver-server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+orsolver-sys = { path = "orsolver-sys" }
+orsolver     = { path = "orsolver" }
