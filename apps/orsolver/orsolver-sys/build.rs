@@ -21,48 +21,57 @@ fn main() {
         assert!(status.success(), "git clone of or-tools failed");
     }
 
+    // Mirror Cargo's profile to cmake's build type so debug builds get
+    // assertions/debug info and release builds are fully optimised.
+    // bench maps to RelWithDebInfo — optimised but with symbols for profiling.
+    let profile = env::var("PROFILE").unwrap_or_else(|_| "release".to_string());
+    let cmake_build_type = match profile.as_str() {
+        "debug" => "Debug",
+        "bench" => "RelWithDebInfo",
+        _       => "Release",
+    };
+
     let dst = cmake::Config::new(&src_dir)
         .define("BUILD_FLATZINC", "ON")
         .define("BUILD_DEPS", "ON")
         .define("BUILD_SHARED_LIBS", "ON")
-        .define("CMAKE_BUILD_TYPE", "Release")
+        .define("CMAKE_BUILD_TYPE", cmake_build_type)
         .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON")
         .define("BUILD_EXAMPLES", "OFF")
         .define("BUILD_SAMPLES", "OFF")
         .define("BUILD_TESTING", "OFF")
+        // LTO causes "Bad file descriptor" failures when cmake's grandchild
+        // make processes inherit Cargo's jobserver MAKEFLAGS pipe FDs that are
+        // already closed at that point. Disabling LTO avoids the lto-wrapper
+        // spawning additional make jobs through the broken jobserver.
+        .define("CMAKE_INTERPROCEDURAL_OPTIMIZATION", "OFF")
+        // Clear Cargo's jobserver MAKEFLAGS so cmake manages its own parallelism.
+        .env("MAKEFLAGS", "")
         .build();
 
     let lib_dir = dst.join("lib");
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
 
-    // Dynamic shared lib extension per platform
-    let dylib_ext = if cfg!(target_os = "macos") { "dylib" } else { "so" };
-
-    // Link all shared libs produced by OR-Tools cmake install
+    // Emit a link directive for every shared lib the cmake install produced.
+    // On Linux .so files may carry version suffixes (libfoo.so.1.2) — skip
+    // those and only emit the base name so the linker uses the soname.
     if lib_dir.exists() {
         for entry in fs::read_dir(&lib_dir).expect("lib dir missing") {
             let path: PathBuf = entry.unwrap().path();
-            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            // On Linux .so files may have version suffixes (libfoo.so.1.2) — skip those,
-            // only link the base .so name so the linker finds the soname correctly.
             let is_dylib = if cfg!(target_os = "macos") {
-                ext == "dylib"
+                path.extension().and_then(|e| e.to_str()) == Some("dylib")
             } else {
-                // Accept only "foo.so", not "foo.so.1" or "foo.so.1.2"
-                path.to_str()
-                    .map(|s| s.ends_with(".so"))
-                    .unwrap_or(false)
+                path.to_str().map(|s| s.ends_with(".so")).unwrap_or(false)
             };
             if is_dylib {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    let name = stem.strip_prefix("lib").unwrap_or(stem);
-                    println!("cargo:rustc-link-lib={name}");
+                    println!("cargo:rustc-link-lib={}", stem.strip_prefix("lib").unwrap_or(stem));
                 }
             }
         }
     }
 
-    // C++ standard library
+    // C++ standard library (libc++ on Apple, libstdc++ elsewhere)
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=c++");
     } else {
@@ -78,7 +87,9 @@ fn main() {
     println!("cargo:rerun-if-changed=ortools_fzn.h");
     println!("cargo:rerun-if-changed=ortools_fzn.cpp");
 
-    // Include dirs: local shim, installed headers, OR-Tools source, bundled protobuf
+    // Include dirs: local shim, installed headers, OR-Tools source root,
+    // and the bundled protobuf 5.x from cmake's FetchContent _deps so it
+    // takes priority over any system/Homebrew protobuf headers.
     let mut include_dirs: Vec<PathBuf> = vec![
         PathBuf::from("."),
         dst.join("include"),
@@ -101,7 +112,8 @@ fn main() {
         }
     }
 
-    // Compile the C++ shim
+    // Compile the C++ shim — cc::Build inherits OPT_LEVEL/DEBUG from Cargo
+    // automatically, so the shim matches the active profile without extra flags.
     let mut build = cc::Build::new();
     build
         .cpp(true)
@@ -126,7 +138,7 @@ fn main() {
     }
 
     if cfg!(target_os = "macos") {
-        let sdk = std::process::Command::new("xcrun")
+        let sdk = Command::new("xcrun")
             .args(["--sdk", "macosx", "--show-sdk-path"])
             .output()
             .expect("xcrun failed");
