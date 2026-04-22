@@ -13,10 +13,10 @@ const DEFAULT_SOLVER = 'cp';
  * @param {string} solver
  * @returns {Promise<string|Object>}
  */
-function flatten(model, data, solver) {
-  const args = ['--solver', solver, '--output-fzn-to-stdout', '--no-output-ozn'];
+function flatten(model, data, solver, wantJson) {
+  const args = ['--solver', solver, '--output-fzn-to-stdout', '--no-output-ozn', '-c', '--input-from-stdin'];
   if (data) args.push('-D', `${data}`);
-  args.push('-c', '--input-from-stdin', '--fzn-format', 'json');
+  if  (wantJson) args.push('--fzn-format', 'json');
   //args.push('-c', '--input-from-stdin');
 
   return new Promise((resolve, reject) => {
@@ -132,6 +132,7 @@ const server = http.createServer(async (req, res) => {
 
       try {
         const flatzinc = await flatten(model, typeof data === 'string' ? data : null, solver);
+        console.log(flatzinc);
         return { id, flatzinc };
       } catch (err) {
         return { id, error: err.message };
@@ -178,7 +179,7 @@ const server = http.createServer(async (req, res) => {
   const wantJson = (req.headers['accept'] ?? '').includes('application/json');
 
   try {
-    const flatzinc = await flatten(model, typeof data === 'string' ? data : null, solver);
+    const flatzinc = await flatten(model, typeof data === 'string' ? data : null, solver, wantJson);
 
     console.log(flatzinc);
     if (wantJson) {

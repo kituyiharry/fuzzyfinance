@@ -1,0 +1,8 @@
+name = "orsolver"
+compatibility_date = "2026-04-22"
+main = "src/worker.js"
+
+[[containers]]
+class_name = "OrSolver"
+image = "."
+max_instances = 3
