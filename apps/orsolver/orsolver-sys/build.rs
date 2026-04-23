@@ -31,7 +31,10 @@ fn main() {
         _       => "Release",
     };
 
-    let dst = cmake::Config::new(&src_dir)
+    let in_docker = env::var("IS_DOCKER").is_ok();
+
+    let mut cmake_cfg = cmake::Config::new(&src_dir);
+    cmake_cfg
         .define("BUILD_FLATZINC", "ON")
         .define("BUILD_DEPS", "ON")
         .define("BUILD_SHARED_LIBS", "ON")
@@ -39,15 +42,19 @@ fn main() {
         .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON")
         .define("BUILD_EXAMPLES", "OFF")
         .define("BUILD_SAMPLES", "OFF")
-        .define("BUILD_TESTING", "OFF")
-        // LTO causes "Bad file descriptor" failures when cmake's grandchild
-        // make processes inherit Cargo's jobserver MAKEFLAGS pipe FDs that are
-        // already closed at that point. Disabling LTO avoids the lto-wrapper
-        // spawning additional make jobs through the broken jobserver.
-        .define("CMAKE_INTERPROCEDURAL_OPTIMIZATION", "OFF")
-        // Clear Cargo's jobserver MAKEFLAGS so cmake manages its own parallelism.
-        .env("MAKEFLAGS", "")
-        .build();
+        .define("BUILD_TESTING", "OFF");
+
+    if in_docker {
+        // Inside Docker, Cargo's jobserver MAKEFLAGS pipe FDs are not
+        // inherited by cmake's grandchild make processes, so lto-wrapper
+        // fails with "Bad file descriptor". Disable LTO and clear MAKEFLAGS
+        // so cmake manages its own parallelism cleanly.
+        cmake_cfg
+            .define("CMAKE_INTERPROCEDURAL_OPTIMIZATION", "OFF")
+            .env("MAKEFLAGS", "");
+    }
+
+    let dst = cmake_cfg.build();
 
     let lib_dir = dst.join("lib");
     println!("cargo:rustc-link-search=native={}", lib_dir.display());

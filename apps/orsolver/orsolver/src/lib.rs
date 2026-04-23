@@ -1,5 +1,8 @@
 use std::ffi::{CStr, CString};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, PartialEq)]
 pub enum SolveStatus {
     Sat,
@@ -14,7 +17,6 @@ pub struct SolveResult {
 }
 
 pub fn solve(fzn_model: &str) -> Result<SolveResult, String> {
-    println!("solving {fzn_model}");
     let c_model = CString::new(fzn_model).map_err(|e| e.to_string())?;
     let mut err_ptr: *mut std::os::raw::c_char = std::ptr::null_mut();
 
