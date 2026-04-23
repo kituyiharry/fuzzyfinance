@@ -398,6 +398,8 @@ name = "orsolver"
 version = "0.1.0"
 dependencies = [
  "orsolver-sys",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
