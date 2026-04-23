@@ -12,7 +12,10 @@ RUN apt-get update \
 WORKDIR /build
 COPY . .
 
-# build.rs clones OR-Tools v9.15 into OUT_DIR and builds shared libs
+# IS_DOCKER tells build.rs to disable LTO and clear MAKEFLAGS, preventing
+# lto-wrapper from breaking cmake's make jobs via Cargo's inherited jobserver FDs.
+ENV IS_DOCKER=1
+
 RUN cargo build --release -p orsolver-server -vv
 
 # Collect all OR-Tools shared libs the binary depends on into one directory

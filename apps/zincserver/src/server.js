@@ -4,8 +4,8 @@ import { spawn } from 'node:child_process';
 const PORT = Number(process.env.PORT ?? 8080);
 const TIMEOUT_MS = Number(process.env.MINIZINC_TIMEOUT_MS ?? 30_000);
 
-const VALID_SOLVERS = new Set(['cp', 'cp-sat', 'gecode', 'cbc', 'mip', 'float', 'api', 'osicbc', 'coinbc', ]);
-const DEFAULT_SOLVER = 'cp';
+//const VALID_SOLVERS = new Set(['cp', 'cp-sat', 'gecode', 'cbc', 'mip', 'float', 'api', 'osicbc', 'coinbc', ]);
+const DEFAULT_SOLVER = 'org.minizinc.mzn-fzn';
 
 /**
  * @param {string} model
@@ -14,13 +14,18 @@ const DEFAULT_SOLVER = 'cp';
  * @returns {Promise<string|Object>}
  */
 function flatten(model, data, solver, wantJson) {
-  const args = ['--solver', solver, '--output-fzn-to-stdout', '--no-output-ozn', '-c', '--input-from-stdin'];
+  const args = ["-O0", '--no-optimize', '--solver', solver, '--output-fzn-to-stdout', '--no-output-ozn', '-c', '--input-from-stdin', '--stdlib-dir', '/opt/minizinc/share/minizinc/', '-g', '--mzn-globals-dir', '/opt/minizinc/share/minizinc/std'];
   if (data) args.push('-D', `${data}`);
   if  (wantJson) args.push('--fzn-format', 'json');
   //args.push('-c', '--input-from-stdin');
 
   return new Promise((resolve, reject) => {
-    const child = spawn('minizinc', args, { timeout: TIMEOUT_MS });
+        const child = spawn('minizinc', args, { timeout: TIMEOUT_MS, env: {
+            ...process.env,      // Inherit all existing environment variables
+            MZN_STDLIB_DIR: "/opt/minizinc/share/minizinc",
+            MZN_LIB_DIR:    "/opt/minizinc/share/minizinc",
+        }
+    });
 
     let stdout = '';
     let stderr = '';
@@ -126,9 +131,9 @@ const server = http.createServer(async (req, res) => {
       if (!model || typeof model !== 'string') {
         return { id, error: '`model` string is required' };
       }
-      if (!VALID_SOLVERS.has(solver)) {
-        return { id, error: `unknown solver "${solver}"; valid options: ${[...VALID_SOLVERS].join(', ')}` };
-      }
+      // if (!VALID_SOLVERS.has(solver)) {
+      //   return { id, error: `unknown solver "${solver}"; valid options: ${[...VALID_SOLVERS].join(', ')}` };
+      // }
 
       try {
         const flatzinc = await flatten(model, typeof data === 'string' ? data : null, solver);
@@ -169,9 +174,9 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: '`model` string is required' });
   }
 
-  if (!VALID_SOLVERS.has(solver)) {
-    return sendJson(res, 400, { error: `unknown solver "${solver}"; valid options: ${[...VALID_SOLVERS].join(', ')}` });
-  }
+  // if (!VALID_SOLVERS.has(solver)) {
+  //   return sendJson(res, 400, { error: `unknown solver "${solver}"; valid options: ${[...VALID_SOLVERS].join(', ')}` });
+  // }
 
   // Response format negotiation via Accept header:
   //   Accept: application/json  → { flatzinc: "..." }

@@ -8,6 +8,7 @@ ENV COIN_PREFIX=/opt/coin
 ENV PKG_CONFIG_PATH=/opt/coin/lib/pkgconfig
 ENV CC=clang
 ENV CXX=clang++
+ENV MZN_STDLIB_DIR=/opt/minizinc/share/minizinc
 
 RUN git clone --depth 1 --branch releases/2.11.13 \
       https://github.com/coin-or/CoinUtils.git /coin/CoinUtils \
@@ -68,6 +69,8 @@ RUN apk add --no-cache git cmake make clang bison flex zlib-dev curl blas pkgcon
 ENV OSTYPE=linux
 ENV MZNARCH=linux
 ENV PKG_CONFIG_PATH=/opt/coin/lib/pkgconfig
+ENV MZN_LIB_DIR=/opt/minizinc/share/minizinc
+ENV MZN_STDLIB_DIR=/opt/minizinc/share/minizinc
 
 COPY --from=coin-build /opt/coin /opt/coin
 COPY --from=gecode-build /opt/gecode /opt/gecode
@@ -95,6 +98,8 @@ COPY --from=gecode-build /opt/gecode/lib /opt/gecode/lib
 ENV LD_LIBRARY_PATH=/opt/gecode/lib
 
 RUN ln -sf /opt/minizinc/bin/minizinc /usr/local/bin/minizinc
+ENV MZN_LIB_DIR=/opt/minizinc/share/minizinc
+ENV MZN_STDLIB_DIR=/opt/minizinc/share/minizinc
 
 WORKDIR /app
 COPY package.json ./
@@ -105,3 +110,4 @@ EXPOSE 8080
 ENV PORT=8080
 
 CMD ["node", "src/server.js"]
+#ENTRYPOINT ["sh"]
