@@ -87,18 +87,18 @@ export async function POST({ request, locals, platform }) {
 			);
 		}
 
-		const [similar] = await db
-			.select({ id: schema.sale.id })
-			.from(schema.sale)
-			.where(eq(schema.sale.rawFileName, file.name))
-			.limit(1);
+		// const [similar] = await db
+		// 	.select({ id: schema.sale.id })
+		// 	.from(schema.sale)
+		// 	.where(eq(schema.sale.rawFileName, file.name))
+		// 	.limit(1);
 
-		if (similar) {
-			return json(
-				{ error: 'duplicate', duplicateSaleId: similar.id },
-				{ status: 409 }
-			);
-		}
+		// if (similar) {
+		// 	return json(
+		// 		{ error: 'duplicate', duplicateSaleId: similar.id },
+		// 		{ status: 409 }
+		// 	);
+		// }
 	}
 
 	// Write to R2 transit buffer
