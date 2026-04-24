@@ -88,21 +88,22 @@ export async function POST({ request, locals, platform }) {
 			);
 		}
 
-        // check for similar file names
-		const [similar] = await db
-			.select({ id: schema.receipt.id })
-			.from(schema.receipt)
-			.where(
-				eq(schema.receipt.rawFileName, file.name),
-			)
-			.limit(1);
+        // don't check for similar file names due to direct capture images being
+        // named in a similar manner
+		// const [similar] = await db
+		// 	.select({ id: schema.receipt.id })
+		// 	.from(schema.receipt)
+		// 	.where(
+		// 		eq(schema.receipt.rawFileName, file.name),
+		// 	)
+		// 	.limit(1);
 
-		if (similar) {
-			return json(
-				{ error: 'duplicate', duplicateReceiptId: similar.id },
-				{ status: 409 }
-			);
-		}
+		// if (similar) {
+		// 	return json(
+		// 		{ error: 'duplicate', duplicateReceiptId: similar.id },
+		// 		{ status: 409 }
+		// 	);
+		// }
 
 	}
 
