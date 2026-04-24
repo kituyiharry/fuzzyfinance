@@ -5,6 +5,7 @@ import { extractReceiptData } from '$lib/server/gemini';
 import { indexReceipt } from '$lib/server/vectorize';
 import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
+import { scanFileMetadata } from '$lib/server/authenticity';
 
 const LOG = '[receipt-processor]';
 
@@ -54,11 +55,17 @@ export async function processReceipt(env, receiptId) {
 		return;
 	}
 
+	// ── Step 1.5: pre-extraction metadata scan ─────────────────────────
+	const metaScan = scanFileMetadata(fileBytes, receipt.rawMimeType ?? 'image/jpeg');
+	if (metaScan.signals.length) {
+		logger.warn(LOG, 'authenticity_pre_scan', { receiptId, risk: metaScan.risk, signals: metaScan.signals });
+	}
+
 	// ── Step 2: AI extraction ──────────────────────────────────────────
 	let extraction;
 	try {
-		extraction = await extractReceiptData(fileBytes, receipt.rawMimeType ?? 'image/jpeg');
-		logger.info(LOG, 'extracted', { receiptId, merchant: extraction.merchant, total: extraction.total, itemCount: extraction.lineItems?.length ?? 0 });
+		extraction = await extractReceiptData(fileBytes, receipt.rawMimeType ?? 'image/jpeg', metaScan.signals);
+		logger.info(LOG, 'extracted', { receiptId, merchant: extraction.merchant, total: extraction.total, itemCount: extraction.lineItems?.length ?? 0, authenticityRisk: extraction.authenticityRisk });
 	} catch (/** @type {any} */ err) {
 		logger.error(LOG, 'extraction_failed', { receiptId, code: err?.code, err: String(err) });
 		if (err?.code === 'RATE_LIMITED') {
@@ -114,7 +121,9 @@ export async function processReceipt(env, receiptId) {
 		notes:         extraction.notes       || null,
 		tags:          JSON.stringify(extraction.tags ?? []),
 		lineItemsJson,
-		aiExtractedJson
+		aiExtractedJson,
+		authenticityRisk:    extraction.authenticityRisk    || 'low',
+		authenticitySignals: JSON.stringify(extraction.authenticitySignals ?? [])
 	});
 
 	// Persist normalised line items

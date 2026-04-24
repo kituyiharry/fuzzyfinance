@@ -1,12 +1,90 @@
 import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { inArray } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 import { searchReceipts } from '$lib/server/vectorize';
 import { GoogleGenAI } from '@google/genai';
 import { env } from '$env/dynamic/private';
 
-const SYSTEM_PROMPT = `You are FuzzyFinance's financial assistant. You help users understand their receipt and spending data. Be concise — answer in 1–4 sentences unless a list or breakdown is specifically requested. Base your answers only on the provided receipt data. If no relevant data is found, say so clearly. Do not fabricate receipts, merchants, or amounts.`;
+const SYSTEM_PROMPT = `You are FuzzyFinance's financial assistant. You help users understand their receipt and spending data. Be concise — answer in 1–4 sentences unless a list or breakdown is specifically requested. You are given two types of data: (1) a spending summary with aggregated totals across all receipts, and (2) individual receipts most relevant to the query. Use the spending summary to answer aggregation questions (totals, most/least, averages, breakdowns). Use individual receipts to answer specific lookup questions. Do not fabricate receipts, merchants, or amounts.`;
+
+/**
+ * Pulls aggregate spending data directly from the DB so the LLM can answer
+ * questions like "which merchant do I spend the most with" accurately.
+ *
+ * @param {string} userId
+ */
+async function getSpendingSummary(userId) {
+	const [merchants, categories, monthly] = await Promise.all([
+		db.all(sql`
+			SELECT merchant_name AS merchant,
+			       ROUND(SUM(CAST(total AS REAL)), 2) AS totalSpend,
+			       COUNT(*) AS receiptCount
+			FROM receipt
+			WHERE user_id = ${userId}
+			  AND status IN ('complete', 'complete_no_sync', 'staged')
+			  AND total IS NOT NULL
+			  AND merchant_name IS NOT NULL
+			GROUP BY merchant_name
+			ORDER BY totalSpend DESC
+			LIMIT 15
+		`),
+		db.all(sql`
+			SELECT category,
+			       ROUND(SUM(CAST(total AS REAL)), 2) AS totalSpend,
+			       COUNT(*) AS receiptCount
+			FROM receipt
+			WHERE user_id = ${userId}
+			  AND status IN ('complete', 'complete_no_sync', 'staged')
+			  AND total IS NOT NULL
+			  AND category IS NOT NULL
+			GROUP BY category
+			ORDER BY totalSpend DESC
+		`),
+		db.all(sql`
+			SELECT strftime('%Y-%m', datetime(receipt_date / 1000, 'unixepoch')) AS month,
+			       ROUND(SUM(CAST(total AS REAL)), 2) AS totalSpend,
+			       COUNT(*) AS receiptCount
+			FROM receipt
+			WHERE user_id = ${userId}
+			  AND status IN ('complete', 'complete_no_sync', 'staged')
+			  AND total IS NOT NULL
+			  AND receipt_date IS NOT NULL
+			GROUP BY month
+			ORDER BY month DESC
+			LIMIT 12
+		`)
+	]);
+
+	/** @type {any[]} */ const merchantRows  = merchants;
+	/** @type {any[]} */ const categoryRows = categories;
+	/** @type {any[]} */ const monthlyRows  = monthly;
+
+	const lines = [];
+
+	if (merchantRows.length) {
+		lines.push('Top merchants by total spend:');
+		for (const r of merchantRows) {
+			lines.push(`  • ${r.merchant}: ${r.totalSpend} (${r.receiptCount} receipt${r.receiptCount === 1 ? '' : 's'})`);
+		}
+	}
+
+	if (categoryRows.length) {
+		lines.push('Spend by category:');
+		for (const r of categoryRows) {
+			lines.push(`  • ${r.category}: ${r.totalSpend} (${r.receiptCount} receipt${r.receiptCount === 1 ? '' : 's'})`);
+		}
+	}
+
+	if (monthlyRows.length) {
+		lines.push('Monthly spend (most recent first):');
+		for (const r of monthlyRows) {
+			lines.push(`  • ${r.month}: ${r.totalSpend} (${r.receiptCount} receipt${r.receiptCount === 1 ? '' : 's'})`);
+		}
+	}
+
+	return lines.length ? lines.join('\n') : 'No spending data available yet.';
+}
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals, platform }) {
@@ -20,10 +98,13 @@ export async function POST({ request, locals, platform }) {
 	/** @type {Array<{ role: string; content: string }>} */
 	const history = Array.isArray(body?.history) ? body.history.slice(-10) : []; // cap history at 10 turns
 
-	// ── Semantic search for relevant receipts ─────────────────────────
-	const matches = await searchReceipts(platform.env, locals.user.id, query, 8);
+	// ── Fetch spending summary + semantic search in parallel ──────────
+	const [matches, spendingSummary] = await Promise.all([
+		searchReceipts(platform.env, locals.user.id, query, 8),
+		getSpendingSummary(locals.user.id)
+	]);
 
-	let receiptContext = 'No matching receipts found in the user\'s data.';
+	let receiptContext = 'No individual receipts matched this query.';
 	let contextCount = 0;
 
 	if (matches.length) {
@@ -60,7 +141,8 @@ export async function POST({ request, locals, platform }) {
 
 	const fullPrompt = [
 		`${SYSTEM_PROMPT} Today's date is ${today}.`,
-		`Relevant receipts:\n${receiptContext}`,
+		`Spending summary (aggregated across all receipts):\n${spendingSummary}`,
+		`Individual receipts most relevant to this query:\n${receiptContext}`,
 		historyText ? `Previous conversation:\n${historyText}` : null,
 		`User: ${query}`
 	].filter(Boolean).join('\n\n');

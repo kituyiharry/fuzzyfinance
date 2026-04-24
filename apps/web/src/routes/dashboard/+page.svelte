@@ -37,16 +37,7 @@
 	let querying = $state(false);
 
 	/** @type {boolean} */
-	let saving = $state(false);
-
-	/** @type {string | null} */
-	let saveError = $state(null);
-
-	/** @type {boolean} */
 	let rateLimited = $state(false);
-
-	/** @type {string | null} */
-	let savedConvoId = $state(null);
 
 	/** @type {HTMLDivElement | null} */
 	let bubblesEl = $state(null);
@@ -55,10 +46,8 @@
 		const q = queryInput.trim();
 		if (!q || querying) return;
 
-		queryInput   = '';
-		savedConvoId = null;
-		saveError    = null;
-		rateLimited  = false;
+		queryInput  = '';
+		rateLimited = false;
 
 		/** @type {{ role: 'user' | 'assistant'; content: string }} */
 		const userMsg = { role: 'user', content: q };
@@ -88,33 +77,8 @@
 	}
 
 	function clearChat() {
-		messages     = [];
-		queryInput   = '';
-		savedConvoId = null;
-		saveError    = null;
-	}
-
-	async function saveConversation() {
-		if (!messages.length || saving) return;
-		saving    = true;
-		saveError = null;
-		try {
-			const res = await fetch('/api/conversations', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ messages }),
-			});
-			if (res.ok) {
-				const body = await res.json();
-				savedConvoId = body.id;
-			} else {
-				saveError = 'Failed to save conversation.';
-			}
-		} catch {
-			saveError = 'Network error. Please try again.';
-		} finally {
-			saving = false;
-		}
+		messages   = [];
+		queryInput = '';
 	}
 
 	/** @param {KeyboardEvent} e */
@@ -148,30 +112,12 @@
 				</span>
 			</div>
 			{#if hasMessages}
-				<div class="flex items-center gap-2">
-					{#if savedConvoId}
-						<a
-							href="/dashboard/conversations"
-							class="font-mono text-[9px] uppercase tracking-widest text-(--color-success) no-underline"
-						>
-							SAVED ✓ VIEW →
-						</a>
-					{:else}
-						<button
-							onclick={saveConversation}
-							disabled={saving}
-							class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) border border-(--color-border) px-2.5 py-1 transition-colors disabled:opacity-50"
-						>
-							{saving ? 'SAVING...' : 'SAVE'}
-						</button>
-					{/if}
-					<button
-						onclick={clearChat}
-						class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-danger) border border-(--color-border) hover:border-(--color-danger-border) px-2.5 py-1 transition-colors"
-					>
-						CLEAR
-					</button>
-				</div>
+				<button
+					onclick={clearChat}
+					class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-danger) border border-(--color-border) hover:border-(--color-danger-border) px-2.5 py-1 transition-colors"
+				>
+					CLEAR
+				</button>
 			{/if}
 		</div>
 
@@ -217,11 +163,6 @@
 			</div>
 		{/if}
 
-		{#if saveError}
-			<div class="px-5 py-2 font-mono text-[9px] text-(--color-danger) uppercase tracking-widest">
-				{saveError}
-			</div>
-		{/if}
 
 		<!-- Input row -->
 		<div class="flex gap-0 p-3">

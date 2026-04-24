@@ -74,6 +74,12 @@ export const receipt = sqliteTable(
     invoiceNumber: text("invoice_number"), // e.g. "INV-2024-001"
     duplicateOf:   text("duplicate_of"),   // receipt.id of suspected duplicate (soft ref)
 
+    // Authenticity assessment — set at extraction time, null if not yet assessed
+    // risk: 'low' | 'medium' | 'high'
+    authenticityRisk:    text("authenticity_risk"),
+    // JSON string[] of specific signals, e.g. '["AI generator signature in metadata"]'
+    authenticitySignals: text("authenticity_signals"),
+
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
