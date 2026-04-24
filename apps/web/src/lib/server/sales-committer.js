@@ -65,6 +65,7 @@ export async function commitSale(env, saleId) {
 			accessToken = await getValidAccessToken(sale.userId, provider);
 		} catch (err) {
 			console.warn(`[sales-committer] Could not get token for ${provider}:`, err);
+			syncError = String(err);
 			continue;
 		}
 		if (!accessToken) continue;

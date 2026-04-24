@@ -3,6 +3,10 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and } from 'drizzle-orm';
 import { deleteSaleVector } from '$lib/server/vectorize';
+import { logger } from '$lib/server/logger';
+import { batchInsert } from '$lib/server/db/batch-insert';
+
+const LOG = '[sales/PATCH]';
 
 const TEXT_FIELDS = ['documentTitle', 'totalRevenue', 'totalCost', 'totalMargin', 'currency', 'category', 'notes'];
 
@@ -117,24 +121,30 @@ export async function PATCH({ params, locals, request }) {
 	}
 
 	// ── Upsert line items ────────────────────────────────────────────────
+	logger.info(LOG, 'deleting_existing_line_items', { saleId: params.id });
 	await db.delete(schema.saleLineItem).where(eq(schema.saleLineItem.saleId, params.id));
 
 	if (lineItems.length) {
-		await db.insert(schema.saleLineItem).values(
-			lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
-				id:          crypto.randomUUID(),
-				saleId:      params.id,
-				description: li.description || null,
-				type:        li.type        || null,
-				unitsSold:   li.unitsSold   || null,
-				buyPrice:    li.buyPrice    || null,
-				sellPrice:   li.sellPrice   || null,
-				margin:      li.margin      || null,
-				total:       li.total       || null,
-				totalCost:   li.totalCost   || null,
-				sortOrder:   i
-			}))
-		);
+		const items = lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
+			id:          crypto.randomUUID(),
+			saleId:      params.id,
+			description: li.description || null,
+			type:        li.type        || null,
+			unitsSold:   li.unitsSold   || null,
+			buyPrice:    li.buyPrice    || null,
+			sellPrice:   li.sellPrice   || null,
+			margin:      li.margin      || null,
+			total:       li.total       || null,
+			totalCost:   li.totalCost   || null,
+			sortOrder:   i
+		}));
+		logger.info(LOG, 'inserting_line_items', { saleId: params.id, count: items.length });
+		try {
+			await batchInsert(db, schema.saleLineItem, items);
+		} catch (err) {
+			logger.error(LOG, 'line_items_insert_failed', { saleId: params.id, count: items.length, err: String(err) });
+			error(500, 'Failed to save line items');
+		}
 	}
 
 	// ── Patch sale row ────────────────────────────────────────────────

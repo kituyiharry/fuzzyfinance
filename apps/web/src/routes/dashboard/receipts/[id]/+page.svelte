@@ -217,7 +217,30 @@
 		</div>
 	{/if}
 
-	{#if receipt.errorMessage?.startsWith('NOT_RELEVANT:')}
+	{#if receipt.errorMessage?.startsWith('AUTH_REQUIRED:')}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">CLOUD SYNC FAILED — RE-AUTHENTICATION REQUIRED</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				Your Google or Microsoft connection has expired or been revoked. Re-connect your account and then retry the sync.
+			</p>
+			<div class="pl-4 mt-1 flex items-center gap-4">
+				<a
+					href="/dashboard/integrations"
+					class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-fg) underline decoration-dotted hover:decoration-solid"
+				>
+					MANAGE INTEGRATIONS →
+				</a>
+				{#if receipt.status === 'complete_no_sync'}
+					<Button variant="secondary" onclick={retrySync} class="text-xs font-black uppercase tracking-widest" disabled={retrying}>
+						{retrying ? 'RETRYING...' : 'RETRY SYNC'}
+					</Button>
+				{/if}
+			</div>
+		</div>
+	{:else if receipt.errorMessage?.startsWith('NOT_RELEVANT:')}
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
 				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>

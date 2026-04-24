@@ -82,7 +82,12 @@ async function _refreshGoogle(refreshToken) {
 			refresh_token: refreshToken
 		})
 	});
-	if (!res.ok) throw new Error(`Google token refresh failed: ${await res.text()}`);
+	if (!res.ok) {
+		const body = await res.text();
+		const isAuthError = body.includes('"invalid_grant"') || body.includes('"invalid_client"');
+		const prefix = isAuthError ? 'AUTH_REQUIRED: ' : '';
+		throw new Error(`${prefix}Google token refresh failed: ${body}`);
+	}
 	return res.json();
 }
 
@@ -105,6 +110,11 @@ async function _refreshMicrosoft(refreshToken) {
 			})
 		}
 	);
-	if (!res.ok) throw new Error(`Microsoft token refresh failed: ${await res.text()}`);
+	if (!res.ok) {
+		const body = await res.text();
+		const isAuthError = body.includes('"invalid_grant"') || body.includes('"interaction_required"') || body.includes('"consent_required"');
+		const prefix = isAuthError ? 'AUTH_REQUIRED: ' : '';
+		throw new Error(`${prefix}Microsoft token refresh failed: ${body}`);
+	}
 	return res.json();
 }
