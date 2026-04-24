@@ -255,6 +255,28 @@
 		</div>
 	{/if}
 
+	{#if receipt.authenticityRisk === 'high' || receipt.authenticityRisk === 'medium'}
+		{@const authSignals = (() => { try { return JSON.parse(receipt.authenticitySignals ?? '[]'); } catch { return []; } })()}
+		<div class="border-2 border-(--color-danger-border) bg-(--color-danger-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-danger-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-danger)">
+					AUTHENTICITY {receipt.authenticityRisk === 'high' ? 'WARNING' : 'CONCERN'} — {receipt.authenticityRisk?.toUpperCase()} RISK
+				</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				This receipt shows signals that may indicate it was digitally generated or altered. Please verify before committing.
+			</p>
+			{#if authSignals.length}
+				<ul class="pl-4 flex flex-col gap-0.5">
+					{#each authSignals as signal (signal)}
+						<li class="font-mono text-[10px] text-(--color-danger) before:content-['•'] before:mr-1.5">{signal}</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
+	{/if}
+
 	{#if receipt.duplicateOf}
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
