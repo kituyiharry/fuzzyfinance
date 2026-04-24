@@ -3,6 +3,10 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and } from 'drizzle-orm';
 import { deleteReceiptVector } from '$lib/server/vectorize';
+import { logger } from '$lib/server/logger';
+import { batchInsert } from '$lib/server/db/batch-insert';
+
+const LOG = '[receipts/PATCH]';
 
 const TEXT_FIELDS = ['merchantName', 'total', 'subtotal', 'tax', 'tip', 'currency', 'paymentMethod', 'receiptNumber', 'invoiceNumber', 'category', 'notes'];
 
@@ -113,20 +117,26 @@ export async function PATCH({ params, locals, request }) {
 	}
 
 	// ── Upsert line items ────────────────────────────────────────────────
+	logger.info(LOG, 'deleting_existing_line_items', { receiptId: params.id });
 	await db.delete(schema.receiptLineItem).where(eq(schema.receiptLineItem.receiptId, params.id));
 
 	if (lineItems.length) {
-		await db.insert(schema.receiptLineItem).values(
-			lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
-				id:          crypto.randomUUID(),
-				receiptId:   params.id,
-				description: li.description || null,
-				qty:         li.qty         || null,
-				unitPrice:   li.unitPrice   || null,
-				total:       li.total       || null,
-				sortOrder:   i
-			}))
-		);
+		const items = lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
+			id:          crypto.randomUUID(),
+			receiptId:   params.id,
+			description: li.description || null,
+			qty:         li.qty         || null,
+			unitPrice:   li.unitPrice   || null,
+			total:       li.total       || null,
+			sortOrder:   i
+		}));
+		logger.info(LOG, 'inserting_line_items', { receiptId: params.id, count: items.length });
+		try {
+			await batchInsert(db, schema.receiptLineItem, items);
+		} catch (err) {
+			logger.error(LOG, 'line_items_insert_failed', { receiptId: params.id, count: items.length, err: String(err) });
+			error(500, 'Failed to save line items');
+		}
 	}
 
 	// ── Patch receipt row ────────────────────────────────────────────────

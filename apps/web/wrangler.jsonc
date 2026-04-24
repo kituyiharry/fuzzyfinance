@@ -29,12 +29,8 @@
 
     "vars": {
         "ORIGIN": "https://fuzzies.app",
-        "BETTER_AUTH_SECRET": "53555f45-5fb4-4f1c-80ff-89209a5011dd",
-        "GOOGLE_CLIENT_ID":"373222414857-c92gsbr40n9s2sud0roqknhh4af95art.apps.googleusercontent.com",
-        "GOOGLE_CLIENT_SECRET":"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",
         "MICROSOFT_CLIENT_ID":"",
         "MICROSOFT_CLIENT_SECRET":"",
-        "GEMINI_API_KEY":"AIzaSyDzcujWhnSjWB5IXB5UJ4cPWmebpRGegEg",
     },
 
 	// Cron Trigger — daily R2 cleanup at 03:00 UTC

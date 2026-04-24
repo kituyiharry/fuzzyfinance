@@ -3,6 +3,10 @@ import { schema } from '@fuzzyfinance/db';
 import { eq, and, ne } from 'drizzle-orm';
 import { extractReceiptData } from '$lib/server/gemini';
 import { indexReceipt } from '$lib/server/vectorize';
+import { logger } from '$lib/server/logger';
+import { batchInsert } from '$lib/server/db/batch-insert';
+
+const LOG = '[receipt-processor]';
 
 /**
  * Full receipt processing pipeline. Called via ctx.waitUntil() so it runs
@@ -30,10 +34,11 @@ export async function processReceipt(env, receiptId) {
 		.where(eq(schema.receipt.id, receiptId));
 
 	if (!receipt) {
-		console.error(`[receipt-processor] Receipt ${receiptId} not found`);
+		logger.error(LOG, 'receipt not found', { receiptId });
 		return;
 	}
 
+	logger.info(LOG, 'start', { receiptId });
 	await patch({ status: 'processing' });
 
 	// ── Step 1: fetch file from R2 ──────────────────────────────────────
@@ -42,8 +47,9 @@ export async function processReceipt(env, receiptId) {
 		const obj = await env.fuzzyfinance_receipts.get(receipt.r2Key ?? '');
 		if (!obj) throw new Error(`R2 object not found -> ID: ${receipt.r2Key}`);
 		fileBytes = await obj.arrayBuffer();
+		logger.info(LOG, 'r2_fetched', { receiptId, bytes: fileBytes.byteLength });
 	} catch (err) {
-		console.error(`[receipt-processor] R2 fetch failed: ID: ${receipt.r2Key}`, err);
+		logger.error(LOG, 'r2_fetch_failed', { receiptId, r2Key: receipt.r2Key, err: String(err) });
 		await patch({ status: 'failed', errorMessage: String(err) });
 		return;
 	}
@@ -52,8 +58,9 @@ export async function processReceipt(env, receiptId) {
 	let extraction;
 	try {
 		extraction = await extractReceiptData(fileBytes, receipt.rawMimeType ?? 'image/jpeg');
+		logger.info(LOG, 'extracted', { receiptId, merchant: extraction.merchant, total: extraction.total, itemCount: extraction.lineItems?.length ?? 0 });
 	} catch (/** @type {any} */ err) {
-		console.error('[receipt-processor] Gemini extraction failed:', err);
+		logger.error(LOG, 'extraction_failed', { receiptId, code: err?.code, err: String(err) });
 		if (err?.code === 'RATE_LIMITED') {
 			await patch({ status: 'failed', errorMessage: 'Gemini API rate limit reached. Please re-upload this receipt in a few minutes.' });
 		} else if (err?.code === 'NOT_RELEVANT') {
@@ -121,7 +128,15 @@ export async function processReceipt(env, receiptId) {
 			total:       li.total       || null,
 			sortOrder:   i
 		}));
-		await db.insert(schema.receiptLineItem).values(items);
+		logger.info(LOG, 'inserting_line_items', { receiptId, count: items.length });
+		try {
+			await batchInsert(db, schema.receiptLineItem, items);
+			logger.info(LOG, 'line_items_inserted', { receiptId });
+		} catch (err) {
+			logger.error(LOG, 'line_items_insert_failed', { receiptId, count: items.length, err: String(err) });
+			await patch({ status: 'failed', errorMessage: `Line item insert failed: ${err}` });
+			return;
+		}
 	}
 
 	// ── Step 3.5: Stage 2 — receipt identifier dedup ──────────────────
@@ -166,9 +181,9 @@ export async function processReceipt(env, receiptId) {
 	let vectorId = null;
 	try {
 		vectorId = await indexReceipt(env, freshReceipt);
+		logger.info(LOG, 'vectorized', { receiptId, vectorId });
 	} catch (err) {
-		// Non-fatal — search just won't include this receipt
-		console.warn('[receipt-processor] Vectorize failed (non-fatal):', err);
+		logger.warn(LOG, 'vectorize_failed_non_fatal', { receiptId, err: String(err) });
 	}
 
 	if (vectorId) await patch({ vectorId });
@@ -176,4 +191,5 @@ export async function processReceipt(env, receiptId) {
 	// ── Step 5: stage for user review ─────────────────────────────────────
 	// R2 object intentionally kept — commitReceipt() will upload it to Drive then delete it
 	await patch({ status: 'staged' });
+	logger.info(LOG, 'staged', { receiptId });
 }

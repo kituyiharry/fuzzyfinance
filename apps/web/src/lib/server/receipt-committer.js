@@ -72,6 +72,7 @@ export async function commitReceipt(env, receiptId) {
 			accessToken = await getValidAccessToken(receipt.userId, provider);
 		} catch (err) {
 			console.warn(`[receipt-committer] Could not get token for ${provider}:`, err);
+			syncError = String(err);
 			continue;
 		}
 		if (!accessToken) continue;

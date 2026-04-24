@@ -3,6 +3,10 @@ import { schema } from '@fuzzyfinance/db';
 import { eq } from 'drizzle-orm';
 import { extractSaleData } from '$lib/server/sales-gemini';
 import { indexSale } from '$lib/server/vectorize';
+import { logger } from '$lib/server/logger';
+import { batchInsert } from '$lib/server/db/batch-insert';
+
+const LOG = '[sales-processor]';
 
 /**
  * Background processor for a sale document.
@@ -18,10 +22,11 @@ export async function processSale(env, saleId) {
 	// ── Step 1: Load sale from DB ──────────────────────────────────────────
 	const [sale] = await db.select().from(schema.sale).where(eq(schema.sale.id, saleId));
 	if (!sale) {
-		console.error(`[sales-processor] Sale ${saleId} not found`);
+		logger.error(LOG, 'sale not found', { saleId });
 		return;
 	}
 
+	logger.info(LOG, 'start', { saleId });
 	await patch({ status: 'processing' });
 
 	// ── Step 2: Fetch file bytes from R2 ───────────────────────────────────
@@ -30,8 +35,9 @@ export async function processSale(env, saleId) {
 		const obj = await env.fuzzyfinance_receipts.get(sale.r2Key ?? '');
 		if (!obj) throw new Error(`R2 object not found -> Key: ${sale.r2Key}`);
 		fileBytes = await obj.arrayBuffer();
+		logger.info(LOG, 'r2_fetched', { saleId, bytes: fileBytes.byteLength });
 	} catch (err) {
-		console.error(`[sales-processor] R2 fetch failed: ${sale.r2Key}`, err);
+		logger.error(LOG, 'r2_fetch_failed', { saleId, r2Key: sale.r2Key, err: String(err) });
 		await patch({ status: 'failed', errorMessage: String(err) });
 		return;
 	}
@@ -40,8 +46,9 @@ export async function processSale(env, saleId) {
 	let extraction;
 	try {
 		extraction = await extractSaleData(fileBytes, sale.rawMimeType ?? 'image/jpeg');
+		logger.info(LOG, 'extracted', { saleId, documentTitle: extraction.documentTitle, totalRevenue: extraction.totalRevenue, itemCount: extraction.lineItems?.length ?? 0 });
 	} catch (/** @type {any} */ err) {
-		console.error('[sales-processor] Gemini extraction failed:', err);
+		logger.error(LOG, 'extraction_failed', { saleId, code: err?.code, err: String(err) });
 		if (err?.code === 'RATE_LIMITED') {
 			await patch({ status: 'failed', errorMessage: 'Gemini API rate limit reached. Please re-upload this document in a few minutes.' });
 		} else if (err?.code === 'NOT_RELEVANT') {
@@ -71,6 +78,7 @@ export async function processSale(env, saleId) {
 		lineItems:     extraction.lineItems ?? [],
 	});
 
+	logger.info(LOG, 'persisting_data', { saleId });
 	try {
 		await patch({
 			documentTitle: (extraction.documentTitle || '').trim() || null,
@@ -86,35 +94,35 @@ export async function processSale(env, saleId) {
 			aiExtractedJson,
 		});
 	} catch (err) {
-		console.error('[sales-processor] DB patch failed:', err);
+		logger.error(LOG, 'db_patch_failed', { saleId, err: String(err) });
 		await patch({ status: 'failed', errorMessage: `DB update failed: ${err}` });
 		return;
 	}
 
 	// ── Step 5: Persist line items ────────────────────────────────────────
 	try {
-		// Delete any existing line items first
 		await db.delete(schema.saleLineItem).where(eq(schema.saleLineItem.saleId, saleId));
 
 		if (extraction.lineItems?.length) {
-			await db.insert(schema.saleLineItem).values(
-				extraction.lineItems.map((li, i) => ({
-					id:          crypto.randomUUID(),
-					saleId,
-					description: (li.description || '').trim() || null,
-					type:        li.type || null,
-					unitsSold:   (li.unitsSold || '').trim() || null,
-					buyPrice:    (li.buyPrice || '').trim() || null,
-					sellPrice:   (li.sellPrice || '').trim() || null,
-					margin:      (li.margin || '').trim() || null,
-					total:       (li.total || '').trim() || null,
-					totalCost:   (li.totalCost || '').trim() || null,
-					sortOrder:   i,
-				}))
-			);
+			const items = extraction.lineItems.map((li, i) => ({
+				id:          crypto.randomUUID(),
+				saleId,
+				description: (li.description || '').trim() || null,
+				type:        li.type || null,
+				unitsSold:   (li.unitsSold || '').trim() || null,
+				buyPrice:    (li.buyPrice || '').trim() || null,
+				sellPrice:   (li.sellPrice || '').trim() || null,
+				margin:      (li.margin || '').trim() || null,
+				total:       (li.total || '').trim() || null,
+				totalCost:   (li.totalCost || '').trim() || null,
+				sortOrder:   i,
+			}));
+			logger.info(LOG, 'inserting_line_items', { saleId, count: items.length });
+			await batchInsert(db, schema.saleLineItem, items);
+			logger.info(LOG, 'line_items_inserted', { saleId });
 		}
 	} catch (err) {
-		console.error('[sales-processor] Line items insert failed:', err);
+		logger.error(LOG, 'line_items_insert_failed', { saleId, err: String(err) });
 		// Non-fatal — continue to vectorize
 	}
 
@@ -123,11 +131,12 @@ export async function processSale(env, saleId) {
 	let vectorId = null;
 	try {
 		vectorId = await indexSale(env, freshSale);
+		logger.info(LOG, 'vectorized', { saleId, vectorId });
 	} catch (err) {
-		// Non-fatal — search just won't include this sale
-		console.warn('[sales-processor] Vectorize failed (non-fatal):', err);
+		logger.warn(LOG, 'vectorize_failed_non_fatal', { saleId, err: String(err) });
 	}
 
 	// ── Step 7: Mark staged ───────────────────────────────────────────────
 	await patch({ status: 'staged', vectorId });
+	logger.info(LOG, 'staged', { saleId });
 }
