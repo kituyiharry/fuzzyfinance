@@ -25,17 +25,21 @@ pub struct SolveResult {
 
 fn call_ffi<F>(fzn_model: &str, f: F) -> Result<String, String>
 where
-    F: FnOnce(*const std::os::raw::c_char, *mut *mut std::os::raw::c_char)
-        -> *mut std::os::raw::c_char,
+    F: FnOnce(
+        *const std::os::raw::c_char,
+        *mut *mut std::os::raw::c_char,
+    ) -> *mut std::os::raw::c_char,
 {
     let c_model = CString::new(fzn_model).map_err(|e| e.to_string())?;
     let mut err_ptr: *mut std::os::raw::c_char = std::ptr::null_mut();
 
-    let result_ptr = unsafe { f(c_model.as_ptr(), &mut err_ptr) };
+    let result_ptr = { f(c_model.as_ptr(), &mut err_ptr) };
 
     if result_ptr.is_null() {
         let msg = if !err_ptr.is_null() {
-            let s = unsafe { CStr::from_ptr(err_ptr) }.to_string_lossy().into_owned();
+            let s = unsafe { CStr::from_ptr(err_ptr) }
+                .to_string_lossy()
+                .into_owned();
             unsafe { orsolver_sys::free_solve_result(err_ptr) };
             s
         } else {
@@ -44,7 +48,9 @@ where
         return Err(msg);
     }
 
-    let raw = unsafe { CStr::from_ptr(result_ptr) }.to_string_lossy().into_owned();
+    let raw = unsafe { CStr::from_ptr(result_ptr) }
+        .to_string_lossy()
+        .into_owned();
     unsafe { orsolver_sys::free_solve_result(result_ptr) };
     Ok(raw)
 }
@@ -68,7 +74,9 @@ fn parse_solution(output: &str) -> HashMap<String, serde_json::Value> {
             continue;
         }
         // Format: `name = value;`  (semicolon is optional in some outputs)
-        let Some((name, rest)) = line.split_once(" = ") else { continue };
+        let Some((name, rest)) = line.split_once(" = ") else {
+            continue;
+        };
         let name = name.trim().to_string();
         let raw_val = rest.trim().trim_end_matches(';').trim();
 
@@ -123,8 +131,7 @@ pub fn inspect(fzn_model: &str) -> Result<ModelInfo, String> {
     let raw = call_ffi(fzn_model, |m, e| unsafe {
         orsolver_sys::inspect_flatzinc(m, e)
     })?;
-    serde_json::from_str(&raw)
-        .map_err(|e| format!("failed to deserialise model info: {e}"))
+    serde_json::from_str(&raw).map_err(|e| format!("failed to deserialise model info: {e}"))
 }
 
 /// Solve with full debug information.
@@ -153,5 +160,10 @@ pub fn solve_with_info(fzn_model: &str) -> Result<SolveResult, String> {
         }
     }
 
-    Ok(SolveResult { status, output: raw, model_info: Some(info) })
+    Ok(SolveResult {
+        status,
+        output: raw,
+        model_info: Some(info),
+    })
 }
+

@@ -1,0 +1,55 @@
+diff --git i/ortools/sat/sat_solver.cc w/ortools/sat/sat_solver.cc
+index 81a60aa..107018a 100644
+--- i/ortools/sat/sat_solver.cc
++++ w/ortools/sat/sat_solver.cc
+@@ -53,6 +53,10 @@
+ #include "ortools/util/strong_integers.h"
+ #include "ortools/util/time_limit.h"
+ 
++#ifdef TRACY_ENABLE
++#include <tracy/Tracy.hpp>
++#endif
++
+ namespace operations_research {
+ namespace sat {
+ 
+@@ -1539,6 +1543,9 @@ bool SatSolver::EnqueueDecisionIfNotConflicting(Literal true_literal) {
+ 
+ void SatSolver::Backtrack(int target_level) {
+   SCOPED_TIME_STAT(&stats_);
++#ifdef TRACY_ENABLE
++  ZoneScopedN("Backtrack");
++#endif
+   // TODO(user): The backtrack method should not be called when the model is
+   //              unsat. Add a DCHECK to prevent that, but before fix the
+   //              bop::BopOptimizerBase architecture.
+@@ -1637,6 +1644,9 @@ SatSolver::Status SatSolver::Solve() {
+ SatSolver::Status SatSolver::SolveInternal(TimeLimit* time_limit,
+                                            int64_t max_number_of_conflicts) {
+   SCOPED_TIME_STAT(&stats_);
++#ifdef TRACY_ENABLE
++  ZoneScopedN("SolveInternal");
++#endif
+   if (model_is_unsat_) return INFEASIBLE;
+ 
+   // TODO(user): Because the counter are not reset to zero, this cause the
+@@ -2118,6 +2128,9 @@ bool SatSolver::PropagationIsDone() const {
+ // part or the full integer part...
+ bool SatSolver::Propagate() {
+   SCOPED_TIME_STAT(&stats_);
++#ifdef TRACY_ENABLE
++  ZoneScopedN("Propagate");
++#endif
+   DCHECK(!ModelIsUnsat());
+ 
+   while (true) {
+@@ -2282,6 +2295,9 @@ void SatSolver::ComputeFirstUIPConflict(
+     int max_trail_index, std::vector<Literal>* conflict,
+     std::vector<Literal>* reason_used_to_infer_the_conflict) {
+   SCOPED_TIME_STAT(&stats_);
++#ifdef TRACY_ENABLE
++  ZoneScopedN("ComputeFirstUIPConflict");
++#endif
+   const int64_t conflict_id = counters_.num_failures;
+ 
+   Literal previous_literal;

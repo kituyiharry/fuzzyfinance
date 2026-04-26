@@ -21,6 +21,36 @@ fn main() {
         assert!(status.success(), "git clone of or-tools failed");
     }
 
+    // Apply patches idempotently (git apply --check first, skip if already applied).
+    let patches_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("patches");
+    if patches_dir.exists() {
+        let mut patch_files: Vec<_> = fs::read_dir(&patches_dir)
+            .expect("failed to read patches dir")
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("patch"))
+            .collect();
+        patch_files.sort();
+        for patch in &patch_files {
+            let check = Command::new("git")
+                .args(["apply", "--check", "--ignore-whitespace", patch.to_str().unwrap()])
+                .current_dir(&src_dir)
+                .output()
+                .expect("git not found");
+            if check.status.success() {
+                let apply = Command::new("git")
+                    .args(["apply", "--ignore-whitespace", patch.to_str().unwrap()])
+                    .current_dir(&src_dir)
+                    .status()
+                    .expect("git not found");
+                assert!(apply.success(), "failed to apply patch: {}", patch.display());
+                println!("cargo:warning=Applied OR-Tools patch: {}", patch.file_name().unwrap().to_string_lossy());
+            } else {
+                println!("cargo:warning=Skipped OR-Tools patch (already applied or inapplicable): {}", patch.file_name().unwrap().to_string_lossy());
+            }
+        }
+    }
+
     // Mirror Cargo's profile to cmake's build type so debug builds get
     // assertions/debug info and release builds are fully optimised.
     // bench maps to RelWithDebInfo — optimised but with symbols for profiling.
@@ -43,6 +73,12 @@ fn main() {
         .define("BUILD_EXAMPLES", "OFF")
         .define("BUILD_SAMPLES", "OFF")
         .define("BUILD_TESTING", "OFF");
+
+    // Debug builds: enable Tracy profiling via cmake FetchContent (patch 0010).
+    // TRACY_ON_DEMAND means the process won't block waiting for the profiler.
+    if profile == "debug" {
+        cmake_cfg.define("ORSOLVER_TRACY", "1");
+    }
 
     if in_docker {
         // Inside Docker, Cargo's jobserver MAKEFLAGS pipe FDs are not
@@ -93,6 +129,17 @@ fn main() {
 
     println!("cargo:rerun-if-changed=ortools_fzn.h");
     println!("cargo:rerun-if-changed=ortools_fzn.cpp");
+    println!("cargo:rerun-if-env-changed=PROFILE");
+
+    // Re-run when any patch file changes.
+    if patches_dir.exists() {
+        for entry in fs::read_dir(&patches_dir).expect("failed to read patches dir").flatten() {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) == Some("patch") {
+                println!("cargo:rerun-if-changed={}", p.display());
+            }
+        }
+    }
 
     // Include dirs: local shim, installed headers, OR-Tools source root,
     // and the bundled protobuf 5.x from cmake's FetchContent _deps so it
@@ -134,6 +181,7 @@ fn main() {
     for dir in &include_dirs {
         build.include(dir);
     }
+
     build.compile("orsolver_fzn");
 
     // Generate Rust bindings from the C header

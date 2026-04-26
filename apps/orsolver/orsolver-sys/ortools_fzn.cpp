@@ -17,6 +17,7 @@
 #include "ortools/sat/model.h"
 #include "ortools/util/logging.h"
 
+
 namespace {
 
 // ── one-time absl log init ────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ void ensure_log_initialized() {
     static std::once_flag flag;
     std::call_once(flag, absl::InitializeLog);
 }
+
 
 // ── memory helpers ────────────────────────────────────────────────────────────
 
@@ -401,11 +403,13 @@ static char* run_solver(fz::Model& fz_model, char** err_out) {
     fz_params.display_all_solutions = false;
     fz_params.search_all_solutions  = false;
     fz_params.use_free_search       = true;
-    fz_params.log_search_progress   = false;
     fz_params.ortools_mode          = true;
+    fz_params.log_search_progress   = false;
 
-    operations_research::sat::SolveFzWithCpModelProto(
-        fz_model, fz_params, {}, &sat_model, &solution_logger);
+    {
+        operations_research::sat::SolveFzWithCpModelProto(
+            fz_model, fz_params, {}, &sat_model, &solution_logger);
+    }
 
     char* result = dup_str(solution_buf);
     if (!result) set_error(err_out, "out of memory");
@@ -446,9 +450,11 @@ char* solve_flatzinc(const char* fzn_model, char** err_out) {
     try {
         ensure_log_initialized();
         fz::Model model("orsolver");
-        if (!fz::ParseFlatzincString(fzn_model, &model)) {
-            set_error(err_out, "failed to parse FlatZinc model");
-            return nullptr;
+        {
+            if (!fz::ParseFlatzincString(fzn_model, &model)) {
+                set_error(err_out, "failed to parse FlatZinc model");
+                return nullptr;
+            }
         }
         operations_research::sat::ProcessFloatingPointOVariablesAndObjective(&model);
         return run_solver(model, err_out);
@@ -464,9 +470,11 @@ char* solve_flatzinc_full(const char* fzn_model, char** err_out) {
     try {
         ensure_log_initialized();
         fz::Model model("orsolver");
-        if (!fz::ParseFlatzincString(fzn_model, &model)) {
-            set_error(err_out, "failed to parse FlatZinc model");
-            return nullptr;
+        {
+            if (!fz::ParseFlatzincString(fzn_model, &model)) {
+                set_error(err_out, "failed to parse FlatZinc model");
+                return nullptr;
+            }
         }
         operations_research::sat::ProcessFloatingPointOVariablesAndObjective(&model);
         inject_all_variable_outputs(model);
@@ -483,9 +491,11 @@ char* inspect_flatzinc(const char* fzn_model, char** err_out) {
     try {
         ensure_log_initialized();
         fz::Model model("orsolver");
-        if (!fz::ParseFlatzincString(fzn_model, &model)) {
-            set_error(err_out, "failed to parse FlatZinc model");
-            return nullptr;
+        {
+            if (!fz::ParseFlatzincString(fzn_model, &model)) {
+                set_error(err_out, "failed to parse FlatZinc model");
+                return nullptr;
+            }
         }
         operations_research::sat::ProcessFloatingPointOVariablesAndObjective(&model);
         std::string json = model_info_json(model);
@@ -499,5 +509,6 @@ char* inspect_flatzinc(const char* fzn_model, char** err_out) {
 // ── free_solve_result ─────────────────────────────────────────────────────────
 
 void free_solve_result(char* ptr) { std::free(ptr); }
+
 
 } // extern "C"
