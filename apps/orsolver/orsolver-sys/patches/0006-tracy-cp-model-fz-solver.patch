@@ -1,0 +1,35 @@
+diff --git i/ortools/flatzinc/cp_model_fz_solver.cc w/ortools/flatzinc/cp_model_fz_solver.cc
+index 883e6cc..c47bec7 100644
+--- i/ortools/flatzinc/cp_model_fz_solver.cc
++++ w/ortools/flatzinc/cp_model_fz_solver.cc
+@@ -53,6 +53,10 @@
+ #include "ortools/util/logging.h"
+ #include "ortools/util/sorted_interval_list.h"
+ 
++#ifdef TRACY_ENABLE
++#include <tracy/Tracy.hpp>
++#endif
++
+ ABSL_FLAG(int64_t, fz_int_max, int64_t{1} << 40,
+           "Default max value for unbounded integer variables.");
+ ABSL_FLAG(bool, force_interleave_search, false,
+@@ -3655,6 +3659,9 @@ void OutputFlatzincStats(const CpSolverResponse& response,
+ }  // namespace
+ 
+ void ProcessFloatingPointOVariablesAndObjective(fz::Model* fz_model) {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("ProcessFloatingPointOVariablesAndObjective");
++#endif
+   // Scan the model, rename int2float to int_eq, change type of the floating
+   // point variables to integer.
+   for (fz::Constraint* ct : fz_model->constraints()) {
+@@ -3718,6 +3725,9 @@ CpSolverResponse SolveFzWithCpModelProto(const fz::Model& fz_model,
+                                          const SatParameters& sat_params,
+                                          Model* sat_model,
+                                          SolverLogger* solution_logger) {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("SolveFzWithCpModelProto");
++#endif
+   SolverLogger* logger = sat_model->GetOrCreate<SolverLogger>();
+   const bool enumerate_all_solutions_of_a_sat_problem =
+       p.search_all_solutions && fz_model.objective() == nullptr;

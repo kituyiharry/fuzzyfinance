@@ -6,7 +6,7 @@ use axum::{
     Router,
 };
 use orsolver::{inspect, solve, solve_with_info, SolveStatus};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -35,8 +35,8 @@ struct BatchRequest {
 
 fn status_str(s: &SolveStatus) -> &'static str {
     match s {
-        SolveStatus::Sat     => "sat",
-        SolveStatus::Unsat   => "unsat",
+        SolveStatus::Sat => "sat",
+        SolveStatus::Unsat => "unsat",
         SolveStatus::Unknown => "unknown",
     }
 }
@@ -88,17 +88,15 @@ async fn batch_handler(Json(payload): Json<BatchRequest>) -> impl IntoResponse {
     let handles: Vec<_> = payload
         .jobs
         .into_iter()
-        .map(|job| {
-            tokio::task::spawn_blocking(move || {
-                (job.id, run_job(&job.model, job.debug))
-            })
-        })
+        .map(|job| tokio::task::spawn_blocking(move || (job.id, run_job(&job.model, job.debug))))
         .collect();
 
     let mut results: HashMap<String, Value> = HashMap::new();
     for handle in handles {
         match handle.await {
-            Ok((id, value)) => { results.insert(id, value); }
+            Ok((id, value)) => {
+                results.insert(id, value);
+            }
             Err(e) => {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -121,7 +119,7 @@ async fn inspect_handler(Json(payload): Json<SolveRequest>) -> impl IntoResponse
 
     match result {
         Ok(info) => (StatusCode::OK, Json(json!(info))).into_response(),
-        Err(e)   => (
+        Err(e) => (
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(json!({ "error": e })),
         )
@@ -137,9 +135,9 @@ async fn main() {
         .unwrap_or(3000);
 
     let app = Router::new()
-        .route("/health",        get(health))
-        .route("/solve",         post(solve_handler))
-        .route("/solve/batch",   post(batch_handler))
+        .route("/health", get(health))
+        .route("/solve", post(solve_handler))
+        .route("/solve/batch", post(batch_handler))
         .route("/solve/inspect", post(inspect_handler));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

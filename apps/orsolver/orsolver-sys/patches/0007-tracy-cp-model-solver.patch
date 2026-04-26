@@ -1,0 +1,35 @@
+diff --git i/ortools/sat/cp_model_solver.cc w/ortools/sat/cp_model_solver.cc
+index 720ecfb..151d707 100644
+--- i/ortools/sat/cp_model_solver.cc
++++ w/ortools/sat/cp_model_solver.cc
+@@ -101,6 +101,10 @@
+ #include "ortools/util/testing_utils.h"
+ #include "ortools/util/time_limit.h"
+ 
++#ifdef TRACY_ENABLE
++#include <tracy/Tracy.hpp>
++#endif
++
+ ABSL_FLAG(
+     bool, cp_model_export_model, false,
+     "DEBUG ONLY. When set to true, SolveCpModel() will dump its input model "
+@@ -1748,6 +1752,9 @@ class LnsSolver : public SubSolver {
+ };
+ 
+ void SolveCpModelParallel(SharedClasses* shared, Model* global_model) {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("SolveCpModelParallel");
++#endif
+   const SatParameters& params = *global_model->GetOrCreate<SatParameters>();
+   if (global_model->GetOrCreate<TimeLimit>()->LimitReached()) return;
+ 
+@@ -2405,6 +2412,9 @@ void ClearInternalFields(CpModelProto* model_proto, SolverLogger* logger) {
+ }  // namespace
+ 
+ CpSolverResponse SolveCpModel(const CpModelProto& model_proto, Model* model) {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("SolveCpModel");
++#endif
+   auto* wall_timer = model->GetOrCreate<WallTimer>();
+   auto* user_timer = model->GetOrCreate<UserTimer>();
+   wall_timer->Start();

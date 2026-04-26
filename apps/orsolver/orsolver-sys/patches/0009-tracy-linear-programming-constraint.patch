@@ -1,0 +1,55 @@
+diff --git i/ortools/sat/linear_programming_constraint.cc w/ortools/sat/linear_programming_constraint.cc
+index 9b0bb04..a07bd12 100644
+--- i/ortools/sat/linear_programming_constraint.cc
++++ w/ortools/sat/linear_programming_constraint.cc
+@@ -72,6 +72,10 @@
+ #include "ortools/util/strong_integers.h"
+ #include "ortools/util/time_limit.h"
+ 
++#ifdef TRACY_ENABLE
++#include <tracy/Tracy.hpp>
++#endif
++
+ namespace operations_research {
+ namespace sat {
+ 
+@@ -849,6 +853,9 @@ void LinearProgrammingConstraint::AddCutGenerator(CutGenerator generator) {
+ 
+ bool LinearProgrammingConstraint::IncrementalPropagate(
+     const std::vector<int>& watch_indices) {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("LP::IncrementalPropagate");
++#endif
+   if (!enabled_) return true;
+ 
+   // If we have a really deep branch, with a lot of LP explanation constraint,
+@@ -940,6 +947,9 @@ void LinearProgrammingConstraint::UpdateBoundsOfLpVariables() {
+ }
+ 
+ bool LinearProgrammingConstraint::SolveLp() {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("LP::SolveLp");
++#endif
+   const int level = trail_->CurrentDecisionLevel();
+   if (level == 0) {
+     lp_at_level_zero_is_final_ = false;
+@@ -1104,6 +1114,9 @@ bool LinearProgrammingConstraint::SolveLp() {
+ }
+ 
+ bool LinearProgrammingConstraint::AnalyzeLp() {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("LP::AnalyzeLp");
++#endif
+   // A dual-unbounded problem is infeasible. We use the dual ray reason.
+   if (simplex_.GetProblemStatus() == glop::ProblemStatus::DUAL_UNBOUNDED) {
+     if (parameters_.use_exact_lp_reason()) {
+@@ -2139,6 +2152,9 @@ void LinearProgrammingConstraint::UpdateSimplexIterationLimit(
+ }
+ 
+ bool LinearProgrammingConstraint::Propagate() {
++#ifdef TRACY_ENABLE
++  ZoneScopedN("LP::Propagate");
++#endif
+   CHECK(!sat_solver_->ModelIsUnsat());
+ 
+   const int old_num_force = num_force_lp_call_on_next_propagate_;
