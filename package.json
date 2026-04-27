@@ -9,6 +9,7 @@
 	],
 	"scripts": {
 		"dev": "npm run dev -w apps/web",
+		"dev:host": "npm run dev:host -w apps/web",
 		"build": "npm run build -w apps/web",
 		"gen": "npm run gen -w apps/web",
 		"db:push:remote": "npm run db:push:remote -w apps/web",

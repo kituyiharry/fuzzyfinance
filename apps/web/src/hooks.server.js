@@ -1,5 +1,5 @@
 import { building } from '$app/environment';
-import { auth } from '$lib/server/auth';
+import { auth, mobiAuth } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { runWithDb } from '$lib/server/db';
@@ -14,6 +14,7 @@ const handleBetterAuth = async ({ event, resolve }) => {
     }
 
 	const session = await auth.api.getSession({ headers: event.request.headers });
+    console.dir(session);
 
 	if (session) {
 		event.locals.session = session.session;
