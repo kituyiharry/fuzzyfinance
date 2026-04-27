@@ -13,9 +13,9 @@
 	};
 
 	const STATS = [
-		{ label: 'RECEIPTS PROCESSED', value: '12,847' },
-		{ label: 'TOTAL TRACKED',       value: '$2.4M'  },
-		{ label: 'EXPORTS GENERATED',   value: '3,291'  },
+		{ label: 'RECEIPTS PROCESSED',  value: '>10' },
+		{ label: 'TOTAL TRACKED',       value: '>2000'  },
+		{ label: 'EXPORTS GENERATED',   value: '>3'  },
 		{ label: 'UPTIME',              value: '99.9%'  },
 	];
 </script>
