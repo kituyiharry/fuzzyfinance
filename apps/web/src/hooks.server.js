@@ -14,7 +14,6 @@ const handleBetterAuth = async ({ event, resolve }) => {
     }
 
 	const session = await auth.api.getSession({ headers: event.request.headers });
-    console.dir(session);
 
 	if (session) {
 		event.locals.session = session.session;
