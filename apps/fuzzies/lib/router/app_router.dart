@@ -7,6 +7,7 @@ import '../features/auth/sign_in_page.dart';
 import '../features/detail/receipt_detail_page.dart';
 import '../features/detail/sale_detail_page.dart';
 import '../features/home/home_page.dart';
+import '../features/permissions/camera_permission_page.dart';
 import '../features/settings/settings_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -16,20 +17,39 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authListenable,
     initialLocation: '/home',
     redirect: (context, state) {
-      final authState = ref.read(authProvider).valueOrNull;
+      final authAsync = ref.read(authProvider);
+      final authState = authAsync.valueOrNull;
       final isSignedIn = authState?.status == AuthStatus.signedIn;
-      final isLoading = ref.read(authProvider).isLoading ||
+      final isLoading = authAsync.isLoading ||
           authState?.status == AuthStatus.loading;
 
       if (isLoading) return null;
 
-      final onSignIn = state.matchedLocation == '/sign-in';
-      if (!isSignedIn && !onSignIn) return '/sign-in';
-      if (isSignedIn && onSignIn) return '/home';
+      final loc = state.matchedLocation;
+
+      if (!isSignedIn) {
+        return loc == '/sign-in' ? null : '/sign-in';
+      }
+
+      // Signed in — check camera permission.
+      // valueOrNull is null while the FutureProvider is still resolving;
+      // treat null as "not yet known" and don't redirect until we know.
+      final cameraGranted =
+          ref.read(cameraPermissionProvider).valueOrNull;
+
+      if (loc == '/sign-in') {
+        // Just signed in: go to permissions page if not granted, else home.
+        if (cameraGranted == false) return '/permissions';
+        if (cameraGranted == true) return '/home';
+        // Still resolving — wait for the next refresh triggered by the provider.
+        return null;
+      }
+
       return null;
     },
     routes: [
       GoRoute(path: '/sign-in', builder: (ctx, st) => const SignInPage()),
+      GoRoute(path: '/permissions', builder: (ctx, st) => const CameraPermissionPage()),
       GoRoute(path: '/home', builder: (ctx, st) => const HomePage()),
       GoRoute(
         path: '/receipt/:id',
@@ -46,10 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// Bridges Riverpod auth state changes into a Listenable for go_router
 class _AuthListenable extends ChangeNotifier {
   _AuthListenable(this._ref) {
-    _ref.listen(authProvider, (prev, next) => notifyListeners());
+    _ref.listen(authProvider, (_, __) => notifyListeners());
+    _ref.listen(cameraPermissionProvider, (_, __) => notifyListeners());
   }
   final Ref _ref;
 }

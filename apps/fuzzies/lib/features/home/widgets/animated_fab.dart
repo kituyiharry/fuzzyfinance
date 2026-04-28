@@ -3,11 +3,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/endpoints.dart';
-import '../../../core/cache/local_cache.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../permissions/camera_permission_page.dart';
 import '../home_provider.dart';
 
 enum _UploadKind { receiptFile, receiptCamera, saleFile, saleCamera }
@@ -49,7 +50,6 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
   Future<void> _handleUpload(_UploadKind kind) async {
     _toggle();
     final client = ref.read(apiClientProvider);
-    final cache = LocalCache.instance;
 
     try {
       final (bytes, name, mime) = await _pickFile(kind);
@@ -86,8 +86,11 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
         }),
       );
 
-      await cache.invalidate(isReceipt ? CacheKeys.receipts : CacheKeys.sales);
-      ref.invalidate(isReceipt ? receiptsProvider : salesProvider);
+      if (isReceipt) {
+        await ref.read(receiptsNotifier.notifier).refresh();
+      } else {
+        await ref.read(salesNotifier.notifier).refresh();
+      }
 
       final id =
           resp.data?[isReceipt ? 'receiptId' : 'saleId'] as String?;
@@ -99,9 +102,26 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
     }
   }
 
+  Future<bool> _ensureCameraPermission() async {
+    var status = await Permission.camera.status;
+    if (status.isGranted) return true;
+    if (status.isPermanentlyDenied) {
+      _showSnack('Camera permission denied — enable it in Settings');
+      await openAppSettings();
+      return false;
+    }
+    status = await Permission.camera.request();
+    // Invalidate so the router and permission page reflect the new state.
+    ref.invalidate(cameraPermissionProvider);
+    if (status.isGranted) return true;
+    _showSnack('Camera permission is required to take photos');
+    return false;
+  }
+
   Future<(List<int>?, String, String)> _pickFile(_UploadKind kind) async {
     if (kind == _UploadKind.receiptCamera ||
         kind == _UploadKind.saleCamera) {
+      if (!await _ensureCameraPermission()) return (null, '', '');
       final picked =
           await ImagePicker().pickImage(source: ImageSource.camera);
       if (picked == null) return (null, '', '');

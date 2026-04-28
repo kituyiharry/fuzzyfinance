@@ -18,6 +18,7 @@ class UploadLimitsTile extends ConsumerWidget {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        enabled: true,
         title: Text(
           'UPLOAD LIMITS',
           style: theme.textTheme.labelLarge?.copyWith(color: ext.mutedFg),

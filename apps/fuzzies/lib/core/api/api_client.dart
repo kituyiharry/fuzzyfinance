@@ -35,12 +35,16 @@ class ApiClient {
       _AuthInterceptor(this),
       if (AppConfig.isDev) LogInterceptor(responseBody: true, requestBody: true),
     ]);
-    _restoreSession();
+    sessionReady = _restoreSession();
   }
 
   late final Dio _dio;
   late final CookieJar _cookieJar;
   final _storage = const FlutterSecureStorage();
+
+  // Resolves once the persisted session cookie has been loaded into the jar.
+  // Await this before making authenticated requests on cold start.
+  late final Future<void> sessionReady;
 
   // Callback set by auth layer to trigger sign-out on 401
   void Function()? onUnauthorized;
@@ -62,6 +66,18 @@ class ApiClient {
     await _storage.write(key: _sessionKey, value: rawCookie);
   }
 
+  /// Re-injects the stored session cookie into the live jar at the base URL.
+  /// Call this after persistSession() so the very next request carries the cookie.
+  Future<void> ensureSessionInJar() async {
+    final cookie = await _storage.read(key: _sessionKey);
+    if (cookie != null) {
+      await _cookieJar.saveFromResponse(
+        Uri.parse(AppConfig.baseUrl),
+        [Cookie.fromSetCookieValue(cookie)],
+      );
+    }
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: _sessionKey);
     _cookieJar.deleteAll();
@@ -79,7 +95,6 @@ class _AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (err.response?.statusCode == 401) {
-      _client.clearSession();
       _client.onUnauthorized?.call();
     }
     handler.next(err);

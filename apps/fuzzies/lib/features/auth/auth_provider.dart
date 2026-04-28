@@ -31,6 +31,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       }
     };
 
+    // Ensure the cookie jar is populated before we declare the user signed in.
+    // Without this, the router navigates to /home while the jar is still empty,
+    // causing the first API requests to fire without a session cookie → 401.
+    await client.sessionReady;
+
     final active = await service.hasActiveSession();
     return AuthState(status: active ? AuthStatus.signedIn : AuthStatus.signedOut);
   }

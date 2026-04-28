@@ -15,6 +15,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Fuzzies uses the camera to capture receipts and sales documents for processing.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Fuzzies accesses your photo library to upload receipt and sales document images.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

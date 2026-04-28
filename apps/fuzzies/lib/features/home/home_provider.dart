@@ -12,74 +12,255 @@ import '../../models/server_capabilities.dart';
 import '../../models/timeline_item.dart';
 import '../auth/auth_provider.dart';
 
-// ── Raw list providers ────────────────────────────────────────────────────────
+// ── Pagination state ──────────────────────────────────────────────────────────
 
-final receiptsProvider = FutureProvider<List<Receipt>>((ref) async {
-  debugPrint('[home] receiptsProvider: fetching');
-  final client = ref.watch(apiClientProvider);
-  final cache = LocalCache.instance;
+const _pageSize = 20;
 
-  final cached = cache.get<List<dynamic>>(CacheKeys.receipts);
-  if (cached != null) {
-    debugPrint('[home] receiptsProvider: cache hit (${cached.length} items)');
-    return cached.map((e) => Receipt.fromJson(e as Map<String, dynamic>)).toList();
+class PaginatedListState<T> {
+  const PaginatedListState({
+    required this.items,
+    this.nextCursor,
+    required this.hasMore,
+    this.isLoadingMore = false,
+  });
+
+  final List<T> items;
+  final int? nextCursor; // createdAt ms of the oldest loaded item
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  PaginatedListState<T> copyWith({
+    List<T>? items,
+    int? nextCursor,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) =>
+      PaginatedListState(
+        items: items ?? this.items,
+        nextCursor: nextCursor ?? this.nextCursor,
+        hasMore: hasMore ?? this.hasMore,
+        isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      );
+}
+
+// ── Receipts notifier ─────────────────────────────────────────────────────────
+
+class ReceiptsNotifier
+    extends AsyncNotifier<PaginatedListState<Receipt>> {
+  @override
+  Future<PaginatedListState<Receipt>> build() async {
+    debugPrint('[home] receiptsNotifier: build');
+    final cached =
+        LocalCache.instance.get<List<dynamic>>(CacheKeys.receipts);
+    if (cached != null) {
+      debugPrint('[home] receiptsNotifier: cache hit (${cached.length} items)');
+      final items = _parseReceipts(cached);
+      return PaginatedListState(
+        items: items,
+        nextCursor: _cursor(items),
+        hasMore: items.length >= _pageSize,
+      );
+    }
+    return _fetchPage(null, []);
   }
 
-  try {
-    final resp = await client.dio.get<List<dynamic>>(Endpoints.receipts);
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final next = await _fetchPage(current.nextCursor, current.items);
+      state = AsyncData(next);
+    } catch (e) {
+      // Restore previous state without the loading flag so user can retry
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+      debugPrint('[home] receiptsNotifier loadMore ERROR: $e');
+    }
+  }
+
+  Future<void> refresh() async {
+    await LocalCache.instance.invalidate(CacheKeys.receipts);
+    state = const AsyncLoading();
+    try {
+      state = AsyncData(await _fetchPage(null, []));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  Future<PaginatedListState<Receipt>> _fetchPage(
+      int? cursor, List<Receipt> existing) async {
+    final client = ref.read(apiClientProvider);
+    final uri = cursor != null
+        ? '${Endpoints.receipts}?before=$cursor&limit=$_pageSize'
+        : '${Endpoints.receipts}?limit=$_pageSize';
+
+    final resp = await client.dio.get<List<dynamic>>(uri);
     final data = resp.data ?? [];
-    debugPrint('[home] receiptsProvider: got ${data.length} items from API');
-    await cache.put(CacheKeys.receipts, data);
-    return data.map((e) => Receipt.fromJson(e as Map<String, dynamic>)).toList();
-  } catch (e, st) {
-    debugPrint('[home] receiptsProvider ERROR: $e\n$st');
-    rethrow;
-  }
-});
+    debugPrint('[home] receiptsNotifier: ${data.length} items (cursor: $cursor)');
 
-final salesProvider = FutureProvider<List<Sale>>((ref) async {
-  debugPrint('[home] salesProvider: fetching');
-  final client = ref.watch(apiClientProvider);
-  final cache = LocalCache.instance;
+    final newItems = _parseReceipts(data);
+    final all = [...existing, ...newItems];
 
-  final cached = cache.get<List<dynamic>>(CacheKeys.sales);
-  if (cached != null) {
-    debugPrint('[home] salesProvider: cache hit (${cached.length} items)');
-    return cached.map((e) => Sale.fromJson(e as Map<String, dynamic>)).toList();
+    if (cursor == null) {
+      await LocalCache.instance.put(CacheKeys.receipts, data);
+    }
+
+    return PaginatedListState(
+      items: all,
+      nextCursor: _cursor(all),
+      hasMore: newItems.length >= _pageSize,
+    );
   }
 
-  try {
-    final resp = await client.dio.get<List<dynamic>>(Endpoints.sales);
+  List<Receipt> _parseReceipts(List<dynamic> data) =>
+      data.map((e) => Receipt.fromJson(e as Map<String, dynamic>)).toList();
+
+  int? _cursor(List<Receipt> items) =>
+      items.isNotEmpty ? items.last.createdAt.millisecondsSinceEpoch : null;
+}
+
+final receiptsNotifier =
+    AsyncNotifierProvider<ReceiptsNotifier, PaginatedListState<Receipt>>(
+  ReceiptsNotifier.new,
+);
+
+// ── Sales notifier ────────────────────────────────────────────────────────────
+
+class SalesNotifier extends AsyncNotifier<PaginatedListState<Sale>> {
+  @override
+  Future<PaginatedListState<Sale>> build() async {
+    debugPrint('[home] salesNotifier: build');
+    final cached =
+        LocalCache.instance.get<List<dynamic>>(CacheKeys.sales);
+    if (cached != null) {
+      debugPrint('[home] salesNotifier: cache hit (${cached.length} items)');
+      final items = _parseSales(cached);
+      return PaginatedListState(
+        items: items,
+        nextCursor: _cursor(items),
+        hasMore: items.length >= _pageSize,
+      );
+    }
+    return _fetchPage(null, []);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final next = await _fetchPage(current.nextCursor, current.items);
+      state = AsyncData(next);
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+      debugPrint('[home] salesNotifier loadMore ERROR: $e');
+    }
+  }
+
+  Future<void> refresh() async {
+    await LocalCache.instance.invalidate(CacheKeys.sales);
+    state = const AsyncLoading();
+    try {
+      state = AsyncData(await _fetchPage(null, []));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  Future<PaginatedListState<Sale>> _fetchPage(
+      int? cursor, List<Sale> existing) async {
+    final client = ref.read(apiClientProvider);
+    final uri = cursor != null
+        ? '${Endpoints.sales}?before=$cursor&limit=$_pageSize'
+        : '${Endpoints.sales}?limit=$_pageSize';
+
+    final resp = await client.dio.get<List<dynamic>>(uri);
     final data = resp.data ?? [];
-    debugPrint('[home] salesProvider: got ${data.length} items from API');
-    await cache.put(CacheKeys.sales, data);
-    return data.map((e) => Sale.fromJson(e as Map<String, dynamic>)).toList();
-  } catch (e, st) {
-    debugPrint('[home] salesProvider ERROR: $e\n$st');
-    rethrow;
+    debugPrint('[home] salesNotifier: ${data.length} items (cursor: $cursor)');
+
+    final newItems = _parseSales(data);
+    final all = [...existing, ...newItems];
+
+    if (cursor == null) {
+      await LocalCache.instance.put(CacheKeys.sales, data);
+    }
+
+    return PaginatedListState(
+      items: all,
+      nextCursor: _cursor(all),
+      hasMore: newItems.length >= _pageSize,
+    );
   }
-});
+
+  List<Sale> _parseSales(List<dynamic> data) =>
+      data.map((e) => Sale.fromJson(e as Map<String, dynamic>)).toList();
+
+  int? _cursor(List<Sale> items) =>
+      items.isNotEmpty ? items.last.createdAt.millisecondsSinceEpoch : null;
+}
+
+final salesNotifier =
+    AsyncNotifierProvider<SalesNotifier, PaginatedListState<Sale>>(
+  SalesNotifier.new,
+);
 
 // ── Combined timeline ─────────────────────────────────────────────────────────
 
-final timelineProvider = FutureProvider<List<DateGroup>>((ref) async {
-  debugPrint('[home] timelineProvider: combining receipts + sales');
-  final receipts = await ref.watch(receiptsProvider.future);
-  final sales = await ref.watch(salesProvider.future);
+class TimelineData {
+  const TimelineData({
+    required this.groups,
+    required this.hasMore,
+    this.isLoadingMore = false,
+  });
+  final List<DateGroup> groups;
+  final bool hasMore;
+  final bool isLoadingMore;
+}
+
+// Returns AsyncLoading on initial load, AsyncError if both fail with no data,
+// otherwise AsyncData — allowing incremental display while loading more.
+final timelineProvider = Provider<AsyncValue<TimelineData>>((ref) {
+  final rAsync = ref.watch(receiptsNotifier);
+  final sAsync = ref.watch(salesNotifier);
+
+  // Initial load: both still in flight, no data yet
+  if ((rAsync.isLoading && rAsync.valueOrNull == null) ||
+      (sAsync.isLoading && sAsync.valueOrNull == null)) {
+    return const AsyncLoading();
+  }
+
+  // Hard error: initial fetch failed with no prior data
+  if (rAsync.hasError && rAsync.valueOrNull == null) {
+    return AsyncError(rAsync.error!, rAsync.stackTrace!);
+  }
+  if (sAsync.hasError && sAsync.valueOrNull == null) {
+    return AsyncError(sAsync.error!, sAsync.stackTrace!);
+  }
+
+  final receipts = rAsync.valueOrNull?.items ?? [];
+  final sales = sAsync.valueOrNull?.items ?? [];
+  final hasMore = (rAsync.valueOrNull?.hasMore ?? false) ||
+      (sAsync.valueOrNull?.hasMore ?? false);
+  final isLoadingMore = (rAsync.valueOrNull?.isLoadingMore ?? false) ||
+      (sAsync.valueOrNull?.isLoadingMore ?? false);
 
   final items = <TimelineItem>[
     ...receipts.map(ReceiptItem.new),
     ...sales.map(SaleItem.new),
   ];
-  final groups = groupByDate(items);
-  debugPrint('[home] timelineProvider: ${items.length} items across ${groups.length} date groups');
-  return groups;
+  debugPrint('[home] timeline: ${items.length} items, hasMore=$hasMore');
+
+  return AsyncData(TimelineData(
+    groups: groupByDate(items),
+    hasMore: hasMore,
+    isLoadingMore: isLoadingMore,
+  ));
 });
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
 class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
-  // In-memory session cache: query → results
   final _cache = <String, List<TimelineItem>>{};
   Timer? _debounce;
 
@@ -92,7 +273,8 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
       state = const AsyncData([]);
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 300), () => _doSearch(query.trim()));
+    _debounce =
+        Timer(const Duration(milliseconds: 300), () => _doSearch(query.trim()));
   }
 
   Future<void> _doSearch(String query) async {
@@ -117,7 +299,6 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
 
       final results = await Future.wait(futures);
       final merged = results.expand((r) => r).toList();
-
       _cache[query] = merged;
       state = AsyncData(merged);
     } catch (e) {
@@ -125,7 +306,8 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
     }
   }
 
-  Future<List<TimelineItem>> _searchReceipts(ApiClient client, String query) async {
+  Future<List<TimelineItem>> _searchReceipts(
+      ApiClient client, String query) async {
     final resp = await client.dio.post<List<dynamic>>(
       Endpoints.receiptsSearch,
       data: {'query': query},
@@ -135,7 +317,8 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
         .toList();
   }
 
-  Future<List<TimelineItem>> _searchSalesRemote(ApiClient client, String query) async {
+  Future<List<TimelineItem>> _searchSalesRemote(
+      ApiClient client, String query) async {
     final resp = await client.dio.post<List<dynamic>>(
       Endpoints.salesSearch,
       data: {'query': query},
@@ -146,7 +329,8 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
   }
 
   Future<List<TimelineItem>> _searchSalesLocal(String query) async {
-    final sales = ref.read(salesProvider).valueOrNull ?? [];
+    final sales =
+        ref.read(salesNotifier).valueOrNull?.items ?? [];
     return sales
         .where((s) => s.matchesQuery(query))
         .map(SaleItem.new)
@@ -159,11 +343,12 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
   }
 }
 
-final searchProvider = AsyncNotifierProvider<SearchNotifier, List<TimelineItem>>(
+final searchProvider =
+    AsyncNotifierProvider<SearchNotifier, List<TimelineItem>>(
   SearchNotifier.new,
 );
 
-// ── Upload limits (derived from list data) ────────────────────────────────────
+// ── Upload limits ─────────────────────────────────────────────────────────────
 
 class UploadLimits {
   const UploadLimits({
@@ -180,8 +365,8 @@ class UploadLimits {
 }
 
 final uploadLimitsProvider = Provider<UploadLimits>((ref) {
-  final receipts = ref.watch(receiptsProvider).valueOrNull ?? [];
-  final sales = ref.watch(salesProvider).valueOrNull ?? [];
+  final receipts = ref.watch(receiptsNotifier).valueOrNull?.items ?? [];
+  final sales = ref.watch(salesNotifier).valueOrNull?.items ?? [];
 
   final today = DateTime.now();
   bool isToday(DateTime dt) =>

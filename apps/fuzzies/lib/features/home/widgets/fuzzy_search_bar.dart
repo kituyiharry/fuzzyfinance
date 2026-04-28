@@ -41,7 +41,7 @@ class _FuzzySearchBarState extends ConsumerState<FuzzySearchBar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
         controller: _controller,
         onChanged: _onChanged,
