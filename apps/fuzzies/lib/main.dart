@@ -19,8 +19,7 @@ class FuzziesApp extends ConsumerWidget {
         final themeMode = ref.watch(themeProvider);
         final router = ref.watch(routerProvider);
 
-        return SafeArea(child: 
-            MaterialApp.router(
+        return MaterialApp.router(
                 title: 'Fuzzies',
                 debugShowCheckedModeBanner: false,
                 theme: buildTheme(AppThemeMode.highContrast),
@@ -42,7 +41,6 @@ class FuzziesApp extends ConsumerWidget {
                     return child!;
                 },
                 routerConfig: router,
-            )
         );
     }
 }

@@ -33,10 +33,12 @@ class AuthService {
       ),
     );
 
-    // Persist the session cookie from the response so it survives restarts.
+    // Persist the session cookie and immediately inject it into the live jar
+    // so the very next request (home page load) carries it without a restart.
     final setCookie = response.headers.value('set-cookie');
     if (setCookie != null) {
       await _client.persistSession(setCookie);
+      await _client.ensureSessionInJar();
     }
 
     return googleUser.email;

@@ -19,64 +19,84 @@ class SignInPage extends ConsumerWidget {
     final error = authAsync.valueOrNull?.error;
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Spacer(flex: 2),
-              Text(
-                'FUZZIES',
-                style: theme.textTheme.displayLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'YOUR FINANCES,\nCRYSTAL CLEAR.',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  color: ext.mutedFg,
-                ),
-              ),
-              const Spacer(flex: 3),
-              if (error != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  color: ext.dangerColor.withValues(alpha: 0.1),
-                  child: Text(
-                    error.toUpperCase(),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: ext.dangerColor),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: isLoading
-                      ? null
-                      : () => ref.read(authProvider.notifier).signInWithGoogle(),
-                  icon: isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.login, size: 18),
-                  label: Text(isLoading ? 'SIGNING IN...' : 'CONTINUE WITH GOOGLE'),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'By continuing you agree to our Terms of Service and Privacy Policy.',
-                style: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
-              ),
-              const Spacer(),
-            ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Backdrop image
+          Image.asset(
+            'assets/images/fuzzyfin.png',
+            fit: BoxFit.cover,
           ),
-        ),
+
+          // Dark scrim so text stays legible over the image
+          Container(color: Colors.black.withValues(alpha: 0.55)),
+
+          // Content
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Spacer(flex: 2),
+                  Text(
+                    'FUZZIES',
+                    style: theme.textTheme.displayLarge?.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'YOUR FINANCES,\nCRYSTAL CLEAR.',
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const Spacer(flex: 3),
+                  if (error != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      color: ext.dangerColor.withValues(alpha: 0.2),
+                      child: Text(
+                        error.toUpperCase(),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isLoading
+                          ? null
+                          : () =>
+                              ref.read(authProvider.notifier).signInWithGoogle(),
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.black),
+                            )
+                          : const Icon(Icons.login, size: 18),
+                      label: Text(
+                          isLoading ? 'SIGNING IN...' : 'CONTINUE WITH GOOGLE'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'By continuing you agree to our Terms of Service and Privacy Policy.',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white60),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

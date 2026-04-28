@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq, and, ne, sql } from 'drizzle-orm';
+import { eq, and, ne, sql, desc } from 'drizzle-orm';
 import { processSale } from '$lib/server/sales-processor';
 
 const DAILY_LIMIT = 30;
@@ -125,15 +125,26 @@ export async function POST({ request, locals, platform }) {
 }
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ locals }) {
+export async function GET({ locals, url }) {
 	if (!locals.user) error(401, 'Unauthorized');
+
+	const before = url.searchParams.get('before');
+	const limit  = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 50);
+	const cursor = before ? parseInt(before, 10) : null;
 
 	const rows = await db
 		.select()
 		.from(schema.sale)
-		.where(eq(schema.sale.userId, locals.user.id));
-
-	rows.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+		.where(
+			cursor
+				? and(
+					eq(schema.sale.userId, locals.user.id),
+					sql`${schema.sale.createdAt} < ${cursor}`
+				  )
+				: eq(schema.sale.userId, locals.user.id)
+		)
+		.orderBy(desc(schema.sale.createdAt))
+		.limit(limit);
 
 	return json(rows);
 }

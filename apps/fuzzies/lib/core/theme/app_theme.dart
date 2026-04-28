@@ -70,8 +70,8 @@ ThemeData buildTheme(AppThemeMode mode) {
       ),
   };
 
-  final bodyTextStyle = GoogleFonts.roboto(color: fg);
-  final headingStyle = GoogleFonts.roboto(
+  final bodyTextStyle = GoogleFonts.raleway(color: fg);
+  final headingStyle = GoogleFonts.raleway(
     fontWeight: FontWeight.w900,
     letterSpacing: -0.01,
     color: fg,

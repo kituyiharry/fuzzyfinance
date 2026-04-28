@@ -67,7 +67,8 @@
 		{
 			"bucket_name": "fuzzyfinance-receipts",
 			"binding": "fuzzyfinance_receipts",
-			"preview_bucket_name": "fuzzyfinance-receipts-preview"
+            //"preview_bucket_name": "fuzzyfinance-receipts-preview"
+            "preview_bucket_name": "fuzzyfinance-receipts"
 		}
 	],
 

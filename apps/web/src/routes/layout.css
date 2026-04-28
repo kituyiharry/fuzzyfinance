@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap');
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @import '@fontsource/fira-mono';
 
 :root {
-	--font-body: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	--font-body: 'Raleway', 'Segoe UI', Helvetica, Arial, sans-serif;
 	--font-mono: 'Fira Mono', monospace;
 
 	/* ── Structural tokens ───────────────────────────────────────────────── */
