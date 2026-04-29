@@ -42,10 +42,14 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
     super.dispose();
   }
 
-  void _toggle() {
-    setState(() => _open = !_open);
-    _open ? _ctrl.forward() : _ctrl.reverse();
+  void _setOpen(bool open) {
+    if (_open == open) return;
+    setState(() => _open = open);
+    ref.read(fabOpenProvider.notifier).state = open;
+    open ? _ctrl.forward() : _ctrl.reverse();
   }
+
+  void _toggle() => _setOpen(!_open);
 
   Future<void> _handleUpload(_UploadKind kind) async {
     _toggle();
@@ -151,6 +155,9 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
 
   @override
   Widget build(BuildContext context) {
+    // Sync animation when scrim tap closes the FAB externally.
+    ref.listen<bool>(fabOpenProvider, (_, open) => _setOpen(open));
+
     final theme = Theme.of(context);
     final ext = context.fuzzy;
 
@@ -203,9 +210,11 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
                       children: [
                         if (_open)
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            color: theme.colorScheme.surface,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration( 
+                                color: theme.colorScheme.surface,
+                                border: Border.all(color: ext.border),
+                            ),
                             child: Text(
                               entry.value.label,
                               style: theme.textTheme.labelLarge,

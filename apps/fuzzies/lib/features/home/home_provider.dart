@@ -348,6 +348,10 @@ final searchProvider =
   SearchNotifier.new,
 );
 
+// ── FAB open state (shared so the home body can render a scrim) ───────────────
+
+final fabOpenProvider = StateProvider<bool>((ref) => false);
+
 // ── Upload limits ─────────────────────────────────────────────────────────────
 
 class UploadLimits {

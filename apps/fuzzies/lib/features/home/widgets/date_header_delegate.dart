@@ -22,9 +22,14 @@ class DateHeaderDelegate extends SliverPersistentHeaderDelegate {
     final theme = Theme.of(context);
     return Container(
       height: _height,
-      color: theme.scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: Alignment.centerLeft,
+      decoration: BoxDecoration( 
+        color: theme.scaffoldBackgroundColor,
+        border: BoxBorder.fromLTRB(
+            bottom: BorderSide(color: theme.colorScheme.primary), 
+        )
+      ),
       child: Row(
         children: [
           Text(
