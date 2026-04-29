@@ -1,17 +1,17 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/cache/local_cache.dart';
 import '../../core/theme/app_theme.dart';
-import '../../models/timeline_item.dart';
 import 'home_provider.dart';
 import 'widgets/animated_fab.dart';
 import 'widgets/date_header_delegate.dart';
 import 'widgets/fuzzy_search_bar.dart';
 import 'widgets/search_results_row.dart';
 import 'widgets/timeline_item_card.dart';
-import 'widgets/upload_limits_tile.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -24,7 +24,7 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
 
     //static const double _kElevationOnMinShrinkOffset = 0.0;
     //static const double _kElevationOnOtherShrinkOffset = 2.0;
-    static const double _kMaxExtent = 286.0;
+    static const double _kMaxExtent = 320.0;
     static const double _kMinExtent = 167.0;
     //static const double _kHorizontalCardPadding = 16.0;
     //static const double _kVerticalCardPadding = 8.0;
@@ -32,28 +32,86 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
 
     HomePageSearchHeader(this.callback);
 
-
     @override
     Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-        return 
-            Column(
+        double remHeight = (_kMaxExtent - shrinkOffset - 64.0).clamp(8.0, _kMaxExtent-8.0);
+        // double width     = context.findRenderObject()?.semanticBounds.width ?? 200.0;
+        // double metrWidth = width / 2;
+        ThemeData theme = Theme.of(context);
+        final ext = context.fuzzy;
+        double metrHeight = remHeight * 2/3;
+        double remMetrHeight= remHeight * 1/3;
+        return Container(
+            color: theme.scaffoldBackgroundColor,
+            child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                    Builder(builder: (innerCtx) =>
-                        Container(
-                            height: (_kMaxExtent - shrinkOffset - 64.0).clamp(0, _kMaxExtent),
-                            decoration: const BoxDecoration( 
-                                color: Colors.blue,
+                    Opacity(
+                        opacity: remHeight / _kMaxExtent,
+                        child: Container(
+                            height: remHeight,
+                            decoration: BoxDecoration( 
+                                color: theme.colorScheme.surface,
                             ),
-                            child: const Center(child: Text("Some center")),
-                        )
+                            // Buffer some height to avoid overflows
+                            child: remHeight > 12.0 ? Column(
+                                children: [ 
+                                    Row(
+                                        children: [ 
+                                            Expanded(
+                                              child: Padding(
+                                                  padding: const EdgeInsets.fromLTRB(
+                                                        4.0, 2.0, 4.0, 4.0
+                                                    ),
+                                                  child: SizedBox(
+                                                      //color: Colors.red,
+                                                      height: metrHeight - 4.0,
+                                                        child: Column( 
+                                                            children: [ 
+                                                                Expanded(
+                                                                  child: InfoTile(child: Center(child: Text("A"),),),
+                                                                ),
+                                                                Expanded(
+                                                                  child: InfoTile(child: Center(child: Text("B"),),),
+                                                                ),
+                                                            ]
+                                                        ),
+                                                  ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                                child: Padding(
+                                                    padding: const EdgeInsets.fromLTRB( 
+                                                        2.0, 4.0, 4.0, 4.0
+                                                    ),
+                                                    child: SizedBox(
+                                                        height: metrHeight - 4.0,
+                                                        child: InfoTile( 
+                                                            child: Center(child: Text("C")),
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                    Padding(
+                                        padding: const EdgeInsets.only(left: 4.0, right: 4.0),
+                                        child: remMetrHeight > 16.0 ? SizedBox( 
+                                            height: remMetrHeight - 8.0,
+                                            child: InfoTile (child: Center(child: Text("D"),)),
+                                        ) : SizedBox.shrink(),
+                                    ),
+                                ],
+                            ) : null,
+                        ),
                     ),
-                    // const UploadLimitsTile(),
+                     //const UploadLimitsTile(),
                     FuzzySearchBar(
                         onActiveChanged: (active) => callback(active),
                     ),
                 ],
-            );
+            ),
+        );
     }
 
     @override
@@ -119,9 +177,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final theme = Theme.of(context);
     final ext = context.fuzzy;
     final timelineAsync = _ready ? ref.watch(timelineProvider) : const AsyncLoading<TimelineData>();
+    final fabOpen = ref.watch(fabOpenProvider);
 
     return Scaffold(
-      body: RefreshIndicator(
+      body: Stack(
+        children: [
+          RefreshIndicator(
         onRefresh: _refresh,
         child: SafeArea(
           child: CustomScrollView(
@@ -143,25 +204,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                   tooltip: 'Settings',
                 ),
               ],
-              bottom: PreferredSize(
-                  preferredSize: Size.fromHeight(0),
-                  child: Container(
-                      decoration: const BoxDecoration(
-                          color: Colors.white,
-                          boxShadow: [
-                              BoxShadow(
-                                  color: Colors.white,
-                                  blurRadius: 0.0,
-                                  spreadRadius: 1.0,
-                                  offset: Offset(0, 0),
-                              ),
-                          ],
-                      )
-                  ) 
-              )
+              // bottom: PreferredSize(
+              //     preferredSize: Size.fromHeight(0),
+              //     child: Container(
+              //         decoration: const BoxDecoration(
+              //             color: Colors.white,
+              //             boxShadow: [
+              //                 BoxShadow(
+              //                     color: Colors.white,
+              //                     blurRadius: 0.0,
+              //                     spreadRadius: 1.0,
+              //                     offset: Offset(0, 0),
+              //                 ),
+              //             ],
+              //         )
+              //     ) 
+              // )
             ),
           
             SliverPersistentHeader(
+                pinned: true,
                 delegate: HomePageSearchHeader((active) => setState(() => _searchActive = active),
              )),
           
@@ -208,24 +270,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('FAILED TO LOAD', style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 8),
-                          Text(
-                            e.toString(),
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: context.fuzzy.dangerColor),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton(
-                            onPressed: _refresh,
-                            child: const Text('RETRY'),
-                          ),
-                        ],
-                      ),
+                      child: _isNetworkError(e)
+                          ? _NetworkErrorBody(onRetry: _refresh)
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('FAILED TO LOAD', style: theme.textTheme.titleMedium),
+                                const SizedBox(height: 8),
+                                Text(
+                                  e.toString(),
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: context.fuzzy.dangerColor),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton(
+                                  onPressed: _refresh,
+                                  child: const Text('RETRY'),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                 ),
@@ -238,6 +302,22 @@ class _HomePageState extends ConsumerState<HomePage> {
           ],
                 ),
         ),
+      ),
+          AnimatedOpacity(
+            opacity: fabOpen ? 0.35 : 0.0,
+            duration: const Duration(milliseconds: 220),
+            child: IgnorePointer(
+              ignoring: !fabOpen,
+              child: GestureDetector(
+                onTap: () => ref.read(fabOpenProvider.notifier).state = false,
+                child: const ColoredBox(
+                  color: Colors.black,
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: const AnimatedFab(),
     );
@@ -309,4 +389,68 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return slivers;
   }
+}
+
+bool _isNetworkError(Object e) {
+  if (e is SocketException) return true;
+  if (e is DioException) {
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.error is SocketException;
+  }
+  return false;
+}
+
+class _NetworkErrorBody extends StatelessWidget {
+  const _NetworkErrorBody({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.wifi_off_outlined, size: 48, color: ext.mutedFg),
+        const SizedBox(height: 12),
+        Text('NO CONNECTION', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 6),
+        Text(
+          'Cannot reach the server.\nCheck your connection and try again.',
+          style: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh, size: 16),
+          label: const Text('RETRY'),
+        ),
+      ],
+    );
+  }
+}
+
+class InfoTile extends StatelessWidget {
+
+    final Widget child;
+    const InfoTile({super.key, required this.child});
+
+    @override
+    Widget build(BuildContext context) {
+        final ext = context.fuzzy;
+        final theme = Theme.of(context);
+        return Container(
+            margin: const EdgeInsets.all(4.0),
+            decoration: BoxDecoration(
+                border: Border.all(color: ext.border, width: 2),
+                boxShadow: [ext.cardShadow],
+                color: theme.colorScheme.surface,
+            ),
+            child: child,
+        );
+    }
 }

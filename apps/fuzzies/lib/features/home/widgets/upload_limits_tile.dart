@@ -11,23 +11,23 @@ class UploadLimitsTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final limits = ref.watch(uploadLimitsProvider);
     final theme = Theme.of(context);
-    final ext = context.fuzzy;
+    //final ext = context.fuzzy;
 
     return Theme(
       data: theme.copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        enabled: true,
-        title: Text(
-          'UPLOAD LIMITS',
-          style: theme.textTheme.labelLarge?.copyWith(color: ext.mutedFg),
-        ),
-        trailing: Icon(
-          Icons.expand_more,
-          size: 16,
-          color: ext.mutedFg,
-        ),
+      child: Column(
+        // tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        // childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        // enabled: true,
+        // title: Text(
+        //   'UPLOAD LIMITS',
+        //   style: theme.textTheme.labelLarge?.copyWith(color: ext.mutedFg),
+        // ),
+        // trailing: Icon(
+        //   Icons.expand_more,
+        //   size: 16,
+        //   color: ext.mutedFg,
+        // ),
         children: [
           _LimitRow(
             label: 'Receipts today',
