@@ -6,6 +6,7 @@ import '../../core/api/endpoints.dart';
 import '../../core/cache/local_cache.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/sale.dart';
+import 'widgets/torn_receipt_card.dart';
 
 final _saleDetailProvider =
     FutureProvider.family<Sale, String>((ref, id) async {
@@ -65,48 +66,67 @@ class _SaleBody extends StatelessWidget {
     ];
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 20, 32),
       children: [
-        _StatusBadge(status: sale.status.name.toUpperCase()),
-        const SizedBox(height: 16),
+        TornReceiptCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Sale header
+              Center(
+                child: Text(
+                  sale.documentTitle?.toUpperCase() ?? 'SALE',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Center(child: _StatusBadge(status: sale.status.name.toUpperCase())),
+              const ReceiptDivider(),
 
-        ...fields.map((f) => _FieldRow(label: f.$1, value: f.$2)),
+              // Key/value fields
+              ...fields.map((f) => _FieldRow(label: f.$1, value: f.$2)),
 
-        if (sale.tags.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('TAGS', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 6,
-            children: sale.tags
-                .map((t) => Chip(
-                      label: Text(t.toUpperCase(),
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(fontSize: 10)),
-                      shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero),
-                      side: BorderSide(color: ext.border),
-                      backgroundColor: ext.muted,
-                    ))
-                .toList(),
+              // Line items
+              if (sale.lineItems.isNotEmpty) ...[
+                const ReceiptDivider(),
+                Text('ITEMS', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 8),
+                ...sale.lineItems.map((li) => _SaleLineItemRow(item: li)),
+              ],
+
+              // Tags
+              if (sale.tags.isNotEmpty) ...[
+                const ReceiptDivider(),
+                Text('TAGS', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: sale.tags
+                      .map((t) => Chip(
+                            label: Text(t.toUpperCase(),
+                                style: theme.textTheme.labelLarge
+                                    ?.copyWith(fontSize: 10)),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.zero),
+                            side: BorderSide(color: ext.border),
+                            backgroundColor: ext.muted,
+                          ))
+                      .toList(),
+                ),
+              ],
+
+              // Notes
+              if (sale.notes != null && sale.notes!.isNotEmpty) ...[
+                const ReceiptDivider(),
+                Text('NOTES', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 4),
+                Text(sale.notes!, style: theme.textTheme.bodyMedium),
+              ],
+            ],
           ),
-        ],
-
-        if (sale.notes != null && sale.notes!.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('NOTES', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 4),
-          Text(sale.notes!, style: theme.textTheme.bodyMedium),
-        ],
-
-        if (sale.lineItems.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text('LINE ITEMS', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 8),
-          ...sale.lineItems.map((li) => _SaleLineItemRow(item: li)),
-        ],
-
-        const SizedBox(height: 24),
+        ),
       ],
     );
   }
