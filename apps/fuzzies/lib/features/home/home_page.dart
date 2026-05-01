@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fuzzies/features/home/widgets/animated_upload_limit.dart';
+import 'package:fuzzies/features/home/widgets/spline.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -38,7 +40,6 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
         // double width     = context.findRenderObject()?.semanticBounds.width ?? 200.0;
         // double metrWidth = width / 2;
         ThemeData theme = Theme.of(context);
-        final ext = context.fuzzy;
         double metrHeight = remHeight * 2/3;
         double remMetrHeight= remHeight * 1/3;
         return Container(
@@ -47,62 +48,120 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                     Opacity(
-                        opacity: remHeight / _kMaxExtent,
+                        opacity: (remHeight / _kMaxExtent),
                         child: Container(
                             height: remHeight,
                             decoration: BoxDecoration( 
                                 color: theme.colorScheme.surface,
                             ),
                             // Buffer some height to avoid overflows
-                            child: remHeight > 12.0 ? Column(
+                            child: Column(
                                 children: [ 
                                     Row(
                                         children: [ 
                                             Expanded(
-                                              child: Padding(
-                                                  padding: const EdgeInsets.fromLTRB(
+                                                child: Padding(
+                                                    padding: const EdgeInsets.fromLTRB(
                                                         4.0, 2.0, 4.0, 4.0
                                                     ),
-                                                  child: SizedBox(
-                                                      //color: Colors.red,
-                                                      height: metrHeight - 4.0,
+                                                    child: SizedBox(
+                                                        //color: Colors.red,
+                                                        height: metrHeight - 4.0,
                                                         child: Column( 
                                                             children: [ 
                                                                 Expanded(
-                                                                  child: InfoTile(child: Center(child: Text("A"),),),
+                                                                    child: remHeight > 64.0 ? TweenAnimationBuilder<Offset>(
+                                                        tween: Tween(
+                                                            begin: Offset(0,-1), // : Offset(0, 0),
+                                                            end:   Offset(0, 0), // : Offset(0,-1)
+                                                        ),
+                                                        duration: Duration(milliseconds: 200),
+                                                        curve: Curves.easeOutQuart, // Makes the "flying" feel smooth
+                                                        builder: (context, offset, child) {
+                                                            return FractionalTranslation(
+                                                                translation: offset,
+                                                                child: child,
+                                                            );
+                                                        },
+                                                                      child: InfoTile(child:
+                                                                          Center(child:
+                                                                              Text("4 / 0 / 1 "),),),
+                                                                    ) : SizedBox.shrink(),
                                                                 ),
                                                                 Expanded(
-                                                                  child: InfoTile(child: Center(child: Text("B"),),),
+                                                                    child:
+                                                                    remHeight > 128.0 ? TweenAnimationBuilder<Offset>(
+                                                        tween: Tween(
+                                                            begin: Offset(0,-1), // : Offset(0, 0),
+                                                            end:   Offset(0, 0), // : Offset(0,-1)
+                                                        ),
+                                                        duration: Duration(milliseconds: 200),
+                                                        curve: Curves.easeOutQuart, // Makes the "flying" feel smooth
+                                                        builder: (context, offset, child) {
+                                                            return FractionalTranslation(
+                                                                translation: offset,
+                                                                child: child,
+                                                            );
+                                                        },
+                                                                      child: InfoTile(child:
+                                                                          Center(child: Text("308.8 kIB"),),),
+                                                                    )
+                                                                    : SizedBox.shrink(),
                                                                 ),
                                                             ]
                                                         ),
-                                                  ),
-                                              ),
+                                                    ),
+                                                ),
                                             ),
                                             Expanded(
                                                 child: Padding(
                                                     padding: const EdgeInsets.fromLTRB( 
                                                         2.0, 4.0, 4.0, 4.0
                                                     ),
-                                                    child: SizedBox(
-                                                        height: metrHeight - 4.0,
-                                                        child: InfoTile( 
-                                                            child: Center(child: Text("C")),
+                                                    child: remHeight > 64.0 ? 
+                                                    TweenAnimationBuilder<Offset>(
+                                                        tween: Tween(
+                                                            begin: Offset(0,-1), // : Offset(0, 0),
+                                                            end:   Offset(0, 0), // : Offset(0,-1)
                                                         ),
-                                                    ),
+                                                        duration: Duration(milliseconds: 200),
+                                                        curve: Curves.easeOutQuart, // Makes the "flying" feel smooth
+                                                        builder: (context, offset, child) {
+                                                            return FractionalTranslation(
+                                                                translation: offset,
+                                                                child: child,
+                                                            );
+                                                        },
+                                                      child: 
+                                                        SizedBox(
+                                                            height: metrHeight - 4.0,
+                                                            child: InfoTile( 
+                                                                child: 
+                                                                //Center(child: Text("C ${}")),
+                                                                LayoutBuilder(builder: (b,c) {
+                                                                    var points = generateRandomPoints(c.biggest, 5);
+                                                                    return CustomPaint( 
+                                                                        size: c.biggest,
+                                                                        painter: SplinePainter(points)
+                                                                    );
+                                                                }
+
+                                                                )
+                                                            )
+                                                        )
+                                                    ) : SizedBox.shrink()
+
+
                                                 ),
                                             ),
                                         ],
                                     ),
                                     Padding(
                                         padding: const EdgeInsets.only(left: 4.0, right: 4.0),
-                                        child: remMetrHeight > 16.0 ? SizedBox( 
-                                            height: remMetrHeight - 8.0,
-                                            child: InfoTile (child: Center(child: Text("D"),)),
-                                        ) : SizedBox.shrink(),
+                                        child: AnimatedUploadLimit(remHeight: remMetrHeight),
                                     ),
                                 ],
-                            ) : null,
+                            ),
                         ),
                     ),
                      //const UploadLimitsTile(),
@@ -433,6 +492,8 @@ class _NetworkErrorBody extends StatelessWidget {
     );
   }
 }
+
+// TODO: AnimatedSwitcher with SizedBox.shrink
 
 class InfoTile extends StatelessWidget {
 

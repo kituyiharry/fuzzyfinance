@@ -6,6 +6,7 @@ import '../../core/api/endpoints.dart';
 import '../../core/cache/local_cache.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/receipt.dart';
+import 'widgets/torn_receipt_card.dart';
 
 final _receiptDetailProvider =
     FutureProvider.family<Receipt, String>((ref, id) async {
@@ -65,57 +66,72 @@ class _ReceiptBody extends StatelessWidget {
     ];
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 20, 32),
       children: [
-        // Status badge
-        _StatusBadge(status: receipt.status.name.toUpperCase()),
-        const SizedBox(height: 16),
+        TornReceiptCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Receipt header
+              Center(
+                child: Text(
+                  receipt.merchantName?.toUpperCase() ?? 'RECEIPT',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Center(child: _StatusBadge(status: receipt.status.name.toUpperCase())),
+              const ReceiptDivider(),
 
-        // Key/value fields
-        ...fields.map((f) => _FieldRow(label: f.$1, value: f.$2)),
+              // Key/value fields
+              ...fields.map((f) => _FieldRow(label: f.$1, value: f.$2)),
 
-        // Tags
-        if (receipt.tags.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('TAGS', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 6,
-            children: receipt.tags
-                .map((t) => Chip(
-                      label: Text(t.toUpperCase(),
-                          style: theme.textTheme.labelLarge?.copyWith(fontSize: 10)),
-                      shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero),
-                      side: BorderSide(color: ext.border),
-                      backgroundColor: ext.muted,
-                    ))
-                .toList(),
+              // Line items
+              if (receipt.lineItems.isNotEmpty) ...[
+                const ReceiptDivider(),
+                Text('ITEMS', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 8),
+                ...receipt.lineItems.map((li) => _LineItemRow(
+                      description: li.description ?? '',
+                      qty: li.qty,
+                      unitPrice: li.unitPrice,
+                      total: li.total,
+                    )),
+              ],
+
+              // Tags
+              if (receipt.tags.isNotEmpty) ...[
+                const ReceiptDivider(),
+                Text('TAGS', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: receipt.tags
+                      .map((t) => Chip(
+                            label: Text(t.toUpperCase(),
+                                style: theme.textTheme.labelLarge
+                                    ?.copyWith(fontSize: 10)),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.zero),
+                            side: BorderSide(color: ext.border),
+                            backgroundColor: ext.muted,
+                          ))
+                      .toList(),
+                ),
+              ],
+
+              // Notes
+              if (receipt.notes != null && receipt.notes!.isNotEmpty) ...[
+                const ReceiptDivider(),
+                Text('NOTES', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 4),
+                Text(receipt.notes!, style: theme.textTheme.bodyMedium),
+              ],
+            ],
           ),
-        ],
-
-        // Notes
-        if (receipt.notes != null && receipt.notes!.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('NOTES', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 4),
-          Text(receipt.notes!, style: theme.textTheme.bodyMedium),
-        ],
-
-        // Line items
-        if (receipt.lineItems.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text('LINE ITEMS', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 8),
-          ...receipt.lineItems.map((li) => _LineItemRow(
-                description: li.description ?? '',
-                qty: li.qty,
-                unitPrice: li.unitPrice,
-                total: li.total,
-              )),
-        ],
-
-        const SizedBox(height: 24),
+        ),
       ],
     );
   }
