@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/fuzzy_date.dart';
+import '../../../features/shared/widgets/torn_item_card.dart';
 import '../../../models/timeline_item.dart';
 
 class TimelineItemCard extends StatelessWidget {
@@ -10,16 +12,20 @@ class TimelineItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final ext = context.fuzzy;
 
-    final (label, amount, date, route) = switch (item) {
+    final isReceipt = item is ReceiptItem;
+    final badgeColor = isReceipt ? ext.infoColor : ext.successColor;
+    final badgeLabel = isReceipt ? 'RECEIPT' : 'SALE';
+
+    final (label, amount, date, status, route) = switch (item) {
       ReceiptItem(:final receipt) => (
           receipt.displayTitle,
           receipt.total != null
               ? '${receipt.currency ?? ''} ${receipt.total}'.trim()
               : null,
-          receipt.receiptDate,
+          receipt.createdAt,
+          receipt.status.name,
           '/receipt/${receipt.id}',
         ),
       SaleItem(:final sale) => (
@@ -27,93 +33,47 @@ class TimelineItemCard extends StatelessWidget {
           sale.totalRevenue != null
               ? '${sale.currency ?? ''} ${sale.totalRevenue}'.trim()
               : null,
-          sale.saleDate,
+          sale.createdAt,
+          sale.status.name,
           '/sale/${sale.id}',
         ),
     };
 
-    final isReceipt = item is ReceiptItem;
-    final badgeColor = isReceipt ? ext.infoColor : ext.successColor;
-    final badgeLabel = isReceipt ? 'RECEIPT' : 'SALE';
+    final tag = itemHeroTag(
+      type: isReceipt ? 'receipt' : 'sale',
+      id: item.id,
+    );
 
     return InkWell(
       onTap: () => context.push(route),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: ext.border, width: 2),
-          boxShadow: [ext.cardShadow],
-          color: theme.colorScheme.surface,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 6,
-                height: 40,
-                color: badgeColor,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          color: badgeColor.withValues(alpha: 0.12),
-                          child: Text(
-                            badgeLabel,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: badgeColor,
-                              fontSize: 9,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            label,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (date != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        date,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (amount != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  amount,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right, size: 16, color: ext.mutedFg),
-            ],
-          ),
+      child: Hero(
+        tag: tag,
+        // Transparent Material prevents Raleway text rendering with yellow
+        // underlines when the widget is in the Navigator Overlay during flight.
+        flightShuttleBuilder: (_, animation, __, fromCtx, ___) =>
+            AnimatedBuilder(
+              animation: animation,
+              builder: (_, child) =>
+                  Material(color: Colors.transparent, child: child),
+              child: fromCtx.widget,
+            ),
+        child: TornItemCard(
+          label: label,
+          badgeLabel: badgeLabel,
+          badgeColor: badgeColor,
+          date: date,
+          amount: amount,
+          status: status,
+          showChevron: true,
+          hasTornEdge: false,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         ),
       ),
     );
   }
 }
 
-// Compact version used in search result cards
+// Compact version used in search result cards (unchanged).
 class SearchResultCard extends StatelessWidget {
   const SearchResultCard({super.key, required this.item, required this.onTap});
   final TimelineItem item;
@@ -129,13 +89,13 @@ class SearchResultCard extends StatelessWidget {
 
     final (sub, amount) = switch (item) {
       ReceiptItem(:final receipt) => (
-          receipt.receiptDate ?? '',
+          fuzzyDate(receipt.createdAt),
           receipt.total != null
               ? '${receipt.currency ?? ''} ${receipt.total}'.trim()
               : '',
         ),
       SaleItem(:final sale) => (
-          sale.saleDate ?? '',
+          fuzzyDate(sale.createdAt),
           sale.totalRevenue != null
               ? '${sale.currency ?? ''} ${sale.totalRevenue}'.trim()
               : '',
@@ -157,7 +117,8 @@ class SearchResultCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               color: badgeColor.withValues(alpha: 0.12),
               child: Text(
                 isReceipt ? 'RECEIPT' : 'SALE',
@@ -175,13 +136,9 @@ class SearchResultCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const Spacer(),
-            if (sub.isNotEmpty)
-              Text(sub, style: theme.textTheme.bodySmall),
+            if (sub.isNotEmpty) Text(sub, style: theme.textTheme.bodySmall),
             if (amount.isNotEmpty)
-              Text(
-                amount,
-                style: theme.textTheme.labelLarge,
-              ),
+              Text(amount, style: theme.textTheme.labelLarge),
           ],
         ),
       ),

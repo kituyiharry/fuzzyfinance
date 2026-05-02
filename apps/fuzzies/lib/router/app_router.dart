@@ -53,13 +53,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/home', builder: (ctx, st) => const HomePage()),
       GoRoute(
         path: '/receipt/:id',
-        builder: (_, state) =>
-            ReceiptDetailPage(id: state.pathParameters['id']!),
+        pageBuilder: (_, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: ReceiptDetailPage(id: state.pathParameters['id']!),
+          transitionDuration: const Duration(milliseconds: 650),
+          reverseTransitionDuration: const Duration(milliseconds: 650),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+            opacity: CurvedAnimation(
+                parent: animation, curve: Curves.easeInQuart),
+            child: child,
+          ),
+        ),
       ),
       GoRoute(
         path: '/sale/:id',
-        builder: (_, state) =>
-            SaleDetailPage(id: state.pathParameters['id']!),
+        pageBuilder: (_, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: SaleDetailPage(id: state.pathParameters['id']!),
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 350),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+            opacity: CurvedAnimation(
+                parent: animation, curve: Curves.easeIn),
+            child: child,
+          ),
+        ),
       ),
       GoRoute(path: '/settings', builder: (ctx, st) => const SettingsPage()),
     ],
