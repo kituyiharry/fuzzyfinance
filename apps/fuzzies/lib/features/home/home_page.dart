@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fuzzies/features/home/widgets/animated_tile_info.dart';
 import 'package:fuzzies/features/home/widgets/animated_upload_limit.dart';
+import 'package:fuzzies/features/home/widgets/info_tile.dart';
 import 'package:fuzzies/features/home/widgets/spline.dart';
 import 'package:go_router/go_router.dart';
 
@@ -34,6 +36,80 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
 
     HomePageSearchHeader(this.callback);
 
+    Widget _buildLeftPanel(double metrHeight, double remHeight) {
+        return SizedBox(
+            //color: Colors.red,
+            height: metrHeight - 4.0,
+            child: Column( 
+                children: [ 
+                    Expanded(
+                        child:
+                        remHeight
+                        > 64.0
+                        ? AnimatedTileInfo(
+                            metrHeight:
+                            metrHeight,
+                            child: Center(child:
+                                Text("4 / 0 / 1 "),),
+                        ) : SizedBox.shrink(),
+                    ),
+                    Expanded(
+                        child:
+                        remHeight
+                        > 128.0
+                        ? AnimatedTileInfo(
+                            metrHeight: metrHeight,
+                            child: Center(child: Text("308.8 kIB"),)
+                        )
+                        : SizedBox.shrink(),
+                    ),
+                ]
+            ),
+        );
+    }
+
+    Widget _buildRightPanel(double metrHeight, double remHeight) {
+        return remHeight > 64.0 ? AnimatedTileInfo(
+            metrHeight: metrHeight,
+            child: LayoutBuilder(builder: (b,c) {
+                var points = generateRandomPoints(c.biggest, 5);
+                return CustomPaint( 
+                    size: c.biggest,
+                    painter: SplinePainter(points)
+                );
+            }),
+        ) : SizedBox.shrink();
+    }
+
+    List<Widget> _buildPanels(double metrHeight, double remHeight, double remMetrHeight) {
+        return [ 
+            Row(
+                children: [ 
+                    Expanded(
+                        child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                                10.0, 2.0, 4.0, 4.0
+                            ),
+                            child: _buildLeftPanel(metrHeight, remHeight),
+                        ),
+                    ),
+                    Expanded(
+                        child: Padding(
+                            padding: const EdgeInsets.fromLTRB( 
+                                2.0, 4.0, 10.0, 4.0
+                            ),
+                            child: _buildRightPanel(metrHeight, remHeight),
+                        ),
+                    ),
+                ],
+            ),
+            Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: AnimatedUploadLimit(remHeight: remMetrHeight),
+            ),
+        ];
+    }
+
     @override
     Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
         double remHeight = (_kMaxExtent - shrinkOffset - 64.0).clamp(8.0, _kMaxExtent-8.0);
@@ -51,120 +127,13 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
                         opacity: (remHeight / _kMaxExtent),
                         child: Container(
                             height: remHeight,
-                            decoration: BoxDecoration( 
-                                color: theme.colorScheme.surface,
-                            ),
+                            decoration: BoxDecoration(color: theme.colorScheme.surface),
                             // Buffer some height to avoid overflows
                             child: Column(
-                                children: [ 
-                                    Row(
-                                        children: [ 
-                                            Expanded(
-                                                child: Padding(
-                                                    padding: const EdgeInsets.fromLTRB(
-                                                        4.0, 2.0, 4.0, 4.0
-                                                    ),
-                                                    child: SizedBox(
-                                                        //color: Colors.red,
-                                                        height: metrHeight - 4.0,
-                                                        child: Column( 
-                                                            children: [ 
-                                                                Expanded(
-                                                                    child: remHeight > 64.0 ? TweenAnimationBuilder<Offset>(
-                                                        tween: Tween(
-                                                            begin: Offset(0,-1), // : Offset(0, 0),
-                                                            end:   Offset(0, 0), // : Offset(0,-1)
-                                                        ),
-                                                        duration: Duration(milliseconds: 200),
-                                                        curve: Curves.easeOutQuart, // Makes the "flying" feel smooth
-                                                        builder: (context, offset, child) {
-                                                            return FractionalTranslation(
-                                                                translation: offset,
-                                                                child: child,
-                                                            );
-                                                        },
-                                                                      child: InfoTile(child:
-                                                                          Center(child:
-                                                                              Text("4 / 0 / 1 "),),),
-                                                                    ) : SizedBox.shrink(),
-                                                                ),
-                                                                Expanded(
-                                                                    child:
-                                                                    remHeight > 128.0 ? TweenAnimationBuilder<Offset>(
-                                                        tween: Tween(
-                                                            begin: Offset(0,-1), // : Offset(0, 0),
-                                                            end:   Offset(0, 0), // : Offset(0,-1)
-                                                        ),
-                                                        duration: Duration(milliseconds: 200),
-                                                        curve: Curves.easeOutQuart, // Makes the "flying" feel smooth
-                                                        builder: (context, offset, child) {
-                                                            return FractionalTranslation(
-                                                                translation: offset,
-                                                                child: child,
-                                                            );
-                                                        },
-                                                                      child: InfoTile(child:
-                                                                          Center(child: Text("308.8 kIB"),),),
-                                                                    )
-                                                                    : SizedBox.shrink(),
-                                                                ),
-                                                            ]
-                                                        ),
-                                                    ),
-                                                ),
-                                            ),
-                                            Expanded(
-                                                child: Padding(
-                                                    padding: const EdgeInsets.fromLTRB( 
-                                                        2.0, 4.0, 4.0, 4.0
-                                                    ),
-                                                    child: remHeight > 64.0 ? 
-                                                    TweenAnimationBuilder<Offset>(
-                                                        tween: Tween(
-                                                            begin: Offset(0,-1), // : Offset(0, 0),
-                                                            end:   Offset(0, 0), // : Offset(0,-1)
-                                                        ),
-                                                        duration: Duration(milliseconds: 200),
-                                                        curve: Curves.easeOutQuart, // Makes the "flying" feel smooth
-                                                        builder: (context, offset, child) {
-                                                            return FractionalTranslation(
-                                                                translation: offset,
-                                                                child: child,
-                                                            );
-                                                        },
-                                                      child: 
-                                                        SizedBox(
-                                                            height: metrHeight - 4.0,
-                                                            child: InfoTile( 
-                                                                child: 
-                                                                //Center(child: Text("C ${}")),
-                                                                LayoutBuilder(builder: (b,c) {
-                                                                    var points = generateRandomPoints(c.biggest, 5);
-                                                                    return CustomPaint( 
-                                                                        size: c.biggest,
-                                                                        painter: SplinePainter(points)
-                                                                    );
-                                                                }
-
-                                                                )
-                                                            )
-                                                        )
-                                                    ) : SizedBox.shrink()
-
-
-                                                ),
-                                            ),
-                                        ],
-                                    ),
-                                    Padding(
-                                        padding: const EdgeInsets.only(left: 4.0, right: 4.0),
-                                        child: AnimatedUploadLimit(remHeight: remMetrHeight),
-                                    ),
-                                ],
+                                children: _buildPanels(metrHeight, remHeight, remMetrHeight),
                             ),
                         ),
                     ),
-                     //const UploadLimitsTile(),
                     FuzzySearchBar(
                         onActiveChanged: (active) => callback(active),
                     ),
@@ -493,25 +462,3 @@ class _NetworkErrorBody extends StatelessWidget {
   }
 }
 
-// TODO: AnimatedSwitcher with SizedBox.shrink
-
-class InfoTile extends StatelessWidget {
-
-    final Widget child;
-    const InfoTile({super.key, required this.child});
-
-    @override
-    Widget build(BuildContext context) {
-        final ext = context.fuzzy;
-        final theme = Theme.of(context);
-        return Container(
-            margin: const EdgeInsets.all(4.0),
-            decoration: BoxDecoration(
-                border: Border.all(color: ext.border, width: 2),
-                boxShadow: [ext.cardShadow],
-                color: theme.colorScheme.surface,
-            ),
-            child: child,
-        );
-    }
-}

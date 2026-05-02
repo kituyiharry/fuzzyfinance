@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fuzzies/core/theme/app_theme.dart';
-import 'package:fuzzies/features/home/home_page.dart';
+import 'package:fuzzies/features/home/widgets/info_tile.dart';
 
 
 const double _kRemHeightBufferPadding = 8.0;
@@ -29,7 +29,6 @@ class _AnimatedUploadLimitState extends ConsumerState<AnimatedUploadLimit> {
     @override
     Widget build(BuildContext context) {
         final ThemeData theme = Theme.of(context);
-        final ext = context.fuzzy;
         return (widget.isShown ?
             TweenAnimationBuilder<Offset>(
                 tween: Tween(
