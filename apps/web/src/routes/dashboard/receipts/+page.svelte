@@ -303,9 +303,8 @@
 							{@const isSelected = selectedIds.has(r.id)}
 							<tr
 								class="border-b border-(--color-border)
-                                transition-all group {isSelected ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--color-muted)'}"
-								onclick={selecting ? () => toggleSelect(r.id) : undefined}
-								style={selecting ? 'cursor: pointer' : ''}
+                                transition-all group cursor-pointer {isSelected ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--color-muted)'}"
+								onclick={selecting ? () => toggleSelect(r.id) : () => goto(resolve(`/dashboard/receipts/${r.id}`))}
 							>
 								{#if selecting}
 									<td class="py-3 pr-3">
@@ -358,12 +357,9 @@
 								</td>
 								<td class="py-3">
 									{#if !selecting}
-										<a
-											href={resolve(`/dashboard/receipts/${r.id}`)}
-											class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) no-underline opacity-0 group-hover:opacity-100 transition-opacity"
-										>
+										<span class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) opacity-0 group-hover:opacity-100 transition-opacity">
 											VIEW →
-										</a>
+										</span>
 									{/if}
 								</td>
 							</tr>

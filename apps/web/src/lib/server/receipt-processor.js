@@ -24,7 +24,7 @@ const LOG = '[receipt-processor]';
  * @param {string} receiptId
  */
 export async function processReceipt(env, receiptId) {
-	/** @param {Partial<typeof schema.receipt.$inferInsert>} patch */
+	/** @param {Record<string, unknown>} data */
 	const patch = (data) =>
 		db.update(schema.receipt).set(data).where(eq(schema.receipt.id, receiptId));
 
@@ -80,8 +80,20 @@ export async function processReceipt(env, receiptId) {
 		return;
 	}
 
+	// ── Step 2.5: server-side date plausibility check ─────────────────
+	// The AI model's training cutoff causes it to misidentify recent legitimate
+	// dates as "future" — so this check is done here, not by the AI.
+	const authSignals = [...(extraction.authenticitySignals ?? [])];
+	let authRisk = extraction.authenticityRisk ?? 'low';
+	const parsedExtractedDate = extraction.date ? new Date(extraction.date) : null;
+	if (parsedExtractedDate && !isNaN(parsedExtractedDate.getTime()) && parsedExtractedDate > new Date()) {
+		authSignals.push(`Receipt date (${extraction.date}) is in the future`);
+		if (authRisk === 'low') authRisk = 'medium';
+		logger.warn(LOG, 'future_date_flagged', { receiptId, date: extraction.date });
+	}
+
 	// ── Step 3: persist extracted data ─────────────────────────────────
-	const receiptDate = extraction.date ? new Date(extraction.date) : null;
+	const receiptDate = parsedExtractedDate;
 	const lineItemsJson = JSON.stringify(extraction.lineItems ?? []);
 
 	const receiptNum = (extraction.receiptNumber || '').trim() || null;
@@ -122,8 +134,8 @@ export async function processReceipt(env, receiptId) {
 		tags:          JSON.stringify(extraction.tags ?? []),
 		lineItemsJson,
 		aiExtractedJson,
-		authenticityRisk:    extraction.authenticityRisk    || 'low',
-		authenticitySignals: JSON.stringify(extraction.authenticitySignals ?? [])
+		authenticityRisk:    authRisk,
+		authenticitySignals: JSON.stringify(authSignals)
 	});
 
 	// Persist normalised line items
