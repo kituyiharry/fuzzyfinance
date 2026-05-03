@@ -365,15 +365,19 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     final slivers = <Widget>[];
     for (final group in groups) {
-      slivers.add(SliverPersistentHeader(
-        pinned: true,
-        delegate: DateHeaderDelegate(group.date),
-      ));
-      slivers.add(SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (ctx, i) => TimelineItemCard(item: group.items[i]),
-          childCount: group.items.length,
-        ),
+      slivers.add(SliverMainAxisGroup(
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: DateHeaderDelegate(group.date),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => TimelineItemCard(item: group.items[i]),
+              childCount: group.items.length,
+            ),
+          ),
+        ],
       ));
     }
 
