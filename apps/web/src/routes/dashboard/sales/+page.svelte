@@ -174,7 +174,10 @@
 					</thead>
 					<tbody>
 						{#each data.sales as s (s.id)}
-							<tr class="border-b border-(--color-border) hover:bg-(--color-muted) transition-all group">
+							<tr
+								class="border-b border-(--color-border) hover:bg-(--color-muted) transition-all group cursor-pointer"
+								onclick={() => goto(resolve(`/dashboard/sales/${s.id}`))}
+							>
 								<td class="py-3 pr-4 font-bold text-xs max-w-48 truncate">
 									{s.documentTitle ?? '—'}
 								</td>
@@ -200,12 +203,9 @@
 									{/if}
 								</td>
 								<td class="py-3">
-									<a
-										href={resolve(`/dashboard/sales/${s.id}`)}
-										class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) no-underline opacity-0 group-hover:opacity-100 transition-opacity"
-									>
+									<span class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) opacity-0 group-hover:opacity-100 transition-opacity">
 										VIEW →
-									</a>
+									</span>
 								</td>
 							</tr>
 						{/each}

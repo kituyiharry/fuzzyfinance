@@ -35,7 +35,7 @@ const EXTRACTION_SCHEMA = {
 	properties: {
 		relevant: {
 			type: SchemaType.BOOLEAN,
-			description: 'true if this document is a sales report, sales invoice, sales order, purchase order, or revenue record. false if it is something else entirely (e.g. an ID card, personal photo, non-financial document, or a purchase receipt for expenses rather than sales).'
+			description: 'true if this document is a sales-related record — including: sales invoices, sales orders, purchase orders, revenue records, shift reports, end-of-day reports, daily sales summaries, cash register/till reports, and POS summary reports. false if it is something else entirely (e.g. an ID card, personal photo, non-financial document, or a purchase receipt for expenses rather than sales).'
 		},
 		relevanceReason: {
 			type: SchemaType.STRING,
@@ -43,7 +43,7 @@ const EXTRACTION_SCHEMA = {
 		},
 		documentTitle: {
 			type: SchemaType.STRING,
-			description: 'Title or heading of the sales document, invoice, or sales report.'
+			description: 'Title or heading of the document — e.g. "Sales Invoice", "Shift Report", "End of Day Summary", "Daily Sales Report", or any other heading visible on the document.'
 		},
 		date: {
 			type: SchemaType.STRING,
@@ -85,7 +85,7 @@ const EXTRACTION_SCHEMA = {
 				properties: {
 					description: {
 						type: SchemaType.STRING,
-						description: 'Product name or service description.'
+						description: 'Product name, service description, or item category. For shift/end-of-day reports, each row in the sales breakdown is a line item.'
 					},
 					type: {
 						type: SchemaType.STRING,
@@ -125,9 +125,11 @@ const EXTRACTION_SCHEMA = {
 
 const SYSTEM_PROMPT = `You are a sales document extraction assistant.
 
-First, determine whether the provided document is a sales report, sales invoice, sales order, or revenue record. If it is NOT (e.g. it is a personal expense receipt, ID card, personal photo, blank page, or any non-sales document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
+First, determine whether the provided document is a sales-related record. This includes: sales invoices, sales orders, purchase orders, revenue records, shift reports, end-of-day reports, daily sales summaries, cash register/till reports, and POS summary reports. If it is NOT (e.g. it is a personal expense receipt, ID card, personal photo, blank page, or any non-sales document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
 
 If it IS a sales document, set relevant to true, relevanceReason to empty string, and extract all financial data. Return only valid JSON matching the schema.
+
+IMPORTANT — Shift reports and end-of-day/till summaries: these documents list the items or product categories sold during a shift or day. Every item or product line shown IS a line item and must be extracted into the lineItems array. Do not return an empty lineItems array for these documents. The document total is the totalRevenue for that period.
 
 For products: extract units sold, buy price (cost), sell price, and margin if visible. Compute margin as (sellPrice - buyPrice) / sellPrice if not stated.
 For services: leave unitsSold, buyPrice, and totalCost empty. The sellPrice is the service fee.
