@@ -56,8 +56,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, state) => CustomTransitionPage<void>(
           key: state.pageKey,
           child: ReceiptDetailPage(id: state.pathParameters['id']!),
-          transitionDuration: const Duration(milliseconds: 650),
-          reverseTransitionDuration: const Duration(milliseconds: 650),
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 350),
           transitionsBuilder: (_, animation, __, child) => FadeTransition(
             opacity: CurvedAnimation(
                 parent: animation, curve: Curves.easeInQuart),
