@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fuzzies/features/home/widgets/animated_tile_info.dart';
 import 'package:fuzzies/features/home/widgets/animated_upload_limit.dart';
-import 'package:fuzzies/features/home/widgets/info_tile.dart';
 import 'package:fuzzies/features/home/widgets/spline.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,47 +37,37 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
 
     Widget _buildLeftPanel(double metrHeight, double remHeight) {
         return SizedBox(
-            //color: Colors.red,
             height: metrHeight - 4.0,
-            child: Column( 
-                children: [ 
+            child: Column(
+                children: [
                     Expanded(
-                        child:
-                        remHeight
-                        > 64.0
-                        ? AnimatedTileInfo(
-                            metrHeight:
-                            metrHeight,
-                            child: Center(child:
-                                Text("4 / 0 / 1 "),),
-                        ) : SizedBox.shrink(),
+                        child: remHeight > 64.0
+                            ? AnimatedTileInfo(
+                                metrHeight: metrHeight,
+                                child: const _SyncStatusTile(),
+                              )
+                            : const SizedBox.shrink(),
                     ),
                     Expanded(
-                        child:
-                        remHeight
-                        > 128.0
-                        ? AnimatedTileInfo(
-                            metrHeight: metrHeight,
-                            child: Center(child: Text("308.8 kIB"),)
-                        )
-                        : SizedBox.shrink(),
+                        child: remHeight > 128.0
+                            ? AnimatedTileInfo(
+                                metrHeight: metrHeight,
+                                child: const _StorageTile(),
+                              )
+                            : const SizedBox.shrink(),
                     ),
-                ]
+                ],
             ),
         );
     }
 
     Widget _buildRightPanel(double metrHeight, double remHeight) {
-        return remHeight > 64.0 ? AnimatedTileInfo(
-            metrHeight: metrHeight,
-            child: LayoutBuilder(builder: (b,c) {
-                var points = generateRandomPoints(c.biggest, 5);
-                return CustomPaint( 
-                    size: c.biggest,
-                    painter: SplinePainter(points)
-                );
-            }),
-        ) : SizedBox.shrink();
+        return remHeight > 64.0
+            ? AnimatedTileInfo(
+                metrHeight: metrHeight,
+                child: const _ActivityGraphTile(),
+              )
+            : const SizedBox.shrink();
     }
 
     List<Widget> _buildPanels(double metrHeight, double remHeight, double remMetrHeight) {
@@ -430,6 +419,209 @@ bool _isNetworkError(Object e) {
   }
   return false;
 }
+
+// ── Header panel tiles ────────────────────────────────────────────────────────
+
+class _SyncStatusTile extends ConsumerWidget {
+  const _SyncStatusTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    final receipts = ref.watch(receiptsNotifier).valueOrNull?.items ?? [];
+    final sales = ref.watch(salesNotifier).valueOrNull?.items ?? [];
+
+    int complete = 0, staged = 0, failed = 0;
+    void tally(String name) {
+      final n = name.toLowerCase();
+      if (n == 'complete' || n == 'completenosync') {
+        complete++;
+      } else if (n == 'failed') {
+        failed++;
+      } else if (n != 'unknown') {
+        staged++;
+      }
+    }
+    for (final r in receipts) tally(r.status.name);
+    for (final s in sales) tally(s.status.name);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('SYNC', style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: ext.mutedFg)),
+            _StatRow(count: complete, label: 'DONE', color: ext.successColor),
+            _StatRow(count: staged, label: 'PENDING', color: ext.infoColor),
+            _StatRow(count: failed, label: 'FAILED', color: ext.dangerColor),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StorageTile extends ConsumerWidget {
+  const _StorageTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    final rState = ref.watch(receiptsNotifier).valueOrNull;
+    final sState = ref.watch(salesNotifier).valueOrNull;
+    final receipts = rState?.items ?? [];
+    final sales = sState?.items ?? [];
+    final hasMore = (rState?.hasMore ?? false) || (sState?.hasMore ?? false);
+
+    // Rough estimate: receipts avg ~50 KB (with image metadata), sales ~20 KB
+    final kbEst = receipts.length * 50.0 + sales.length * 20.0;
+    final storageStr = kbEst < 1024
+        ? '~${kbEst.round()} KB'
+        : '~${(kbEst / 1024).toStringAsFixed(1)} MB';
+    final totalDocs = receipts.length + sales.length;
+    final suffix = hasMore ? '+' : '';
+
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('STORAGE', style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: ext.mutedFg)),
+              Text(storageStr, style: theme.textTheme.labelLarge?.copyWith(fontSize: 16)),
+              Text('$totalDocs$suffix docs', style: theme.textTheme.bodySmall?.copyWith(fontSize: 7, color: ext.mutedFg)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityGraphTile extends ConsumerWidget {
+  const _ActivityGraphTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ext = context.fuzzy;
+    final theme = Theme.of(context);
+    final receipts = ref.watch(receiptsNotifier).valueOrNull?.items ?? [];
+    final sales = ref.watch(salesNotifier).valueOrNull?.items ?? [];
+
+    final now = DateTime.now();
+    bool sameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
+
+    final rCounts = List.generate(7, (i) {
+      final day = DateTime(now.year, now.month, now.day - (6 - i));
+      return receipts.where((r) => sameDay(r.createdAt, day)).length.toDouble();
+    });
+    final sCounts = List.generate(7, (i) {
+      final day = DateTime(now.year, now.month, now.day - (6 - i));
+      return sales.where((s) => sameDay(s.createdAt, day)).length.toDouble();
+    });
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 20, 4, 4),
+            child: LayoutBuilder(
+              builder: (_, c) => CustomPaint(
+                size: c.biggest,
+                painter: ActivitySplinePainter(
+                  receiptCounts: rCounts,
+                  saleCounts: sCounts,
+                  receiptColor: ext.infoColor,
+                  saleColor: ext.successColor,
+                  gridColor: ext.borderSubtle,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 6,
+          left: 8,
+          child: Text(
+            '7D ACTIVITY',
+            style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: ext.mutedFg),
+          ),
+        ),
+        Positioned(
+          top: 5,
+          right: 8,
+          child: Row(
+            children: [
+              _LegendDot(color: ext.infoColor, label: 'RECEIPTS'),
+              const SizedBox(width: 8),
+              _LegendDot(color: ext.successColor, label: 'SALES'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  const _StatRow({required this.count, required this.label, required this.color});
+  final int count;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(width: 4, height: 4, color: color),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: theme.textTheme.labelLarge?.copyWith(fontSize: 9, color: color),
+        ),
+        const SizedBox(width: 3),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(fontSize: 7, color: color.withValues(alpha: 0.8)),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(width: 5, height: 5, color: color),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: color),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Network error body ────────────────────────────────────────────────────────
 
 class _NetworkErrorBody extends StatelessWidget {
   const _NetworkErrorBody({required this.onRetry});

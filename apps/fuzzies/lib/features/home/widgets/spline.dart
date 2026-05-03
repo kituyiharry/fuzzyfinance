@@ -1,55 +1,92 @@
 import 'dart:math';
-
-import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:flutter/material.dart';
 
-List<Offset> generateRandomPoints(Size size, int numPoints) {
-  final random = Random(66);
-  return List.generate(numPoints, (i) {
-    return Offset(
-      i * (size.width / (numPoints - 1)),
-      random.nextDouble() * size.height,
-    );
+class ActivitySplinePainter extends CustomPainter {
+  const ActivitySplinePainter({
+    required this.receiptCounts,
+    required this.saleCounts,
+    required this.receiptColor,
+    required this.saleColor,
+    required this.gridColor,
   });
-}
 
-class SplinePainter extends CustomPainter {
-  final List<Offset> points;
+  final List<double> receiptCounts;
+  final List<double> saleCounts;
+  final Color receiptColor;
+  final Color saleColor;
+  final Color gridColor;
 
-  SplinePainter(this.points);
+  static List<Offset> _toPoints(List<double> counts, Size size) {
+    final maxVal = counts.fold(0.0, max).clamp(1.0, double.infinity);
+    final n = counts.length;
+    return List.generate(
+      n,
+      (i) => Offset(
+        i * size.width / (n - 1),
+        size.height - (counts[i] / maxVal) * size.height * 0.78 - size.height * 0.08,
+      ),
+    );
+  }
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-
-    final paint = Paint()
-      ..color = Colors.blue
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke;
-
-    // 1. Create the Spline
-    // tension: 0.0 is the default (smoothest). 1.0 becomes linear.
+  void _drawSeries(Canvas canvas, Size size, List<double> counts, Color color) {
+    if (counts.length < 2) return;
+    final points = _toPoints(counts, size);
     final spline = CatmullRomSpline(points, tension: 0.0);
+    final samples = spline.generateSamples(tolerance: 0.1).toList();
+    if (samples.isEmpty) return;
 
-    // 2. Generate points along the curve
-    // generateSamples creates a list of Curve2DSample objects
-    final samples = spline.generateSamples(tolerance: 0.1);
-
-    final path = Path();
-    if (samples.isNotEmpty) {
-      path.moveTo(samples.first.value.dx, samples.first.value.dy);
-      for (var sample in samples) {
-        path.lineTo(sample.value.dx, sample.value.dy);
-      }
+    final linePath = Path()
+      ..moveTo(samples.first.value.dx, samples.first.value.dy);
+    for (final s in samples) {
+      linePath.lineTo(s.value.dx, s.value.dy);
     }
 
-    canvas.drawPath(path, paint);
+    final fillPath = Path.from(linePath)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
 
-    // Optional: Draw the original control points for reference
-    // final pointPaint = Paint()..color = Colors.red..strokeWidth = 8..strokeCap = StrokeCap.round;
-    // canvas.drawPoints(PointMode.points, points, pointPaint);
+    canvas
+      ..drawPath(
+        fillPath,
+        Paint()
+          ..color = color.withValues(alpha: 0.10)
+          ..style = PaintingStyle.fill,
+      )
+      ..drawPath(
+        linePath,
+        Paint()
+          ..color = color
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke,
+      );
+
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    for (final p in points) {
+      canvas.drawCircle(p, 2.0, dotPaint);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = gridColor
+      ..strokeWidth = 0.5;
+    for (int i = 1; i < 4; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+    _drawSeries(canvas, size, saleCounts, saleColor);
+    _drawSeries(canvas, size, receiptCounts, receiptColor);
+  }
+
+  @override
+  bool shouldRepaint(ActivitySplinePainter old) =>
+      old.receiptCounts != receiptCounts ||
+      old.saleCounts != saleCounts ||
+      old.receiptColor != receiptColor ||
+      old.saleColor != saleColor;
 }

@@ -69,7 +69,7 @@ class _TornItemCardState extends State<TornItemCard>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 840),
+      duration: const Duration(milliseconds: 440),
     );
     _sizeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
     _fadeAnim = CurvedAnimation(
