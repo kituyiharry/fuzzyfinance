@@ -44,12 +44,12 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
                         child: remHeight > 64.0
                             ? AnimatedTileInfo(
                                 metrHeight: metrHeight,
-                                child: const _SyncStatusTile(),
+                                child: _SyncStatusTile(height: (metrHeight / 2)),
                               )
                             : const SizedBox.shrink(),
                     ),
                     Expanded(
-                        child: remHeight > 128.0
+                        child: remHeight > 148.0
                             ? AnimatedTileInfo(
                                 metrHeight: metrHeight,
                                 child: const _StorageTile(),
@@ -422,8 +422,9 @@ bool _isNetworkError(Object e) {
 
 // ── Header panel tiles ────────────────────────────────────────────────────────
 
-class _SyncStatusTile extends ConsumerWidget {
-  const _SyncStatusTile();
+class _SyncStatusTile extends ConsumerWidget { 
+  final double height;
+  const _SyncStatusTile({required this.height});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -454,9 +455,19 @@ class _SyncStatusTile extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('SYNC', style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: ext.mutedFg)),
-            _StatRow(count: complete, label: 'DONE', color: ext.successColor),
-            _StatRow(count: staged, label: 'PENDING', color: ext.infoColor),
-            _StatRow(count: failed, label: 'FAILED', color: ext.dangerColor),
+            SizedBox(
+              height: height,
+              child: SingleChildScrollView(
+                physics: NeverScrollableScrollPhysics(),
+                child: Row( 
+                    children: [ 
+                        _StatRow(count: complete, label: 'DONE', color:    ext.successColor),
+                        _StatRow(count: staged,   label: 'PENDING', color: ext.infoColor),
+                        _StatRow(count: failed,   label: 'FAILED', color:  ext.dangerColor),
+                    ],
+                ),
+              ),
+            )
           ],
         ),
       ),
@@ -486,18 +497,20 @@ class _StorageTile extends ConsumerWidget {
     final suffix = hasMore ? '+' : '';
 
     return SizedBox.expand(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('STORAGE', style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: ext.mutedFg)),
-              Text(storageStr, style: theme.textTheme.labelLarge?.copyWith(fontSize: 16)),
-              Text('$totalDocs$suffix docs', style: theme.textTheme.bodySmall?.copyWith(fontSize: 7, color: ext.mutedFg)),
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('STORAGE', style: theme.textTheme.labelLarge?.copyWith(fontSize: 6, color: ext.mutedFg))),
+                Text('$totalDocs$suffix docs', style: theme.textTheme.bodySmall?.copyWith(fontSize: 7, color: ext.mutedFg)),
+              ],
+            ),
+            Expanded(child: Center(child: Text(storageStr, style: theme.textTheme.labelLarge?.copyWith(fontSize: 16)))),
+          ],
         ),
       ),
     );
@@ -579,24 +592,45 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      children: [
-        Container(width: 4, height: 4, color: color),
-        const SizedBox(width: 4),
-        Text(
-          '$count',
-          style: theme.textTheme.labelLarge?.copyWith(fontSize: 9, color: color),
-        ),
-        const SizedBox(width: 3),
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(fontSize: 7, color: color.withValues(alpha: 0.8)),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
+        // Replace with column tile
+        return Expanded(
+            child: DecoratedBox(
+                decoration: BoxDecoration( 
+                    color: color.withAlpha(24)
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 8.0),
+                  child: Column(
+                      spacing: 4.0,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [ 
+                          Center(child: Text('$count', style: theme.textTheme.labelLarge?.copyWith(fontSize: 16, color: color))),
+                          Text(label, style: theme.textTheme.labelLarge?.copyWith(fontSize: 8, color: color.withValues(alpha: 0.8)), overflow: TextOverflow.ellipsis)
+                      ],
+                  ),
+                ),
+            ),
+        )
+    ;
+    // Row(
+    //   children: [
+    //     Container(width: 4, height: 4, color: color),
+    //     const SizedBox(width: 4),
+    //     Text(
+    //       '$count',
+    //       style: theme.textTheme.labelLarge?.copyWith(fontSize: 9, color: color),
+    //     ),
+    //     const SizedBox(width: 3),
+    //     Expanded(
+    //       child: Text(
+    //         label,
+    //         style: theme.textTheme.labelLarge?.copyWith(fontSize: 7, color: color.withValues(alpha: 0.8)),
+    //         overflow: TextOverflow.ellipsis,
+    //       ),
+    //     ),
+    //   ],
+    // );
   }
 }
 
