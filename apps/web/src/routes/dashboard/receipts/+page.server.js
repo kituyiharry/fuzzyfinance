@@ -28,6 +28,7 @@ export async function load({ locals, url }) {
 	const status   = url.searchParams.get('status')         || '';
 	const category = url.searchParams.get('category')       || '';
 	const tag      = url.searchParams.get('tag')            || '';
+	const payable  = url.searchParams.get('payable')        || ''; // 'open' | 'closed' | 'any' | ''
 	const sort     = url.searchParams.get('sort')           || 'uploaded_desc';
 	const dateFrom = url.searchParams.get('dateFrom')       || '';
 	const dateTo   = url.searchParams.get('dateTo')         || '';
@@ -48,6 +49,9 @@ export async function load({ locals, url }) {
 	if (status   && STATUSES.includes(status))   conditions.push(eq(schema.receipt.status, status));
 	if (category) conditions.push(eq(schema.receipt.category, category));
 	if (tag)      conditions.push(sql`${schema.receipt.tags} LIKE ${'%"' + tag + '"%'}`);
+	if (payable === 'open')   conditions.push(sql`EXISTS (SELECT 1 FROM payable WHERE payable.receipt_id = ${schema.receipt.id} AND payable.status = 'open' AND payable.user_id = ${uid})`);
+	if (payable === 'closed') conditions.push(sql`EXISTS (SELECT 1 FROM payable WHERE payable.receipt_id = ${schema.receipt.id} AND payable.status = 'closed' AND payable.user_id = ${uid})`);
+	if (payable === 'any')    conditions.push(sql`EXISTS (SELECT 1 FROM payable WHERE payable.receipt_id = ${schema.receipt.id} AND payable.user_id = ${uid})`);
 	if (dateFrom) conditions.push(gte(schema.receipt.receiptDate, new Date(dateFrom)));
 	if (dateTo)   conditions.push(lte(schema.receipt.receiptDate, new Date(dateTo + 'T23:59:59')));
 
@@ -97,6 +101,6 @@ export async function load({ locals, url }) {
 		pageSize: PAGE_SIZE,
 		categories,
 		allTags,
-		filters: { q, status, category, tag, sort, dateFrom, dateTo }
+		filters: { q, status, category, tag, sort, dateFrom, dateTo, payable }
 	};
 }

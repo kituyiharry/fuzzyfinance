@@ -11,7 +11,8 @@
 	let searchQuery = $state('');
 
 	const activeFilterCount = $derived(
-		[data.filters.status, data.filters.category, data.filters.dateFrom, data.filters.dateTo, data.filters.q].filter(Boolean).length
+		[data.filters.status, data.filters.category, data.filters.dateFrom, data.filters.dateTo,
+		 data.filters.q, data.filters.receivable].filter(Boolean).length
 	);
 
 	/**
@@ -25,8 +26,9 @@
 		if (data.filters.status)   base.status   = data.filters.status;
 		if (data.filters.category) base.category = data.filters.category;
 		if (data.filters.sort && data.filters.sort !== 'uploaded_desc') base.sort = data.filters.sort;
-		if (data.filters.dateFrom) base.dateFrom = data.filters.dateFrom;
-		if (data.filters.dateTo)   base.dateTo   = data.filters.dateTo;
+		if (data.filters.dateFrom)   base.dateFrom   = data.filters.dateFrom;
+		if (data.filters.dateTo)     base.dateTo     = data.filters.dateTo;
+		if (data.filters.receivable) base.receivable = data.filters.receivable;
 		const merged = { ...base, ...overrides };
 		Object.keys(merged).forEach(k => { if (!merged[k]) delete merged[k]; });
 		return new URLSearchParams(merged).toString();
@@ -119,6 +121,14 @@
 				{/each}
 			</select>
 		{/if}
+
+		<select name="receivable" value={data.filters.receivable} onchange={onFilterChange}
+			class="border-2 border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-2 py-1.5 focus:outline-none focus:border-(--color-fg)">
+			<option value="">ALL RECEIVABLES</option>
+			<option value="open">RECEIVABLE: OPEN</option>
+			<option value="closed">RECEIVABLE: CLOSED</option>
+			<option value="any">HAS RECEIVABLE</option>
+		</select>
 
 		<div class="flex items-center gap-1">
 			<input type="date" name="dateFrom" value={data.filters.dateFrom} onchange={onDateChange}
