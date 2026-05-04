@@ -19,6 +19,11 @@ class Endpoints {
   static String receiptAbort(String id) => '$base/api/receipts/$id/abort';
   static String get receiptsSearch => '$base/api/receipts/search';
 
+  // ── Payables ──────────────────────────────────────────────────────────────
+  static String receiptPayable(String id) => '$base/api/receipts/$id/payable';
+  static String receiptPayableUpdates(String id) =>
+      '$base/api/receipts/$id/payable/updates';
+
   // ── Sales ─────────────────────────────────────────────────────────────────
   static String get sales => '$base/api/sales';
   static String sale(String id) => '$base/api/sales/$id';
@@ -26,4 +31,9 @@ class Endpoints {
   static String saleCommit(String id) => '$base/api/sales/$id/commit';
   static String saleAbort(String id) => '$base/api/sales/$id/abort';
   static String get salesSearch => '$base/api/sales/search';
+
+  // ── Receivables ───────────────────────────────────────────────────────────
+  static String saleReceivable(String id) => '$base/api/sales/$id/receivable';
+  static String saleReceivableUpdates(String id) =>
+      '$base/api/sales/$id/receivable/updates';
 }

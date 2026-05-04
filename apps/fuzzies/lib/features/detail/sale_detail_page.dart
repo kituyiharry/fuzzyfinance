@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../../core/api/api_client.dart';
 import '../../core/api/endpoints.dart';
 import '../../core/cache/local_cache.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/ledger.dart';
 import '../../models/sale.dart';
 import '../shared/widgets/torn_item_card.dart';
 
@@ -76,7 +78,8 @@ class SaleDetailPage extends ConsumerWidget {
                   margin: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 4),
                   autoExpand: true,
-                  body: _SaleBodyContent(sale: sale),
+                  bodyPadding: EdgeInsets.zero,
+                  body: _TabbedSaleBody(sale: sale),
                 ),
               ),
             ],
@@ -87,17 +90,253 @@ class SaleDetailPage extends ConsumerWidget {
   }
 }
 
-// ── Body content ──────────────────────────────────────────────────────────────
+// ── Tabbed body ───────────────────────────────────────────────────────────────
 
-class _SaleBodyContent extends StatelessWidget {
-  const _SaleBodyContent({required this.sale});
+class _TabbedSaleBody extends ConsumerStatefulWidget {
+  const _TabbedSaleBody({required this.sale});
   final Sale sale;
+
+  @override
+  ConsumerState<_TabbedSaleBody> createState() => _TabbedSaleBodyState();
+}
+
+class _TabbedSaleBodyState extends ConsumerState<_TabbedSaleBody> {
+  int _tab = 0;
+  bool _receivableLoaded = false;
+
+  Receivable? _receivable;
+  bool _receivableLoading = false;
+  String? _receivableError;
+
+  bool _showAddUpdate = false;
+  bool _showCloseForm = false;
+  final _openingNoteCtrl = TextEditingController();
+  final _updateNoteCtrl = TextEditingController();
+  final _closingNoteCtrl = TextEditingController();
+  bool _opening = false;
+  bool _addingUpdate = false;
+  bool _closing = false;
+  bool _deleting = false;
+
+  @override
+  void dispose() {
+    _openingNoteCtrl.dispose();
+    _updateNoteCtrl.dispose();
+    _closingNoteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadReceivable() async {
+    setState(() {
+      _receivableLoading = true;
+      _receivableError = null;
+    });
+    try {
+      final client = ref.read(apiClientProvider);
+      final resp = await client.dio.get<Map<String, dynamic>>(
+          Endpoints.saleReceivable(widget.sale.id));
+      setState(() {
+        _receivable =
+            resp.data != null ? Receivable.fromJson(resp.data!) : null;
+        _receivableLoading = false;
+      });
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 404) {
+        setState(() {
+          _receivable = null;
+          _receivableLoading = false;
+        });
+      } else {
+        setState(() {
+          _receivableError = e.message ?? 'Network error';
+          _receivableLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _receivableError = e.toString();
+        _receivableLoading = false;
+      });
+    }
+  }
+
+  Future<void> _openReceivable() async {
+    setState(() => _opening = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio.post<void>(
+        Endpoints.saleReceivable(widget.sale.id),
+        data: {'note': _openingNoteCtrl.text.trim()},
+      );
+      _openingNoteCtrl.clear();
+      await _loadReceivable();
+    } catch (e) {
+      setState(() => _receivableError = e.toString());
+    } finally {
+      setState(() => _opening = false);
+    }
+  }
+
+  Future<void> _addUpdate() async {
+    setState(() => _addingUpdate = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio.post<void>(
+        Endpoints.saleReceivableUpdates(widget.sale.id),
+        data: {'note': _updateNoteCtrl.text.trim()},
+      );
+      _updateNoteCtrl.clear();
+      setState(() => _showAddUpdate = false);
+      await _loadReceivable();
+    } catch (e) {
+      setState(() => _receivableError = e.toString());
+    } finally {
+      setState(() => _addingUpdate = false);
+    }
+  }
+
+  Future<void> _closeReceivable() async {
+    setState(() => _closing = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio.patch<void>(
+        Endpoints.saleReceivable(widget.sale.id),
+        data: {'note': _closingNoteCtrl.text.trim()},
+      );
+      _closingNoteCtrl.clear();
+      setState(() => _showCloseForm = false);
+      await _loadReceivable();
+    } catch (e) {
+      setState(() => _receivableError = e.toString());
+    } finally {
+      setState(() => _closing = false);
+    }
+  }
+
+  Future<void> _deleteReceivable() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Receivable'),
+        content: const Text('Remove this receivable tracking entry?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCEL')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('REMOVE')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deleting = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio
+          .delete<void>(Endpoints.saleReceivable(widget.sale.id));
+      await _loadReceivable();
+    } catch (e) {
+      setState(() => _receivableError = e.toString());
+    } finally {
+      setState(() => _deleting = false);
+    }
+  }
+
+  void _onTabTap(int index) {
+    setState(() => _tab = index);
+    if (index == 2 && !_receivableLoaded) {
+      _receivableLoaded = true;
+      _loadReceivable();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ext = context.fuzzy;
 
+    final tabs = ['INFO', 'LINE ITEMS', 'RECEIVABLE'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Tab bar ─────────────────────────────────────────────────────────
+        Container(
+          decoration: BoxDecoration(
+            border: Border(
+                bottom: BorderSide(color: ext.border, width: 2)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: List.generate(tabs.length, (i) {
+              final active = _tab == i;
+              return GestureDetector(
+                onTap: () => _onTabTap(i),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: active
+                      ? BoxDecoration(
+                          border: Border(
+                              bottom: BorderSide(
+                                  color: theme.colorScheme.onSurface,
+                                  width: 2)))
+                      : null,
+                  child: Text(
+                    tabs[i],
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontSize: 10,
+                      color: active
+                          ? theme.colorScheme.onSurface
+                          : ext.mutedFg,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        // ── Tab content ─────────────────────────────────────────────────────
+        if (_tab == 0) _InfoTab(sale: widget.sale),
+        if (_tab == 1) _LineItemsTab(sale: widget.sale),
+        if (_tab == 2) _ReceivableTab(
+          receivable: _receivable,
+          loading: _receivableLoading,
+          error: _receivableError,
+          showAddUpdate: _showAddUpdate,
+          showCloseForm: _showCloseForm,
+          openingNoteCtrl: _openingNoteCtrl,
+          updateNoteCtrl: _updateNoteCtrl,
+          closingNoteCtrl: _closingNoteCtrl,
+          opening: _opening,
+          addingUpdate: _addingUpdate,
+          closing: _closing,
+          deleting: _deleting,
+          onOpen: _openReceivable,
+          onAddUpdate: _addUpdate,
+          onClose: _closeReceivable,
+          onDelete: _deleteReceivable,
+          onToggleAddUpdate: (v) => setState(() => _showAddUpdate = v),
+          onToggleCloseForm: (v) => setState(() => _showCloseForm = v),
+        ),
+      ],
+    );
+  }
+}
+
+// ── INFO tab ──────────────────────────────────────────────────────────────────
+
+class _InfoTab extends StatelessWidget {
+  const _InfoTab({required this.sale});
+  final Sale sale;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
     final fields = [
       if (sale.documentTitle != null) ('DOCUMENT', sale.documentTitle!),
       if (sale.saleDate != null) ('DATE', sale.saleDate!),
@@ -109,80 +348,519 @@ class _SaleBodyContent extends StatelessWidget {
       if (sale.category != null) ('CATEGORY', sale.category!),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ...fields.map((f) => _FieldRow(label: f.$1, value: f.$2)),
-
-        if (sale.lineItems.isNotEmpty) ...[
-          const ItemCardDivider(),
-          Text('ITEMS', style: theme.textTheme.labelLarge),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...fields.map((f) => _FieldRow(label: f.$1, value: f.$2)),
+          if (sale.tags.isNotEmpty) ...[
+            const ItemCardDivider(),
+            Text('TAGS', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: sale.tags
+                  .map((t) => Chip(
+                        label: Text(t.toUpperCase(),
+                            style: theme.textTheme.labelLarge
+                                ?.copyWith(fontSize: 10)),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero),
+                        side: BorderSide(color: ext.border),
+                        backgroundColor: ext.muted,
+                      ))
+                  .toList(),
+            ),
+          ],
+          if (sale.notes != null && sale.notes!.isNotEmpty) ...[
+            const ItemCardDivider(),
+            Text('NOTES', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            Text(sale.notes!, style: theme.textTheme.bodyMedium),
+          ],
           const SizedBox(height: 8),
-          ...sale.lineItems.map((li) => _SaleLineItemRow(item: li)),
         ],
-
-        if (sale.tags.isNotEmpty) ...[
-          const ItemCardDivider(),
-          Text('TAGS', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: sale.tags
-                .map((t) => Chip(
-                      label: Text(t.toUpperCase(),
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(fontSize: 10)),
-                      shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero),
-                      side: BorderSide(color: ext.border),
-                      backgroundColor: ext.muted,
-                    ))
-                .toList(),
-          ),
-        ],
-
-        if (sale.notes != null && sale.notes!.isNotEmpty) ...[
-          const ItemCardDivider(),
-          Text('NOTES', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 4),
-          Text(sale.notes!, style: theme.textTheme.bodyMedium),
-        ],
-
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-}
-
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final ext = context.fuzzy;
-    final color = switch (status.toLowerCase()) {
-      'complete' || 'completenosync' => ext.successColor,
-      'failed' => ext.dangerColor,
-      'staged' => ext.infoColor,
-      _ => ext.mutedFg,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: color.withValues(alpha: 0.12),
-      child: Text(
-        status,
-        style: Theme.of(context)
-            .textTheme
-            .labelLarge
-            ?.copyWith(color: color, fontSize: 10),
       ),
     );
   }
 }
+
+// ── LINE ITEMS tab ────────────────────────────────────────────────────────────
+
+class _LineItemsTab extends StatelessWidget {
+  const _LineItemsTab({required this.sale});
+  final Sale sale;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (sale.lineItems.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+        child: Text('No line items.',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: context.fuzzy.mutedFg)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        children: sale.lineItems.map((li) => _SaleLineItemRow(item: li)).toList(),
+      ),
+    );
+  }
+}
+
+// ── RECEIVABLE tab ────────────────────────────────────────────────────────────
+
+class _ReceivableTab extends StatelessWidget {
+  const _ReceivableTab({
+    required this.receivable,
+    required this.loading,
+    required this.error,
+    required this.showAddUpdate,
+    required this.showCloseForm,
+    required this.openingNoteCtrl,
+    required this.updateNoteCtrl,
+    required this.closingNoteCtrl,
+    required this.opening,
+    required this.addingUpdate,
+    required this.closing,
+    required this.deleting,
+    required this.onOpen,
+    required this.onAddUpdate,
+    required this.onClose,
+    required this.onDelete,
+    required this.onToggleAddUpdate,
+    required this.onToggleCloseForm,
+  });
+
+  final Receivable? receivable;
+  final bool loading;
+  final String? error;
+  final bool showAddUpdate;
+  final bool showCloseForm;
+  final TextEditingController openingNoteCtrl;
+  final TextEditingController updateNoteCtrl;
+  final TextEditingController closingNoteCtrl;
+  final bool opening;
+  final bool addingUpdate;
+  final bool closing;
+  final bool deleting;
+  final VoidCallback onOpen;
+  final VoidCallback onAddUpdate;
+  final VoidCallback onClose;
+  final VoidCallback onDelete;
+  final void Function(bool) onToggleAddUpdate;
+  final void Function(bool) onToggleCloseForm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (error != null) ...[
+            Text('Error: $error',
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: ext.dangerColor)),
+            const SizedBox(height: 8),
+          ],
+
+          if (receivable == null) ...[
+            Text('No receivable tracked for this sale.',
+                style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            TextField(
+              controller: openingNoteCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                hintText: 'Opening note (optional)',
+                hintStyle:
+                    theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.zero,
+                    borderSide: BorderSide(color: ext.border, width: 2)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.zero,
+                    borderSide: BorderSide(color: ext.border, width: 2)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.zero,
+                    borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface, width: 2)),
+                contentPadding: const EdgeInsets.all(10),
+                isDense: true,
+              ),
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: opening ? null : onOpen,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: ext.border, width: 2),
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero),
+                ),
+                child: opening
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text('OPEN RECEIVABLE',
+                        style: theme.textTheme.labelLarge
+                            ?.copyWith(fontSize: 11)),
+              ),
+            ),
+          ] else ...[
+            _TimelineEntry(
+              theme: theme,
+              ext: ext,
+              label: 'OPENED',
+              note: receivable!.updates.isNotEmpty
+                  ? receivable!.updates.first.note
+                  : null,
+              date: receivable!.openedAt,
+              showLine: receivable!.updates.isNotEmpty ||
+                  receivable!.closedAt != null,
+              dotFilled: true,
+              dotColor: theme.colorScheme.onSurface,
+            ),
+            ...List.generate(receivable!.updates.length, (i) {
+              final u = receivable!.updates[i];
+              final isLast = i == receivable!.updates.length - 1;
+              final isClosed = receivable!.closedAt != null;
+              return _TimelineEntry(
+                theme: theme,
+                ext: ext,
+                label: 'UPDATE',
+                note: u.note.isNotEmpty ? u.note : null,
+                date: u.createdAt,
+                showLine: !isLast || isClosed,
+                dotFilled: isLast && isClosed,
+                dotColor: theme.colorScheme.onSurface,
+              );
+            }),
+            if (receivable!.closedAt != null)
+              _TimelineEntry(
+                theme: theme,
+                ext: ext,
+                label: 'CLOSED',
+                note: null,
+                date: receivable!.closedAt!,
+                showLine: false,
+                dotFilled: true,
+                dotColor: ext.successColor,
+              ),
+
+            const SizedBox(height: 12),
+
+            if (receivable!.isOpen) ...[
+              if (!showAddUpdate) ...[
+                OutlinedButton(
+                  onPressed: () => onToggleAddUpdate(true),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: ext.border, width: 2),
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero),
+                  ),
+                  child: Text('+ ADD UPDATE',
+                      style: theme.textTheme.labelLarge
+                          ?.copyWith(fontSize: 11)),
+                ),
+              ] else ...[
+                TextField(
+                  controller: updateNoteCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Update note',
+                    hintStyle: theme.textTheme.bodySmall
+                        ?.copyWith(color: ext.mutedFg),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide:
+                            BorderSide(color: ext.border, width: 2)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide:
+                            BorderSide(color: ext.border, width: 2)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(
+                            color: theme.colorScheme.onSurface, width: 2)),
+                    contentPadding: const EdgeInsets.all(10),
+                    isDense: true,
+                  ),
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    OutlinedButton(
+                      onPressed: addingUpdate ? null : onAddUpdate,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: ext.border, width: 2),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero),
+                      ),
+                      child: addingUpdate
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2))
+                          : Text('SAVE',
+                              style: theme.textTheme.labelLarge
+                                  ?.copyWith(fontSize: 11)),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () => onToggleAddUpdate(false),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: ext.border, width: 2),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero),
+                      ),
+                      child: Text('CANCEL',
+                          style: theme.textTheme.labelLarge
+                              ?.copyWith(fontSize: 11)),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              if (!showCloseForm) ...[
+                OutlinedButton(
+                  onPressed: () => onToggleCloseForm(true),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: ext.border, width: 2),
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero),
+                  ),
+                  child: Text('CLOSE RECEIVABLE',
+                      style: theme.textTheme.labelLarge
+                          ?.copyWith(fontSize: 11)),
+                ),
+              ] else ...[
+                TextField(
+                  controller: closingNoteCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Closing note (optional)',
+                    hintStyle: theme.textTheme.bodySmall
+                        ?.copyWith(color: ext.mutedFg),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide:
+                            BorderSide(color: ext.border, width: 2)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide:
+                            BorderSide(color: ext.border, width: 2)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(
+                            color: theme.colorScheme.onSurface, width: 2)),
+                    contentPadding: const EdgeInsets.all(10),
+                    isDense: true,
+                  ),
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    OutlinedButton(
+                      onPressed: closing ? null : onClose,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: ext.border, width: 2),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero),
+                      ),
+                      child: closing
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2))
+                          : Text('CONFIRM CLOSE',
+                              style: theme.textTheme.labelLarge
+                                  ?.copyWith(fontSize: 11)),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () => onToggleCloseForm(false),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: ext.border, width: 2),
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero),
+                      ),
+                      child: Text('CANCEL',
+                          style: theme.textTheme.labelLarge
+                              ?.copyWith(fontSize: 11)),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: deleting ? null : onDelete,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: ext.dangerColor, width: 2),
+                foregroundColor: ext.dangerColor,
+                shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero),
+              ),
+              child: deleting
+                  ? SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: ext.dangerColor))
+                  : Text('REMOVE',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                          fontSize: 11, color: ext.dangerColor)),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            color: ext.muted,
+            child: Text(
+              'This tool is for reference tracking only and is not intended '
+              'for use in accounting.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: ext.mutedFg, fontSize: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Timeline entry ────────────────────────────────────────────────────────────
+
+class _TimelineEntry extends StatelessWidget {
+  const _TimelineEntry({
+    required this.theme,
+    required this.ext,
+    required this.label,
+    required this.note,
+    required this.date,
+    required this.showLine,
+    required this.dotFilled,
+    required this.dotColor,
+  });
+
+  final ThemeData theme;
+  final FuzzyThemeExtension ext;
+  final String label;
+  final String? note;
+  final DateTime date;
+  final bool showLine;
+  final bool dotFilled;
+  final Color dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 20,
+            child: Column(
+              children: [
+                const SizedBox(height: 3),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: dotFilled ? dotColor : Colors.transparent,
+                    border: Border.all(color: dotColor, width: 1.5),
+                  ),
+                ),
+                if (showLine)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      color: ext.border,
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(label,
+                          style: theme.textTheme.labelLarge
+                              ?.copyWith(fontSize: 10)),
+                      const SizedBox(width: 8),
+                      Text(_fmtDateTime(date),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: ext.mutedFg, fontSize: 10)),
+                    ],
+                  ),
+                  if (note != null && note!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(note!, style: theme.textTheme.bodySmall),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _fmtDateTime(DateTime dt) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  final h = dt.hour > 12
+      ? dt.hour - 12
+      : dt.hour == 0
+          ? 12
+          : dt.hour;
+  final m = dt.minute.toString().padLeft(2, '0');
+  final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+  return '${months[dt.month - 1]} ${dt.day} · $h:$m $ampm';
+}
+
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _FieldRow extends StatelessWidget {
   const _FieldRow({required this.label, required this.value});

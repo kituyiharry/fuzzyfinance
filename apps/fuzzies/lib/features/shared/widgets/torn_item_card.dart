@@ -28,6 +28,7 @@ class TornItemCard extends StatefulWidget {
     this.margin = EdgeInsets.zero,
     this.body,
     this.autoExpand = false,
+    this.bodyPadding = const EdgeInsets.fromLTRB(20, 0, 20, 8),
   });
 
   final String label;
@@ -52,6 +53,10 @@ class TornItemCard extends StatefulWidget {
 
   /// When true, body expands once the route transition completes.
   final bool autoExpand;
+
+  /// Padding applied around the body content. Defaults to `fromLTRB(20,0,20,8)`.
+  /// Pass `EdgeInsets.zero` when the body manages its own padding (e.g. tab bar).
+  final EdgeInsets bodyPadding;
 
   @override
   State<TornItemCard> createState() => _TornItemCardState();
@@ -219,14 +224,13 @@ class _TornItemCardState extends State<TornItemCard>
                 header,
                 if (hasBody)
                   ClipRect(
-                    //clipBehavior: Clip.none,
                     child: SizeTransition(
                       sizeFactor: _sizeAnim,
                       axisAlignment: -1.0,
                       child: FadeTransition(
                         opacity: _fadeAnim,
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                          padding: widget.bodyPadding,
                           child: widget.body!,
                         ),
                       ),
