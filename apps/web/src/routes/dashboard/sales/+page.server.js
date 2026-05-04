@@ -25,7 +25,8 @@ export async function load({ locals, url }) {
 
 	const q        = url.searchParams.get('q')?.trim()  || '';
 	const status   = url.searchParams.get('status')     || '';
-	const category = url.searchParams.get('category')   || '';
+	const category   = url.searchParams.get('category')   || '';
+	const receivable = url.searchParams.get('receivable') || ''; // 'open' | 'closed' | 'any' | ''
 	const sort     = url.searchParams.get('sort')        || 'uploaded_desc';
 	const dateFrom = url.searchParams.get('dateFrom')   || '';
 	const dateTo   = url.searchParams.get('dateTo')     || '';
@@ -44,6 +45,9 @@ export async function load({ locals, url }) {
 	}
 	if (status   && STATUSES.includes(status))   conditions.push(eq(schema.sale.status, status));
 	if (category) conditions.push(eq(schema.sale.category, category));
+	if (receivable === 'open')   conditions.push(sql`EXISTS (SELECT 1 FROM receivable WHERE receivable.sale_id = ${schema.sale.id} AND receivable.status = 'open' AND receivable.user_id = ${uid})`);
+	if (receivable === 'closed') conditions.push(sql`EXISTS (SELECT 1 FROM receivable WHERE receivable.sale_id = ${schema.sale.id} AND receivable.status = 'closed' AND receivable.user_id = ${uid})`);
+	if (receivable === 'any')    conditions.push(sql`EXISTS (SELECT 1 FROM receivable WHERE receivable.sale_id = ${schema.sale.id} AND receivable.user_id = ${uid})`);
 	if (dateFrom) conditions.push(gte(schema.sale.saleDate, new Date(dateFrom)));
 	if (dateTo)   conditions.push(lte(schema.sale.saleDate, new Date(dateTo + 'T23:59:59')));
 
@@ -78,6 +82,6 @@ export async function load({ locals, url }) {
 		total,
 		pageSize: PAGE_SIZE,
 		categories,
-		filters: { q, status, category, sort, dateFrom, dateTo }
+		filters: { q, status, category, sort, dateFrom, dateTo, receivable }
 	};
 }
