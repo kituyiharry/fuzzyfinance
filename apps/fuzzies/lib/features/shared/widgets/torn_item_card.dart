@@ -174,8 +174,8 @@ class _TornItemCardState extends State<TornItemCard>
             ),
           ],
           const SizedBox(width: 4),
-          if (widget.showChevron)
-            Icon(Icons.chevron_right, size: 16, color: ext.mutedFg),
+          //if (widget.showChevron)
+            //Icon(Icons.chevron_right, size: 16, color: ext.mutedFg),
         ],
       ),
     );
