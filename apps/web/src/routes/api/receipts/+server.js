@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq, and, ne, sql } from 'drizzle-orm';
+import { eq, and, ne, sql, desc } from 'drizzle-orm';
 import { processReceipt } from '$lib/server/receipt-processor';
 
 const DAILY_LIMIT = 30;
@@ -134,13 +134,23 @@ export async function POST({ request, locals, platform }) {
 export async function GET({ locals, url }) {
 	if (!locals.user) error(401, 'Unauthorized');
 
+	const before  = url.searchParams.get('before');
+	const limit   = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 50);
+	const cursor  = before ? parseInt(before, 10) : null;
+
 	const rows = await db
 		.select()
 		.from(schema.receipt)
-		.where(eq(schema.receipt.userId, locals.user.id));
-
-	// Order by most recent first (createdAt desc)
-	rows.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+		.where(
+			cursor
+				? and(
+					eq(schema.receipt.userId, locals.user.id),
+					sql`${schema.receipt.createdAt} < ${cursor}`
+				  )
+				: eq(schema.receipt.userId, locals.user.id)
+		)
+		.orderBy(desc(schema.receipt.createdAt))
+		.limit(limit);
 
 	return json(rows);
 }

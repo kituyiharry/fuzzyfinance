@@ -12,6 +12,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.minizinc.dev)",
       "WebFetch(domain:www.npmjs.com)",
+      "Bash(xargs cat *)",
+      "Bash(flutter analyze *)"
     ]
   },
   "enableAllProjectMcpServers": true,
