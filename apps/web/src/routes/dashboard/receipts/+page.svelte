@@ -14,7 +14,8 @@
 
 	const activeFilterCount = $derived(
 		[data.filters.status, data.filters.category, data.filters.tag,
-		 data.filters.dateFrom, data.filters.dateTo, data.filters.q].filter(Boolean).length
+		 data.filters.dateFrom, data.filters.dateTo, data.filters.q,
+		 data.filters.payable].filter(Boolean).length
 	);
 
 	// ── Selection mode ────────────────────────────────────────────────────────
@@ -81,6 +82,7 @@
 		if (data.filters.sort && data.filters.sort !== 'uploaded_desc') base.sort = data.filters.sort;
 		if (data.filters.dateFrom) base.dateFrom = data.filters.dateFrom;
 		if (data.filters.dateTo)   base.dateTo   = data.filters.dateTo;
+		if (data.filters.payable)  base.payable  = data.filters.payable;
 		const merged = { ...base, ...overrides };
 		Object.keys(merged).forEach(k => { if (!merged[k]) delete merged[k]; });
 		return new URLSearchParams(merged).toString();
@@ -234,6 +236,14 @@
 				{/each}
 			</select>
 		{/if}
+
+		<select name="payable" value={data.filters.payable} onchange={onFilterChange}
+			class="border-2 border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-2 py-1.5 focus:outline-none focus:border-(--color-fg)">
+			<option value="">ALL PAYABLES</option>
+			<option value="open">PAYABLE: OPEN</option>
+			<option value="closed">PAYABLE: CLOSED</option>
+			<option value="any">HAS PAYABLE</option>
+		</select>
 
 		<div class="flex items-center gap-1">
 			<input type="date" name="dateFrom" value={data.filters.dateFrom} onchange={onDateChange}
