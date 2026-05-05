@@ -5,8 +5,8 @@ import 'package:fuzzies/features/home/home_provider.dart';
 import 'package:fuzzies/features/home/widgets/info_tile.dart';
 
 const double _kRemHeightBufferPadding = 8.0;
-const double _kRemHeightTriggerSwitch = 48.0;
-const double _kRemHeightRunAnimations = 56.0;
+const double _kRemHeightTriggerSwitch = 72.0;
+const double _kRemHeightRunAnimations = 72.0;
 
 class AnimatedUploadLimit extends ConsumerStatefulWidget {
   final double remHeight;

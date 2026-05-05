@@ -3,6 +3,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import ReceiptStatusBadge from '$lib/components/ReceiptStatusBadge.svelte';
+	import Dialog from '$lib/components/Dialog.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 
 	/** @type {{ data: import('./$types').PageData }} */
@@ -13,6 +14,32 @@
 	let payable   = $derived(data.payable);
 
 	let activeTab = $state(/** @type {'info' | 'items' | 'payable'} */ ('info'));
+
+	/** @type {{ open: boolean; message: string; variant: 'default' | 'danger'; resolve: ((v: boolean) => void) | null }} */
+	let dialog = $state({ open: false, message: '', variant: 'default', resolve: null });
+
+	/**
+	 * @param {string} message
+	 * @param {{ variant?: 'default' | 'danger' }} [opts]
+	 * @returns {Promise<boolean>}
+	 */
+	function showConfirm(message, opts = {}) {
+		return new Promise(resolve => {
+			dialog = { open: true, message, variant: opts.variant ?? 'default', resolve };
+		});
+	}
+
+	function dialogConfirm() {
+		const r = dialog.resolve;
+		dialog = { open: false, message: '', variant: 'default', resolve: null };
+		r?.(true);
+	}
+
+	function dialogCancel() {
+		const r = dialog.resolve;
+		dialog = { open: false, message: '', variant: 'default', resolve: null };
+		r?.(false);
+	}
 
 	let retrying   = $state(false);
 	let deleting   = $state(false);
@@ -90,7 +117,7 @@
 	}
 
 	async function deleteReceipt() {
-		if (!confirm('Delete this receipt? This cannot be undone.')) return;
+		if (!await showConfirm('Delete this receipt? This cannot be undone.', { variant: 'danger' })) return;
 		deleting = true;
 		try {
 			const res = await fetch(`/api/receipts/${receipt.id}`, { method: 'DELETE' });
@@ -114,7 +141,7 @@
 	}
 
 	async function doCommit() {
-		if (!confirm('Commit this receipt to cloud storage? This cannot be undone.')) return;
+		if (!await showConfirm('Commit this receipt to cloud storage? This cannot be undone.')) return;
 		committing = true;
 		try {
 			const res = await fetch(`/api/receipts/${receipt.id}/commit`, { method: 'POST' });
@@ -123,7 +150,7 @@
 	}
 
 	async function doAbort() {
-		if (!confirm('Discard this receipt? It will be permanently deleted.')) return;
+		if (!await showConfirm('Discard this receipt? It will be permanently deleted.', { variant: 'danger' })) return;
 		aborting = true;
 		try {
 			const res = await fetch(`/api/receipts/${receipt.id}/abort`, { method: 'POST' });
@@ -189,7 +216,7 @@
 	}
 
 	async function deletePayable() {
-		if (!confirm('Remove this payable? All updates will be deleted.')) return;
+		if (!await showConfirm('Remove this payable? All updates will be deleted.', { variant: 'danger' })) return;
 		deletingPayable = true;
 		payableError = '';
 		try {
@@ -562,6 +589,14 @@
 			</Card>
 		{/if}
 	{/if}
+
+	<Dialog
+		open={dialog.open}
+		message={dialog.message}
+		variant={dialog.variant}
+		onconfirm={dialogConfirm}
+		oncancel={dialogCancel}
+	/>
 
 	<!-- PAYABLE tab -->
 	{#if activeTab === 'payable'}

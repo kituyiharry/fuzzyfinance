@@ -185,8 +185,7 @@
 					<tbody>
 						{#each data.sales as s (s.id)}
 							<tr
-								class="border-b border-(--color-border) hover:bg-(--color-muted) transition-all group cursor-pointer"
-								onclick={() => goto(resolve(`/dashboard/sales/${s.id}`))}
+								class="border-b border-(--color-border) hover:bg-(--color-muted) transition-all group cursor-pointer" onclick={() => goto(resolve(`/dashboard/sales/${s.id}`))}
 							>
 								<td class="py-3 pr-4 font-bold text-xs max-w-48 truncate">
 									{s.documentTitle ?? '—'}

@@ -62,7 +62,7 @@ class HomePageSearchHeader extends SliverPersistentHeaderDelegate {
     }
 
     Widget _buildRightPanel(double metrHeight, double remHeight) {
-        return remHeight > 64.0
+        return remHeight > 148.0
             ? AnimatedTileInfo(
                 metrHeight: metrHeight,
                 child: const _ActivityGraphTile(),

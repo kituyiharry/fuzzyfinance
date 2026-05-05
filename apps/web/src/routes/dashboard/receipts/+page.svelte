@@ -22,6 +22,7 @@
 	let selecting = $state(false);
 	let selectedIds = new SvelteSet();
 	let exporting = $state(false);
+	let exportError = $state('');
 	/** @type {{ id: string; fileName: string; receiptCount: number; rowCount: number } | null} */
 	let exportResult = $state(null);
 
@@ -51,6 +52,7 @@
 		if (selectedIds.size === 0) return;
 		exporting = true;
 		exportResult = null;
+		exportError = '';
 		try {
 			const res = await fetch('/api/exports', {
 				method: 'POST',
@@ -58,8 +60,7 @@
 				body: JSON.stringify({ receiptIds: [...selectedIds] })
 			});
 			if (!res.ok) {
-				const msg = await res.text();
-				alert(`Export failed: ${msg}`);
+				exportError = await res.text();
 				return;
 			}
 			exportResult = await res.json();
@@ -179,7 +180,9 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-3">
-				{#if exportResult}
+				{#if exportError}
+					<span class="font-mono text-[9px] text-(--color-danger) uppercase font-black">EXPORT FAILED: {exportError}</span>
+				{:else if exportResult}
 					<a
 						href="/api/exports/{exportResult.id}/download"
 						download={exportResult.fileName}
@@ -190,7 +193,8 @@
 					<a href="/dashboard/exports" class="font-mono text-[9px] uppercase text-(--color-muted-foreground) hover:text-(--color-fg) transition-colors no-underline">
 						VIEW ALL EXPORTS →
 					</a>
-				{:else}
+				{/if}
+				{#if !exportResult && !exportError}
 					<button
 						onclick={doExport}
 						disabled={selectedIds.size === 0 || exporting}

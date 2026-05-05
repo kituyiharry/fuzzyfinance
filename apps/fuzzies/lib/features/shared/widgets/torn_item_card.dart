@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/fuzzy_date.dart';
 
-const _toothH = 11.0;
+const _maxToothH = 8.0;
 const _toothW = 18.0;
 
 /// Hero tag helper — centralised so source and destination always match.
@@ -44,6 +44,7 @@ class TornItemCard extends StatefulWidget {
 
   /// When false (list) a plain BoxDecoration is used — no jagged edge.
   /// When true (detail) the CustomPaint torn-edge painter is used.
+  /// @DEPRECATED
   final bool hasTornEdge;
 
   final EdgeInsets margin;
@@ -62,12 +63,12 @@ class TornItemCard extends StatefulWidget {
   State<TornItemCard> createState() => _TornItemCardState();
 }
 
-class _TornItemCardState extends State<TornItemCard>
-    with SingleTickerProviderStateMixin {
+class _TornItemCardState extends State<TornItemCard> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _sizeAnim;
   late final Animation<double> _fadeAnim;
   bool _attachedToRoute = false;
+  double toothHeight = 0.0;
 
   @override
   void initState() {
@@ -81,6 +82,10 @@ class _TornItemCardState extends State<TornItemCard>
       parent: _ctrl,
       curve: const Interval(0.15, 1.0, curve: Curves.easeIn),
     );
+    _sizeAnim.addListener(() {
+        // animates the jagged edge of the 
+        setState(() { toothHeight = _sizeAnim.value * _maxToothH; });
+    });
   }
 
   @override
@@ -190,18 +195,18 @@ class _TornItemCardState extends State<TornItemCard>
     final hasBody = widget.body != null;
     final header = _buildHeader(context, theme, ext);
 
-    if (!widget.hasTornEdge) {
-      // ── List variant: plain bordered card, no jagged edge ────────────────
-      return Container(
-        margin: widget.margin,
-        decoration: BoxDecoration(
-          border: Border.all(color: ext.border, width: 2),
-          boxShadow: [ext.cardShadow],
-          color: theme.colorScheme.surface,
-        ),
-        child: header,
-      );
-    }
+    // if (!widget.hasTornEdge) {
+    //   // ── List variant: plain bordered card, no jagged edge ────────────────
+    //   return Container(
+    //     margin: widget.margin,
+    //     decoration: BoxDecoration(
+    //       border: Border.all(color: ext.border, width: 2),
+    //       boxShadow: [ext.cardShadow],
+    //       color: theme.colorScheme.surface,
+    //     ),
+    //     child: header,
+    //   );
+    // }
 
     // ── Detail variant: CustomPaint torn edge ─────────────────────────────
     return Container(
@@ -211,9 +216,10 @@ class _TornItemCardState extends State<TornItemCard>
           fillColor: theme.colorScheme.surface,
           borderColor: ext.border,
           shadowColor: ext.cardShadow.color,
+          toothHeight: toothHeight,
         ),
         child: Padding(
-          padding: EdgeInsets.only(bottom: _toothH + (hasBody ? 16 : 8)),
+          padding: EdgeInsets.only(bottom: (toothHeight) + (hasBody ? 16 : 8)),
           // SingleChildScrollView to prevent Overflow errors when shrinking
           // during page transitions
           child: SingleChildScrollView(
@@ -298,14 +304,16 @@ class _TornEdgePainter extends CustomPainter {
     required this.fillColor,
     required this.borderColor,
     required this.shadowColor,
+    required this.toothHeight,
   });
 
   final Color fillColor;
   final Color borderColor;
   final Color shadowColor;
+  final double toothHeight;
 
   Path _buildPath(Size size) {
-    final bodyH = size.height - _toothH;
+    final bodyH = size.height - toothHeight;
     final count = (size.width / _toothW).round().clamp(1, 9999);
     final tw = size.width / count;
 
@@ -317,7 +325,7 @@ class _TornEdgePainter extends CustomPainter {
     for (int i = count - 1; i >= 0; i--) {
       final baseX = i * tw;
       path
-        ..lineTo(baseX + tw / 2, bodyH + _toothH)
+        ..lineTo(baseX + tw / 2, bodyH + toothHeight)
         ..lineTo(baseX, bodyH);
     }
 
