@@ -96,6 +96,7 @@ enum SaleStatus {
 
 class SaleLineItem {
   const SaleLineItem({
+    this.id,
     this.description,
     this.type,
     this.unitsSold,
@@ -104,6 +105,7 @@ class SaleLineItem {
     this.total,
   });
 
+  final String? id;
   final String? description;
   final String? type;
   final String? unitsSold;
@@ -112,6 +114,7 @@ class SaleLineItem {
   final String? total;
 
   factory SaleLineItem.fromJson(Map<String, dynamic> json) => SaleLineItem(
+        id: json['id'] as String?,
         description: json['description'] as String?,
         type: json['type'] as String?,
         unitsSold: json['unitsSold'] as String?,

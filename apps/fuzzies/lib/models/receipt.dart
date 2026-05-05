@@ -104,12 +104,14 @@ enum ReceiptStatus {
 
 class ReceiptLineItem {
   const ReceiptLineItem({
+    this.id,
     this.description,
     this.qty,
     this.unitPrice,
     this.total,
   });
 
+  final String? id;
   final String? description;
   final String? qty;
   final String? unitPrice;
@@ -117,6 +119,7 @@ class ReceiptLineItem {
 
   factory ReceiptLineItem.fromJson(Map<String, dynamic> json) =>
       ReceiptLineItem(
+        id: json['id'] as String?,
         description: json['description'] as String?,
         qty: json['qty'] as String?,
         unitPrice: json['unitPrice'] as String?,

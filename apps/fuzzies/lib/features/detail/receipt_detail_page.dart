@@ -8,9 +8,11 @@ import '../../core/cache/local_cache.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/ledger.dart';
 import '../../models/receipt.dart';
+import '../shared/widgets/fuzzy_dialog.dart';
 import '../shared/widgets/torn_item_card.dart';
+import 'receipt_edit_page.dart';
 
-final _receiptDetailProvider =
+final receiptDetailProvider =
     FutureProvider.family<Receipt, String>((ref, id) async {
   final client = ref.watch(apiClientProvider);
   final cache = LocalCache.instance;
@@ -24,68 +26,216 @@ final _receiptDetailProvider =
   return Receipt.fromJson(resp.data!);
 });
 
-class ReceiptDetailPage extends ConsumerWidget {
+class ReceiptDetailPage extends ConsumerStatefulWidget {
   const ReceiptDetailPage({super.key, required this.id});
   final String id;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReceiptDetailPage> createState() => _ReceiptDetailPageState();
+}
+
+class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
+  bool _committing = false;
+  bool _aborting = false;
+  bool _deleting = false;
+  Receipt? _receipt;
+
+  Future<void> _commit() async {
+    if (!await showFuzzyConfirmDialog(
+      context,
+      message: 'Commit this receipt to cloud storage? This cannot be undone.',
+      confirmLabel: 'COMMIT',
+    )) return;
+    if (!mounted) return;
+    setState(() => _committing = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio.post<void>(Endpoints.receiptCommit(widget.id));
+      await LocalCache.instance.invalidate(CacheKeys.receipt(widget.id));
+      ref.invalidate(receiptDetailProvider(widget.id));
+    } on DioException catch (e) {
+      if (mounted) _showError('Commit failed: ${e.message ?? e.toString()}');
+    } catch (e) {
+      if (mounted) _showError('Commit failed: $e');
+    } finally {
+      if (mounted) setState(() => _committing = false);
+    }
+  }
+
+  Future<void> _abort() async {
+    if (!await showFuzzyConfirmDialog(
+      context,
+      message: 'Discard this receipt? It will be permanently deleted.',
+      confirmLabel: 'DISCARD',
+      isDanger: true,
+    )) return;
+    if (!mounted) return;
+    setState(() => _aborting = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio.post<void>(Endpoints.receiptAbort(widget.id));
+      if (mounted) Navigator.of(context).pop();
+    } on DioException catch (e) {
+      if (mounted) _showError('Abort failed: ${e.message ?? e.toString()}');
+    } catch (e) {
+      if (mounted) _showError('Abort failed: $e');
+    } finally {
+      if (mounted) setState(() => _aborting = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    if (!await showFuzzyConfirmDialog(
+      context,
+      message: 'Delete this receipt? This cannot be undone.',
+      confirmLabel: 'DELETE',
+      isDanger: true,
+    )) return;
+    if (!mounted) return;
+    setState(() => _deleting = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.dio.delete<void>(Endpoints.receipt(widget.id));
+      if (mounted) Navigator.of(context).pop();
+    } on DioException catch (e) {
+      if (mounted) _showError('Delete failed: ${e.message ?? e.toString()}');
+    } catch (e) {
+      if (mounted) _showError('Delete failed: $e');
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  void _openEdit(Receipt receipt) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => ReceiptEditPage(receipt: receipt, id: widget.id),
+        ))
+        .then((_) async {
+      await LocalCache.instance.invalidate(CacheKeys.receipt(widget.id));
+      ref.invalidate(receiptDetailProvider(widget.id));
+    });
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final ext = context.fuzzy;
-    final async = ref.watch(_receiptDetailProvider(id));
+    final async = ref.watch(receiptDetailProvider(widget.id));
+
+    if (async.hasValue) _receipt = async.value;
+    final receipt = _receipt;
+
+    final isStaged = receipt?.status == ReceiptStatus.staged;
+
+    final List<Widget> actions = receipt == null
+        ? []
+        : isStaged
+            ? [
+                if (_committing)
+                  _spinner()
+                else
+                  IconButton(
+                    icon: const Icon(Icons.check_circle_outline),
+                    tooltip: 'Commit',
+                    onPressed: _commit,
+                  ),
+                if (_aborting)
+                  _spinner()
+                else
+                  IconButton(
+                    icon: const Icon(Icons.cancel_outlined),
+                    tooltip: 'Abort',
+                    onPressed: _abort,
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit',
+                  onPressed: () => _openEdit(receipt),
+                ),
+              ]
+            : [
+                if (_deleting)
+                  _spinner()
+                else
+                  IconButton(
+                    icon: Icon(Icons.delete_outline, color: ext.dangerColor),
+                    tooltip: 'Delete',
+                    onPressed: _delete,
+                  ),
+              ];
 
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
         title: null,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
+        actions: actions,
       ),
-      body: async.when(
-        loading: () => const Center(
-          child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (receipt) {
-          final amount = receipt.total != null
-              ? '${receipt.currency ?? ''} ${receipt.total}'.trim()
-              : null;
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(0, 4, 4, 32),
-            children: [
-              Hero(
-                tag: itemHeroTag(type: 'receipt', id: id),
-                flightShuttleBuilder: (_, animation, __, fromCtx, ___) =>
-                    AnimatedBuilder(
-                      animation: animation,
-                      builder: (_, child) =>
-                          Material(color: Colors.transparent, child: child),
-                      child: fromCtx.widget,
-                    ),
-                child: TornItemCard(
-                  label: receipt.displayTitle,
-                  badgeLabel: 'RECEIPT',
-                  badgeColor: ext.infoColor,
-                  date: receipt.createdAt,
-                  amount: amount,
-                  status: receipt.status.name,
-                  hasTornEdge: true,
-                  showChevron: false,
-                  margin: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 4),
-                  autoExpand: true,
-                  bodyPadding: EdgeInsets.zero,
-                  body: _TabbedReceiptBody(receipt: receipt),
-                ),
+      body: receipt == null
+          ? async.when(
+              loading: () => const Center(
+                child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
               ),
-            ],
-          );
-        },
-      ),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (_) => const SizedBox(),
+            )
+          : _buildContent(context, receipt),
+    );
+  }
+
+  Widget _spinner() => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+
+  Widget _buildContent(BuildContext context, Receipt receipt) {
+    final ext = context.fuzzy;
+    final amount = receipt.total != null
+        ? '${receipt.currency ?? ''} ${receipt.total}'.trim()
+        : null;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(0, 4, 4, 32),
+      children: [
+        Hero(
+          tag: itemHeroTag(type: 'receipt', id: widget.id),
+          flightShuttleBuilder: (_, animation, __, fromCtx, ___) =>
+              AnimatedBuilder(
+                animation: animation,
+                builder: (_, child) =>
+                    Material(color: Colors.transparent, child: child),
+                child: fromCtx.widget,
+              ),
+          child: TornItemCard(
+            label: receipt.displayTitle,
+            badgeLabel: 'RECEIPT',
+            badgeColor: ext.infoColor,
+            date: receipt.createdAt,
+            amount: amount,
+            status: receipt.status.name,
+            hasTornEdge: true,
+            showChevron: false,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            autoExpand: true,
+            bodyPadding: EdgeInsets.zero,
+            body: _TabbedReceiptBody(receipt: receipt),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -141,8 +291,7 @@ class _TabbedReceiptBodyState extends ConsumerState<_TabbedReceiptBody> {
         _payableLoading = false;
       });
     } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      if (status == 404) {
+      if (e.response?.statusCode == 404) {
         setState(() {
           _payable = null;
           _payableLoading = false;
@@ -215,22 +364,13 @@ class _TabbedReceiptBodyState extends ConsumerState<_TabbedReceiptBody> {
   }
 
   Future<void> _deletePayable() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Payable'),
-        content: const Text('Remove this payable tracking entry?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('REMOVE')),
-        ],
-      ),
+    final confirmed = await showFuzzyConfirmDialog(
+      context,
+      message: 'Remove this payable? All updates will be deleted.',
+      confirmLabel: 'REMOVE',
+      isDanger: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
     setState(() => _deleting = true);
     try {
       final client = ref.read(apiClientProvider);
@@ -276,6 +416,8 @@ class _TabbedReceiptBodyState extends ConsumerState<_TabbedReceiptBody> {
               return GestureDetector(
                 onTap: () => _onTabTap(i),
                 child: Container(
+                  // why ??
+                  //margin: const EdgeInsets.only(bottom: -2),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 10),
                   decoration: active
@@ -299,29 +441,29 @@ class _TabbedReceiptBodyState extends ConsumerState<_TabbedReceiptBody> {
             }),
           ),
         ),
-        // ── Tab content ─────────────────────────────────────────────────────
         if (_tab == 0) _InfoTab(receipt: widget.receipt),
         if (_tab == 1) _LineItemsTab(receipt: widget.receipt),
-        if (_tab == 2) _PayableTab(
-          payable: _payable,
-          loading: _payableLoading,
-          error: _payableError,
-          showAddUpdate: _showAddUpdate,
-          showCloseForm: _showCloseForm,
-          openingNoteCtrl: _openingNoteCtrl,
-          updateNoteCtrl: _updateNoteCtrl,
-          closingNoteCtrl: _closingNoteCtrl,
-          opening: _opening,
-          addingUpdate: _addingUpdate,
-          closing: _closing,
-          deleting: _deleting,
-          onOpen: _openPayable,
-          onAddUpdate: _addUpdate,
-          onClose: _closePayable,
-          onDelete: _deletePayable,
-          onToggleAddUpdate: (v) => setState(() => _showAddUpdate = v),
-          onToggleCloseForm: (v) => setState(() => _showCloseForm = v),
-        ),
+        if (_tab == 2)
+          _PayableTab(
+            payable: _payable,
+            loading: _payableLoading,
+            error: _payableError,
+            showAddUpdate: _showAddUpdate,
+            showCloseForm: _showCloseForm,
+            openingNoteCtrl: _openingNoteCtrl,
+            updateNoteCtrl: _updateNoteCtrl,
+            closingNoteCtrl: _closingNoteCtrl,
+            opening: _opening,
+            addingUpdate: _addingUpdate,
+            closing: _closing,
+            deleting: _deleting,
+            onOpen: _openPayable,
+            onAddUpdate: _addUpdate,
+            onClose: _closePayable,
+            onDelete: _deletePayable,
+            onToggleAddUpdate: (v) => setState(() => _showAddUpdate = v),
+            onToggleCloseForm: (v) => setState(() => _showCloseForm = v),
+          ),
       ],
     );
   }
@@ -473,69 +615,34 @@ class _PayableTab extends StatelessWidget {
         children: [
           if (error != null) ...[
             Text('Error: $error',
-                style:
-                    theme.textTheme.bodySmall?.copyWith(color: ext.dangerColor)),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: ext.dangerColor)),
             const SizedBox(height: 8),
           ],
-
           if (payable == null) ...[
-            // ── No payable: open form ──────────────────────────────────────
             Text('No payable tracked for this receipt.',
                 style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
-            TextField(
-              controller: openingNoteCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                hintText: 'Opening note (optional)',
-                hintStyle:
-                    theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: ext.border, width: 2)),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: ext.border, width: 2)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(
-                        color: theme.colorScheme.onSurface, width: 2)),
-                contentPadding: const EdgeInsets.all(10),
-                isDense: true,
-              ),
-              style: theme.textTheme.bodyMedium,
-            ),
+            _NoteField(controller: openingNoteCtrl, hint: 'Opening note (optional)'),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: opening ? null : onOpen,
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: ext.border, width: 2),
-                  shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero),
-                ),
                 child: opening
                     ? const SizedBox(
-                        width: 14,
-                        height: 14,
+                        width: 14, height: 14,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('OPEN PAYABLE',
-                        style: theme.textTheme.labelLarge
-                            ?.copyWith(fontSize: 11)),
+                    : const Text('OPEN PAYABLE'),
               ),
             ),
           ] else ...[
-            // ── Timeline ───────────────────────────────────────────────────
             _TimelineEntry(
-              theme: theme,
-              ext: ext,
+              theme: theme, ext: ext,
               label: 'OPENED',
-              note: payable!.updates.isNotEmpty
-                  ? payable!.updates.first.note
-                  : null,
+              note: payable!.updates.isNotEmpty ? payable!.updates.first.note : null,
               date: payable!.openedAt,
-              showLine:
-                  payable!.updates.isNotEmpty || payable!.closedAt != null,
+              showLine: payable!.updates.isNotEmpty || payable!.closedAt != null,
               dotFilled: true,
               dotColor: theme.colorScheme.onSurface,
             ),
@@ -544,8 +651,7 @@ class _PayableTab extends StatelessWidget {
               final isLast = i == payable!.updates.length - 1;
               final isClosed = payable!.closedAt != null;
               return _TimelineEntry(
-                theme: theme,
-                ext: ext,
+                theme: theme, ext: ext,
                 label: 'UPDATE',
                 note: u.note.isNotEmpty ? u.note : null,
                 date: u.createdAt,
@@ -556,195 +662,80 @@ class _PayableTab extends StatelessWidget {
             }),
             if (payable!.closedAt != null)
               _TimelineEntry(
-                theme: theme,
-                ext: ext,
-                label: 'CLOSED',
-                note: null,
+                theme: theme, ext: ext,
+                label: 'CLOSED', note: null,
                 date: payable!.closedAt!,
-                showLine: false,
-                dotFilled: true,
+                showLine: false, dotFilled: true,
                 dotColor: ext.successColor,
               ),
-
             const SizedBox(height: 12),
-
-            // ── Actions ────────────────────────────────────────────────────
             if (payable!.isOpen) ...[
-              if (!showAddUpdate) ...[
+              if (!showAddUpdate)
                 OutlinedButton(
                   onPressed: () => onToggleAddUpdate(true),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: ext.border, width: 2),
-                    shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero),
-                  ),
-                  child: Text('+ ADD UPDATE',
-                      style: theme.textTheme.labelLarge
-                          ?.copyWith(fontSize: 11)),
-                ),
-              ] else ...[
-                TextField(
-                  controller: updateNoteCtrl,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    hintText: 'Update note',
-                    hintStyle: theme.textTheme.bodySmall
-                        ?.copyWith(color: ext.mutedFg),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.zero,
-                        borderSide:
-                            BorderSide(color: ext.border, width: 2)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.zero,
-                        borderSide:
-                            BorderSide(color: ext.border, width: 2)),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.zero,
-                        borderSide: BorderSide(
-                            color: theme.colorScheme.onSurface, width: 2)),
-                    contentPadding: const EdgeInsets.all(10),
-                    isDense: true,
-                  ),
-                  style: theme.textTheme.bodyMedium,
-                ),
+                  child: const Text('+ ADD UPDATE'),
+                )
+              else ...[
+                _NoteField(controller: updateNoteCtrl, hint: 'Update note'),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      onPressed: addingUpdate ? null : onAddUpdate,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: ext.border, width: 2),
-                        shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero),
-                      ),
-                      child: addingUpdate
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
-                          : Text('SAVE',
-                              style: theme.textTheme.labelLarge
-                                  ?.copyWith(fontSize: 11)),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => onToggleAddUpdate(false),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: ext.border, width: 2),
-                        shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero),
-                      ),
-                      child: Text('CANCEL',
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(fontSize: 11)),
-                    ),
-                  ],
-                ),
+                Row(children: [
+                  OutlinedButton(
+                    onPressed: addingUpdate ? null : onAddUpdate,
+                    child: addingUpdate
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('SAVE'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () => onToggleAddUpdate(false),
+                    child: const Text('CANCEL'),
+                  ),
+                ]),
               ],
               const SizedBox(height: 8),
-              if (!showCloseForm) ...[
+              if (!showCloseForm)
                 OutlinedButton(
                   onPressed: () => onToggleCloseForm(true),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: ext.border, width: 2),
-                    shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero),
-                  ),
-                  child: Text('CLOSE PAYABLE',
-                      style: theme.textTheme.labelLarge
-                          ?.copyWith(fontSize: 11)),
-                ),
-              ] else ...[
-                TextField(
-                  controller: closingNoteCtrl,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    hintText: 'Closing note (optional)',
-                    hintStyle: theme.textTheme.bodySmall
-                        ?.copyWith(color: ext.mutedFg),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.zero,
-                        borderSide:
-                            BorderSide(color: ext.border, width: 2)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.zero,
-                        borderSide:
-                            BorderSide(color: ext.border, width: 2)),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.zero,
-                        borderSide: BorderSide(
-                            color: theme.colorScheme.onSurface, width: 2)),
-                    contentPadding: const EdgeInsets.all(10),
-                    isDense: true,
-                  ),
-                  style: theme.textTheme.bodyMedium,
-                ),
+                  child: const Text('CLOSE PAYABLE'),
+                )
+              else ...[
+                _NoteField(controller: closingNoteCtrl, hint: 'Closing note (optional)'),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      onPressed: closing ? null : onClose,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: ext.border, width: 2),
-                        shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero),
-                      ),
-                      child: closing
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
-                          : Text('CONFIRM CLOSE',
-                              style: theme.textTheme.labelLarge
-                                  ?.copyWith(fontSize: 11)),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => onToggleCloseForm(false),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: ext.border, width: 2),
-                        shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero),
-                      ),
-                      child: Text('CANCEL',
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(fontSize: 11)),
-                    ),
-                  ],
-                ),
+                Row(children: [
+                  OutlinedButton(
+                    onPressed: closing ? null : onClose,
+                    child: closing
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('CONFIRM CLOSE'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () => onToggleCloseForm(false),
+                    child: const Text('CANCEL'),
+                  ),
+                ]),
               ],
             ],
-
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: deleting ? null : onDelete,
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: ext.dangerColor, width: 2),
                 foregroundColor: ext.dangerColor,
-                shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero),
               ),
               child: deleting
                   ? SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: ext.dangerColor))
-                  : Text('REMOVE',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                          fontSize: 11, color: ext.dangerColor)),
+                      width: 14, height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: ext.dangerColor))
+                  : const Text('REMOVE'),
             ),
           ],
-
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(10),
             color: ext.muted,
             child: Text(
-              'This tool is for reference tracking only and is not intended '
-              'for use in accounting.',
+              'This tool is for reference tracking only and is not intended for use in accounting.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: ext.mutedFg, fontSize: 10),
             ),
@@ -786,28 +777,24 @@ class _TimelineEntry extends StatelessWidget {
         children: [
           SizedBox(
             width: 20,
-            child: Column(
-              children: [
-                const SizedBox(height: 3),
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: dotFilled ? dotColor : Colors.transparent,
-                    border: Border.all(color: dotColor, width: 1.5),
+            child: Column(children: [
+              const SizedBox(height: 3),
+              Container(
+                width: 10, height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotFilled ? dotColor : Colors.transparent,
+                  border: Border.all(color: dotColor, width: 1.5),
+                ),
+              ),
+              if (showLine)
+                Expanded(
+                  child: Container(
+                    width: 1.5, color: ext.border,
+                    margin: const EdgeInsets.symmetric(vertical: 2),
                   ),
                 ),
-                if (showLine)
-                  Expanded(
-                    child: Container(
-                      width: 1.5,
-                      color: ext.border,
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                    ),
-                  ),
-              ],
-            ),
+            ]),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -816,17 +803,14 @@ class _TimelineEntry extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(label,
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(fontSize: 10)),
-                      const SizedBox(width: 8),
-                      Text(_fmtDateTime(date),
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: ext.mutedFg, fontSize: 10)),
-                    ],
-                  ),
+                  Row(children: [
+                    Text(label,
+                        style: theme.textTheme.labelLarge?.copyWith(fontSize: 10)),
+                    const SizedBox(width: 8),
+                    Text(_fmtDateTime(date),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: ext.mutedFg, fontSize: 10)),
+                  ]),
                   if (note != null && note!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(note!, style: theme.textTheme.bodySmall),
@@ -842,21 +826,37 @@ class _TimelineEntry extends StatelessWidget {
 }
 
 String _fmtDateTime(DateTime dt) {
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-  final h = dt.hour > 12
-      ? dt.hour - 12
-      : dt.hour == 0
-          ? 12
-          : dt.hour;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  final h = dt.hour > 12 ? dt.hour - 12 : dt.hour == 0 ? 12 : dt.hour;
   final m = dt.minute.toString().padLeft(2, '0');
   final ampm = dt.hour >= 12 ? 'PM' : 'AM';
   return '${months[dt.month - 1]} ${dt.day} · $h:$m $ampm';
 }
 
 // ── Shared sub-widgets ────────────────────────────────────────────────────────
+
+class _NoteField extends StatelessWidget {
+  const _NoteField({required this.controller, required this.hint});
+  final TextEditingController controller;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    return TextField(
+      controller: controller,
+      maxLines: 2,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+        contentPadding: const EdgeInsets.all(10),
+        isDense: true,
+      ),
+      style: theme.textTheme.bodyMedium,
+    );
+  }
+}
 
 class _FieldRow extends StatelessWidget {
   const _FieldRow({required this.label, required this.value});
@@ -894,15 +894,12 @@ class _TagsWrap extends StatelessWidget {
     final theme = Theme.of(context);
     final ext = context.fuzzy;
     return Wrap(
-      spacing: 6,
-      runSpacing: 4,
+      spacing: 6, runSpacing: 4,
       children: tags
           .map((t) => Chip(
                 label: Text(t.toUpperCase(),
-                    style:
-                        theme.textTheme.labelLarge?.copyWith(fontSize: 10)),
-                shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero),
+                    style: theme.textTheme.labelLarge?.copyWith(fontSize: 10)),
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                 side: BorderSide(color: ext.border),
                 backgroundColor: ext.muted,
               ))
@@ -933,8 +930,7 @@ class _LineItemRow extends StatelessWidget {
       decoration: BoxDecoration(border: Border.all(color: ext.borderSubtle)),
       child: Row(
         children: [
-          Expanded(
-              child: Text(description, style: theme.textTheme.bodyMedium)),
+          Expanded(child: Text(description, style: theme.textTheme.bodyMedium)),
           if (qty != null) Text('x$qty', style: theme.textTheme.bodySmall),
           const SizedBox(width: 8),
           if (total != null) Text(total!, style: theme.textTheme.labelLarge),
