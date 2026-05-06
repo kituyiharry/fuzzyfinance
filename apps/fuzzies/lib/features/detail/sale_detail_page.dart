@@ -8,6 +8,7 @@ import '../../core/cache/local_cache.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/ledger.dart';
 import '../../models/sale.dart';
+import '../home/home_provider.dart';
 import '../shared/widgets/fuzzy_dialog.dart';
 import '../shared/widgets/torn_item_card.dart';
 import 'sale_edit_page.dart';
@@ -40,6 +41,11 @@ class _SaleDetailPageState extends ConsumerState<SaleDetailPage> {
   bool _deleting = false;
   Sale? _sale;
 
+  Future<void> _invalidateListCache() async {
+    await LocalCache.instance.invalidate(CacheKeys.sales);
+    ref.read(salesNotifier.notifier).refresh();
+  }
+
   Future<void> _commit() async {
     if (!await showFuzzyConfirmDialog(
       context,
@@ -53,6 +59,7 @@ class _SaleDetailPageState extends ConsumerState<SaleDetailPage> {
       await client.dio.post<void>(Endpoints.saleCommit(widget.id));
       await LocalCache.instance.invalidate(CacheKeys.sale(widget.id));
       ref.invalidate(saleDetailProvider(widget.id));
+      await _invalidateListCache();
     } on DioException catch (e) {
       if (mounted) _showError('Commit failed: ${e.message ?? e.toString()}');
     } catch (e) {
@@ -74,6 +81,7 @@ class _SaleDetailPageState extends ConsumerState<SaleDetailPage> {
     try {
       final client = ref.read(apiClientProvider);
       await client.dio.post<void>(Endpoints.saleAbort(widget.id));
+      await _invalidateListCache();
       if (mounted) Navigator.of(context).pop();
     } on DioException catch (e) {
       if (mounted) _showError('Abort failed: ${e.message ?? e.toString()}');
@@ -96,6 +104,7 @@ class _SaleDetailPageState extends ConsumerState<SaleDetailPage> {
     try {
       final client = ref.read(apiClientProvider);
       await client.dio.delete<void>(Endpoints.sale(widget.id));
+      await _invalidateListCache();
       if (mounted) Navigator.of(context).pop();
     } on DioException catch (e) {
       if (mounted) _showError('Delete failed: ${e.message ?? e.toString()}');
@@ -114,6 +123,7 @@ class _SaleDetailPageState extends ConsumerState<SaleDetailPage> {
         .then((_) async {
       await LocalCache.instance.invalidate(CacheKeys.sale(widget.id));
       ref.invalidate(saleDetailProvider(widget.id));
+      await _invalidateListCache();
     });
   }
 
