@@ -2,6 +2,21 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq } from 'drizzle-orm';
 import { getValidAccessToken } from '$lib/server/token-refresh';
+
+/**
+ * Returns true if an error from a cloud API call indicates the access token
+ * was rejected (401 / UNAUTHENTICATED) rather than a logic or network error.
+ * @param {unknown} err
+ */
+function _isCloudAuthError(err) {
+	const msg = String(err);
+	return (
+		msg.includes('401') ||
+		msg.includes('UNAUTHENTICATED') ||
+		msg.includes('InvalidAuthenticationToken') ||
+		msg.includes('Unauthorized')
+	);
+}
 import { ensureReceiptFolder as driveFolder, ensureMonthFolder as driveMonthFolder, uploadFileToDrive } from '$lib/server/google-drive';
 import { ensureLedgerSheet, ensureMonthTab, appendReceiptRow } from '$lib/server/google-sheets';
 import {
@@ -81,88 +96,115 @@ export async function commitReceipt(env, receiptId) {
 		const meta = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
 
 		if (provider === 'google') {
-			try {
-				const rootFolderId = meta.folderId ?? await driveFolder(accessToken);
-				const uploadFolderId = await driveMonthFolder(accessToken, rootFolderId, year, month);
+			// Attempt sync; on a 401 from the cloud API, force-refresh the token and retry once.
+			for (let attempt = 0; attempt < 2; attempt++) {
+				try {
+					if (attempt === 1) {
+						const fresh = await getValidAccessToken(receipt.userId, provider, { forceRefresh: true });
+						if (!fresh) break;
+						accessToken = fresh;
+					}
+					const tok = /** @type {string} */ (accessToken);
 
-				// Idempotent: skip Drive upload if already committed to this provider
-				if (receipt.driveFileId && receipt.driveProvider === 'google') {
-					driveFileId = receipt.driveFileId;
-				} else {
-					const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
-					const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
-					const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
-					driveFileId = await uploadFileToDrive(
-						accessToken, uploadFolderId, fileName,
-						receipt.rawMimeType ?? 'application/octet-stream', fileBytes
-					);
-					await patch({ driveFileId, driveProvider: 'google' });
+					const rootFolderId = meta.folderId ?? await driveFolder(tok);
+					const uploadFolderId = await driveMonthFolder(tok, rootFolderId, year, month);
+
+					if (receipt.driveFileId && receipt.driveProvider === 'google') {
+						driveFileId = receipt.driveFileId;
+					} else {
+						const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
+						const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
+						const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
+						driveFileId = await uploadFileToDrive(
+							tok, uploadFolderId, fileName,
+							receipt.rawMimeType ?? 'application/octet-stream', fileBytes
+						);
+						await patch({ driveFileId, driveProvider: 'google' });
+					}
+
+					if (!receipt.sheetId || receipt.sheetProvider !== 'google') {
+						const ledgerFileId = await ensureLedgerSheet(tok, rootFolderId, year);
+						await ensureMonthTab(tok, ledgerFileId, monthName);
+						await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
+
+						const [receiptWithDriveId] = await db
+							.select()
+							.from(schema.receipt)
+							.where(eq(schema.receipt.id, receiptId));
+						await appendReceiptRow(tok, ledgerFileId, monthName, receiptWithDriveId);
+					}
+
+					if (!meta.folderId) {
+						await db.update(schema.integration)
+							.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
+							.where(eq(schema.integration.id, integration.id));
+					}
+					break; // success
+				} catch (err) {
+					if (attempt === 0 && _isCloudAuthError(err)) {
+						console.warn('[receipt-committer] Google 401 on attempt 0 — retrying with force-refresh');
+						continue;
+					}
+					console.error('[receipt-committer] Google sync failed:', err);
+					syncError = String(err);
+					break;
 				}
-
-				// Idempotent: skip Sheets append if already done
-				if (!receipt.sheetId || receipt.sheetProvider !== 'google') {
-					const ledgerFileId = await ensureLedgerSheet(accessToken, rootFolderId, year);
-					await ensureMonthTab(accessToken, ledgerFileId, monthName);
-					await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
-
-					const [receiptWithDriveId] = await db
-						.select()
-						.from(schema.receipt)
-						.where(eq(schema.receipt.id, receiptId));
-					await appendReceiptRow(accessToken, ledgerFileId, monthName, receiptWithDriveId);
-				}
-
-				if (!meta.folderId) {
-					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
-						.where(eq(schema.integration.id, integration.id));
-				}
-			} catch (err) {
-				console.error('[receipt-committer] Google sync failed:', err);
-				syncError = String(err);
 			}
 		}
 
 		if (provider === 'microsoft') {
-			try {
-				const rootFolderId = meta.folderId ?? await oneDriveFolder(accessToken);
-				const uploadFolderId = await oneDriveMonthFolder(accessToken, rootFolderId, year, month);
+			for (let attempt = 0; attempt < 2; attempt++) {
+				try {
+					if (attempt === 1) {
+						const fresh = await getValidAccessToken(receipt.userId, provider, { forceRefresh: true });
+						if (!fresh) break;
+						accessToken = fresh;
+					}
+					const tok = /** @type {string} */ (accessToken);
 
-				// Idempotent: skip OneDrive upload if already committed to this provider
-				if (receipt.driveFileId && receipt.driveProvider === 'microsoft') {
-					driveFileId = receipt.driveFileId;
-				} else {
-					const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
-					const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
-					const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
-					driveFileId = await uploadFileToOneDrive(
-						accessToken, uploadFolderId, fileName,
-						receipt.rawMimeType ?? 'application/octet-stream', fileBytes
-					);
-					await patch({ driveFileId, driveProvider: 'microsoft' });
+					const rootFolderId = meta.folderId ?? await oneDriveFolder(tok);
+					const uploadFolderId = await oneDriveMonthFolder(tok, rootFolderId, year, month);
+
+					if (receipt.driveFileId && receipt.driveProvider === 'microsoft') {
+						driveFileId = receipt.driveFileId;
+					} else {
+						const ext = (receipt.rawMimeType ?? '').split('/')[1] ?? 'bin';
+						const safeMerchant = (receipt.merchantName ?? 'receipt').replace(/[^a-z0-9]/gi, '_');
+						const fileName = `${safeMerchant}_${receiptId.slice(0, 8)}.${ext}`;
+						driveFileId = await uploadFileToOneDrive(
+							tok, uploadFolderId, fileName,
+							receipt.rawMimeType ?? 'application/octet-stream', fileBytes
+						);
+						await patch({ driveFileId, driveProvider: 'microsoft' });
+					}
+
+					if (!receipt.sheetId || receipt.sheetProvider !== 'microsoft') {
+						const workbookId = await ensureLedgerWorkbook(tok, rootFolderId, year);
+						await ensureMonthWorksheet(tok, workbookId, monthName);
+						await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
+
+						const [receiptWithDriveId] = await db
+							.select()
+							.from(schema.receipt)
+							.where(eq(schema.receipt.id, receiptId));
+						await appendReceiptRowExcel(tok, workbookId, monthName, receiptWithDriveId);
+					}
+
+					if (!meta.folderId) {
+						await db.update(schema.integration)
+							.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
+							.where(eq(schema.integration.id, integration.id));
+					}
+					break; // success
+				} catch (err) {
+					if (attempt === 0 && _isCloudAuthError(err)) {
+						console.warn('[receipt-committer] Microsoft 401 on attempt 0 — retrying with force-refresh');
+						continue;
+					}
+					console.error('[receipt-committer] Microsoft sync failed:', err);
+					syncError = String(err);
+					break;
 				}
-
-				// Idempotent: skip Excel append if already done
-				if (!receipt.sheetId || receipt.sheetProvider !== 'microsoft') {
-					const workbookId = await ensureLedgerWorkbook(accessToken, rootFolderId, year);
-					await ensureMonthWorksheet(accessToken, workbookId, monthName);
-					await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
-
-					const [receiptWithDriveId] = await db
-						.select()
-						.from(schema.receipt)
-						.where(eq(schema.receipt.id, receiptId));
-					await appendReceiptRowExcel(accessToken, workbookId, monthName, receiptWithDriveId);
-				}
-
-				if (!meta.folderId) {
-					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
-						.where(eq(schema.integration.id, integration.id));
-				}
-			} catch (err) {
-				console.error('[receipt-committer] Microsoft sync failed:', err);
-				syncError = String(err);
 			}
 		}
 	}

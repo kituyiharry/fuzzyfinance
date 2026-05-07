@@ -217,10 +217,14 @@ class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
     final amount = receipt.total != null
         ? '${receipt.currency ?? ''} ${receipt.total}'.trim()
         : null;
+    final isAuthError =
+        receipt.errorMessage?.startsWith('AUTH_REQUIRED:') ?? false;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(0, 4, 4, 32),
       children: [
+        if (isAuthError)
+          _AuthRequiredBanner(margin: const EdgeInsets.fromLTRB(16, 4, 16, 0)),
         Hero(
           tag: itemHeroTag(type: 'receipt', id: widget.id),
           flightShuttleBuilder: (_, animation, __, fromCtx, ___) =>
@@ -944,6 +948,50 @@ class _LineItemRow extends StatelessWidget {
           if (qty != null) Text('x$qty', style: theme.textTheme.bodySmall),
           const SizedBox(width: 8),
           if (total != null) Text(total!, style: theme.textTheme.labelLarge),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Auth-required banner ──────────────────────────────────────────────────────
+
+class _AuthRequiredBanner extends StatelessWidget {
+  const _AuthRequiredBanner({required this.margin});
+  final EdgeInsets margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    return Container(
+      margin: margin,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: ext.warningColor.withValues(alpha: 0.08),
+        border: Border.all(color: ext.warningColor, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+                width: 8, height: 8,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle, color: ext.warningColor)),
+            const SizedBox(width: 8),
+            Text('CLOUD SYNC FAILED — RE-AUTHORISATION REQUIRED',
+                style: theme.textTheme.labelLarge?.copyWith(
+                    color: ext.warningColor, fontSize: 9)),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            'Your Google or Microsoft connection has expired or been revoked. '
+            'Open the web app, go to Settings → Integrations, and reconnect your account. '
+            'Then retry the sync.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: ext.warningColor, fontSize: 10),
+          ),
         ],
       ),
     );

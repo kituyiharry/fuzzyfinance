@@ -9,7 +9,11 @@ export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
-    trustedOrigins: ["http://localhost:5173"],
+	trustedOrigins: ["http://localhost:5173"],
+	session: {
+		expiresIn: 60 * 60 * 24 * 30, // 30 days — covers typical mobile usage gaps
+		updateAge:  60 * 60 * 24,      // extend session if used after >1 day
+	},
 	socialProviders: {
 		google: {
             // see: https://better-auth.com/docs/authentication/google#cross-platform-sign-in-web-ios-android

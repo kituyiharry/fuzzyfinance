@@ -24,10 +24,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final client = ref.watch(apiClientProvider);
     final service = AuthService(client);
 
-    // Wire the 401 hook so any expired session triggers sign-out
+    // Wire the 401 hook so any expired session triggers sign-out with a message
     client.onUnauthorized = () {
       if (state.hasValue && state.value?.status == AuthStatus.signedIn) {
-        state = const AsyncData(AuthState(status: AuthStatus.signedOut));
+        state = const AsyncData(AuthState(
+          status: AuthStatus.signedOut,
+          error: 'Your session has expired. Please sign in again.',
+        ));
       }
     };
 

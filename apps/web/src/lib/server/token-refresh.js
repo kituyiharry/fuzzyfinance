@@ -5,46 +5,50 @@ import { eq } from 'drizzle-orm';
 
 /**
  * Returns a valid access token for the given integration, refreshing it first
- * if it has expired or is within 5 minutes of expiry.
+ * if it has expired or is within 30 minutes of expiry.
+ *
+ * Pass `forceRefresh: true` to bypass the TTL check and always fetch a new
+ * token — use this after a 401 response from a cloud API indicates the stored
+ * token is stale even though tokenExpiresAt says otherwise.
+ *
+ * Throws with message prefix `AUTH_REQUIRED: ` when the refresh token itself
+ * is invalid (revoked, consent withdrawn). Callers must surface this to the
+ * user as a re-authorisation prompt.
  *
  * @param {string} userId
  * @param {'google' | 'microsoft'} provider
+ * @param {{ forceRefresh?: boolean }} [opts]
  * @returns {Promise<string | null>} A valid access token, or null if no integration exists
  */
-export async function getValidAccessToken(userId, provider) {
-	const [integration] = await db
+export async function getValidAccessToken(userId, provider, opts = {}) {
+	const rows = await db
 		.select()
 		.from(schema.integration)
 		.where(eq(schema.integration.userId, userId));
 
-	if (!integration || integration.provider !== provider) {
-		// Try a more targeted query
-		const rows = await db
-			.select()
-			.from(schema.integration)
-			.where(eq(schema.integration.userId, userId));
-		const match = rows.find((r) => r.provider === provider);
-		if (!match) return null;
-		return _ensureFresh(match, provider);
-	}
+	const integration = rows.find((r) => r.provider === provider);
+	if (!integration) return null;
 
-	return _ensureFresh(integration, provider);
+	return _ensureFresh(integration, provider, opts.forceRefresh ?? false);
 }
 
 /**
  * @param {typeof schema.integration.$inferSelect} integration
  * @param {'google' | 'microsoft'} provider
+ * @param {boolean} forceRefresh
  * @returns {Promise<string>}
  */
-async function _ensureFresh(integration, provider) {
+async function _ensureFresh(integration, provider, forceRefresh) {
 	const thirtyMinutesFromNow = new Date(Date.now() + 30 * 60 * 1000);
 	const isExpired =
-		!integration.tokenExpiresAt || integration.tokenExpiresAt <= thirtyMinutesFromNow;
+		forceRefresh ||
+		!integration.tokenExpiresAt ||
+		integration.tokenExpiresAt <= thirtyMinutesFromNow;
 
 	if (!isExpired) return integration.accessToken ?? '';
 
 	if (!integration.refreshToken) {
-		throw new Error(`No refresh token stored for ${provider} integration`);
+		throw new Error(`AUTH_REQUIRED: No refresh token stored for ${provider} integration — please reconnect.`);
 	}
 
 	const tokens = await (provider === 'google'
@@ -72,23 +76,45 @@ async function _ensureFresh(integration, provider) {
  * @returns {Promise<{ access_token: string, refresh_token?: string, expires_in?: number }>}
  */
 async function _refreshGoogle(refreshToken) {
-	const res = await fetch('https://oauth2.googleapis.com/token', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'refresh_token',
-			client_id: env.GOOGLE_CLIENT_ID,
-			client_secret: env.GOOGLE_CLIENT_SECRET,
-			refresh_token: refreshToken
-		})
+	const body = new URLSearchParams({
+		grant_type: 'refresh_token',
+		client_id: env.GOOGLE_CLIENT_ID,
+		client_secret: env.GOOGLE_CLIENT_SECRET,
+		refresh_token: refreshToken
 	});
-	if (!res.ok) {
-		const body = await res.text();
-		const isAuthError = body.includes('"invalid_grant"') || body.includes('"invalid_client"');
-		const prefix = isAuthError ? 'AUTH_REQUIRED: ' : '';
-		throw new Error(`${prefix}Google token refresh failed: ${body}`);
+
+	// One retry for transient network failures — auth failures are not retried
+	for (let attempt = 0; attempt < 2; attempt++) {
+		let res;
+		try {
+			res = await fetch('https://oauth2.googleapis.com/token', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body
+			});
+		} catch (networkErr) {
+			if (attempt === 0) continue; // retry once on network error
+			throw new Error(`Google token refresh failed (network): ${networkErr}`);
+		}
+
+		if (res.ok) return res.json();
+
+		const responseBody = await res.text();
+		const isAuthError =
+			responseBody.includes('"invalid_grant"') ||
+			responseBody.includes('"invalid_client"');
+
+		if (isAuthError) {
+			throw new Error(`AUTH_REQUIRED: Google token refresh failed — access was revoked or expired. Please reconnect your Google account.`);
+		}
+
+		// Non-auth server error: retry once
+		if (attempt === 0) continue;
+		throw new Error(`Google token refresh failed (${res.status}): ${responseBody}`);
 	}
-	return res.json();
+
+	// Unreachable but satisfies type-checker
+	throw new Error('Google token refresh failed');
 }
 
 /**
@@ -96,25 +122,42 @@ async function _refreshGoogle(refreshToken) {
  * @returns {Promise<{ access_token: string, refresh_token?: string, expires_in?: number }>}
  */
 async function _refreshMicrosoft(refreshToken) {
-	const res = await fetch(
-		'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({
-				grant_type: 'refresh_token',
-				client_id: env.MICROSOFT_CLIENT_ID,
-				client_secret: env.MICROSOFT_CLIENT_SECRET,
-				refresh_token: refreshToken,
-				scope: 'Files.ReadWrite offline_access'
-			})
+	const body = new URLSearchParams({
+		grant_type: 'refresh_token',
+		client_id: env.MICROSOFT_CLIENT_ID,
+		client_secret: env.MICROSOFT_CLIENT_SECRET,
+		refresh_token: refreshToken,
+		scope: 'Files.ReadWrite offline_access'
+	});
+
+	for (let attempt = 0; attempt < 2; attempt++) {
+		let res;
+		try {
+			res = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body
+			});
+		} catch (networkErr) {
+			if (attempt === 0) continue;
+			throw new Error(`Microsoft token refresh failed (network): ${networkErr}`);
 		}
-	);
-	if (!res.ok) {
-		const body = await res.text();
-		const isAuthError = body.includes('"invalid_grant"') || body.includes('"interaction_required"') || body.includes('"consent_required"');
-		const prefix = isAuthError ? 'AUTH_REQUIRED: ' : '';
-		throw new Error(`${prefix}Microsoft token refresh failed: ${body}`);
+
+		if (res.ok) return res.json();
+
+		const responseBody = await res.text();
+		const isAuthError =
+			responseBody.includes('"invalid_grant"') ||
+			responseBody.includes('"interaction_required"') ||
+			responseBody.includes('"consent_required"');
+
+		if (isAuthError) {
+			throw new Error(`AUTH_REQUIRED: Microsoft token refresh failed — access was revoked or consent withdrawn. Please reconnect your Microsoft account.`);
+		}
+
+		if (attempt === 0) continue;
+		throw new Error(`Microsoft token refresh failed (${res.status}): ${responseBody}`);
 	}
-	return res.json();
+
+	throw new Error('Microsoft token refresh failed');
 }

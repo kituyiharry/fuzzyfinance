@@ -2,6 +2,17 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq } from 'drizzle-orm';
 import { getValidAccessToken } from '$lib/server/token-refresh';
+
+/** @param {unknown} err */
+function _isCloudAuthError(err) {
+	const msg = String(err);
+	return (
+		msg.includes('401') ||
+		msg.includes('UNAUTHENTICATED') ||
+		msg.includes('InvalidAuthenticationToken') ||
+		msg.includes('Unauthorized')
+	);
+}
 import { ensureSalesFolder as driveSalesFolder, ensureMonthFolder as driveMonthFolder, uploadFileToDrive } from '$lib/server/google-drive';
 import { ensureSalesLedgerSheet, ensureSalesMonthTab, appendSaleRow } from '$lib/server/google-sheets';
 import {
@@ -74,82 +85,108 @@ export async function commitSale(env, saleId) {
 		const meta = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
 
 		if (provider === 'google') {
-			try {
-				const salesRootId = meta.salesFolderId ?? await driveSalesFolder(accessToken);
-				const uploadFolderId = await driveMonthFolder(accessToken, salesRootId, year, month);
+			for (let attempt = 0; attempt < 2; attempt++) {
+				try {
+					if (attempt === 1) {
+						const fresh = await getValidAccessToken(sale.userId, provider, { forceRefresh: true });
+						if (!fresh) break;
+						accessToken = fresh;
+					}
+					const tok = /** @type {string} */ (accessToken);
 
-				// Idempotent: skip Drive upload if already committed to this provider
-				if (sale.driveFileId && sale.driveProvider === 'google') {
-					driveFileId = sale.driveFileId;
-				} else {
-					const ext = (sale.rawMimeType ?? '').split('/')[1] ?? 'bin';
-					const safeTitle = (sale.documentTitle ?? 'sale').replace(/[^a-z0-9]/gi, '_');
-					const fileName = `${safeTitle}_${saleId.slice(0, 8)}.${ext}`;
-					driveFileId = await uploadFileToDrive(
-						accessToken, uploadFolderId, fileName,
-						sale.rawMimeType ?? 'application/octet-stream', fileBytes
-					);
-					await patch({ driveFileId, driveProvider: 'google' });
+					const salesRootId = meta.salesFolderId ?? await driveSalesFolder(tok);
+					const uploadFolderId = await driveMonthFolder(tok, salesRootId, year, month);
+
+					if (sale.driveFileId && sale.driveProvider === 'google') {
+						driveFileId = sale.driveFileId;
+					} else {
+						const ext = (sale.rawMimeType ?? '').split('/')[1] ?? 'bin';
+						const safeTitle = (sale.documentTitle ?? 'sale').replace(/[^a-z0-9]/gi, '_');
+						const fileName = `${safeTitle}_${saleId.slice(0, 8)}.${ext}`;
+						driveFileId = await uploadFileToDrive(
+							tok, uploadFolderId, fileName,
+							sale.rawMimeType ?? 'application/octet-stream', fileBytes
+						);
+						await patch({ driveFileId, driveProvider: 'google' });
+					}
+
+					if (!sale.sheetId || sale.sheetProvider !== 'google') {
+						const ledgerFileId = await ensureSalesLedgerSheet(tok, salesRootId, year);
+						await ensureSalesMonthTab(tok, ledgerFileId, monthName);
+						await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
+
+						const [saleWithDriveId] = await db.select().from(schema.sale).where(eq(schema.sale.id, saleId));
+						await appendSaleRow(tok, ledgerFileId, monthName, saleWithDriveId);
+					}
+
+					if (!meta.salesFolderId) {
+						await db.update(schema.integration)
+							.set({ metadataJson: JSON.stringify({ ...meta, salesFolderId: salesRootId }) })
+							.where(eq(schema.integration.id, integration.id));
+					}
+					break; // success
+				} catch (err) {
+					if (attempt === 0 && _isCloudAuthError(err)) {
+						console.warn('[sales-committer] Google 401 on attempt 0 — retrying with force-refresh');
+						continue;
+					}
+					console.error('[sales-committer] Google sync failed:', err);
+					syncError = String(err);
+					break;
 				}
-
-				// Idempotent: skip Sheets append if already done
-				if (!sale.sheetId || sale.sheetProvider !== 'google') {
-					const ledgerFileId = await ensureSalesLedgerSheet(accessToken, salesRootId, year);
-					await ensureSalesMonthTab(accessToken, ledgerFileId, monthName);
-					await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
-
-					const [saleWithDriveId] = await db.select().from(schema.sale).where(eq(schema.sale.id, saleId));
-					await appendSaleRow(accessToken, ledgerFileId, monthName, saleWithDriveId);
-				}
-
-				if (!meta.salesFolderId) {
-					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ ...meta, salesFolderId: salesRootId }) })
-						.where(eq(schema.integration.id, integration.id));
-				}
-			} catch (err) {
-				console.error('[sales-committer] Google sync failed:', err);
-				syncError = String(err);
 			}
 		}
 
 		if (provider === 'microsoft') {
-			try {
-				const salesRootId = meta.salesFolderId ?? await oneDriveSalesFolder(accessToken);
-				const uploadFolderId = await oneDriveMonthFolder(accessToken, salesRootId, year, month);
+			for (let attempt = 0; attempt < 2; attempt++) {
+				try {
+					if (attempt === 1) {
+						const fresh = await getValidAccessToken(sale.userId, provider, { forceRefresh: true });
+						if (!fresh) break;
+						accessToken = fresh;
+					}
+					const tok = /** @type {string} */ (accessToken);
 
-				// Idempotent: skip OneDrive upload if already committed to this provider
-				if (sale.driveFileId && sale.driveProvider === 'microsoft') {
-					driveFileId = sale.driveFileId;
-				} else {
-					const ext = (sale.rawMimeType ?? '').split('/')[1] ?? 'bin';
-					const safeTitle = (sale.documentTitle ?? 'sale').replace(/[^a-z0-9]/gi, '_');
-					const fileName = `${safeTitle}_${saleId.slice(0, 8)}.${ext}`;
-					driveFileId = await uploadFileToOneDrive(
-						accessToken, uploadFolderId, fileName,
-						sale.rawMimeType ?? 'application/octet-stream', fileBytes
-					);
-					await patch({ driveFileId, driveProvider: 'microsoft' });
+					const salesRootId = meta.salesFolderId ?? await oneDriveSalesFolder(tok);
+					const uploadFolderId = await oneDriveMonthFolder(tok, salesRootId, year, month);
+
+					if (sale.driveFileId && sale.driveProvider === 'microsoft') {
+						driveFileId = sale.driveFileId;
+					} else {
+						const ext = (sale.rawMimeType ?? '').split('/')[1] ?? 'bin';
+						const safeTitle = (sale.documentTitle ?? 'sale').replace(/[^a-z0-9]/gi, '_');
+						const fileName = `${safeTitle}_${saleId.slice(0, 8)}.${ext}`;
+						driveFileId = await uploadFileToOneDrive(
+							tok, uploadFolderId, fileName,
+							sale.rawMimeType ?? 'application/octet-stream', fileBytes
+						);
+						await patch({ driveFileId, driveProvider: 'microsoft' });
+					}
+
+					if (!sale.sheetId || sale.sheetProvider !== 'microsoft') {
+						const workbookId = await ensureSalesLedgerWorkbook(tok, salesRootId, year);
+						await ensureSalesMonthWorksheet(tok, workbookId, monthName);
+						await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
+
+						const [saleWithDriveId] = await db.select().from(schema.sale).where(eq(schema.sale.id, saleId));
+						await appendSaleRowExcel(tok, workbookId, monthName, saleWithDriveId);
+					}
+
+					if (!meta.salesFolderId) {
+						await db.update(schema.integration)
+							.set({ metadataJson: JSON.stringify({ ...meta, salesFolderId: salesRootId }) })
+							.where(eq(schema.integration.id, integration.id));
+					}
+					break; // success
+				} catch (err) {
+					if (attempt === 0 && _isCloudAuthError(err)) {
+						console.warn('[sales-committer] Microsoft 401 on attempt 0 — retrying with force-refresh');
+						continue;
+					}
+					console.error('[sales-committer] Microsoft sync failed:', err);
+					syncError = String(err);
+					break;
 				}
-
-				// Idempotent: skip Excel append if already done
-				if (!sale.sheetId || sale.sheetProvider !== 'microsoft') {
-					const workbookId = await ensureSalesLedgerWorkbook(accessToken, salesRootId, year);
-					await ensureSalesMonthWorksheet(accessToken, workbookId, monthName);
-					await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
-
-					const [saleWithDriveId] = await db.select().from(schema.sale).where(eq(schema.sale.id, saleId));
-					await appendSaleRowExcel(accessToken, workbookId, monthName, saleWithDriveId);
-				}
-
-				if (!meta.salesFolderId) {
-					await db.update(schema.integration)
-						.set({ metadataJson: JSON.stringify({ ...meta, salesFolderId: salesRootId }) })
-						.where(eq(schema.integration.id, integration.id));
-				}
-			} catch (err) {
-				console.error('[sales-committer] Microsoft sync failed:', err);
-				syncError = String(err);
 			}
 		}
 	}
