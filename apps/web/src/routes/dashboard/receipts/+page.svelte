@@ -136,7 +136,7 @@
 				placeholder="SEARCH RECEIPTS..."
 				bind:value={searchQuery}
 				onkeydown={(e) => e.key === 'Enter' && runSearch()}
-				class="flex-1 border-2 border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-xs px-3 py-2 uppercase tracking-widest placeholder:text-(--color-muted-foreground) focus:outline-none focus:border-(--color-fg)"
+				class="flex-1 border-2 border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-xs px-3 py-2 tracking-widest placeholder:text-(--color-muted-foreground) focus:outline-none focus:border-(--color-fg)"
 			/>
 			<button
 				onclick={runSearch}

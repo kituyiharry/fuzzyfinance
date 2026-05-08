@@ -6,7 +6,8 @@ export async function GET() {
 		apiLevel: 'v1',
 		features: {
 			salesSearch: true,
-			exports: true
+			exports: true,
+			passkeys: true
 		}
 	});
 }

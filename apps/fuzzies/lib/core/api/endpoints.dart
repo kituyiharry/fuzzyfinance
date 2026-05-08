@@ -4,7 +4,7 @@ class Endpoints {
   static String get base => AppConfig.baseUrl;
 
   // ── Auth (better-auth) ────────────────────────────────────────────────────
-  static String get signInSocial => '$base/api/auth/mobile/google';
+  static String get signInSocial => '$base/api/auth/sign-in/social';
   static String get signOut => '$base/api/auth/sign-out';
   static String get session => '$base/api/auth/get-session';
 
@@ -36,4 +36,14 @@ class Endpoints {
   static String saleReceivable(String id) => '$base/api/sales/$id/receivable';
   static String saleReceivableUpdates(String id) =>
       '$base/api/sales/$id/receivable/updates';
+
+  // ── Passkeys ──────────────────────────────────────────────────────────────
+  static String get passkeyRegisterOptions =>
+      '$base/api/auth/passkey/register-options';
+  static String get passkeyVerifyRegistration =>
+      '$base/api/auth/passkey/verify-registration';
+  static String get passkeyAuthenticateOptions =>
+      '$base/api/auth/passkey/authenticate-options';
+  static String get passkeyVerifyAuthentication =>
+      '$base/api/auth/passkey/verify-authentication';
 }

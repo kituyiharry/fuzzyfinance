@@ -25,8 +25,8 @@ class ApiClient {
         receiveTimeout: const Duration(seconds: 30),
         headers: {
           'X-App-Version': AppConfig.appVersion,
-          'X-App-Env': AppConfig.env,
-          'Accept': 'application/json',
+          'X-App-Env':     AppConfig.env,
+          'Accept':       '*/*',
         },
       ),
     );

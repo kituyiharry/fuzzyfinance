@@ -13,7 +13,8 @@
       "WebFetch(domain:docs.minizinc.dev)",
       "WebFetch(domain:www.npmjs.com)",
       "Bash(xargs cat *)",
-      "Bash(flutter analyze *)"
+      "Bash(flutter analyze *)",
+      "Bash(npx svelte-check *)"
     ]
   },
   "enableAllProjectMcpServers": true,

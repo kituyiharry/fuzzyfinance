@@ -26,7 +26,7 @@ class AuthService {
     // better-auth's social sign-in endpoint accepts the id_token directly.
     final response = await _client.dio.post<Map<String, dynamic>>(
       Endpoints.signInSocial,
-      data: {'idToken': idToken},
+      data: { 'provider': 'google', 'callbackURL': '/dashboard','idToken': { 'token': idToken} },
       options: Options(
         followRedirects: false,
         validateStatus: (s) => s != null && s < 400,

@@ -12,6 +12,8 @@ class SettingsPage extends ConsumerWidget {
     final theme = Theme.of(context);
     final ext = context.fuzzy;
     final currentTheme = ref.watch(themeProvider);
+    final capabilities = ref.watch(capabilitiesProvider);
+    final passkeysEnabled = capabilities.valueOrNull?.passkeysEnabled ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('SETTINGS')),
@@ -44,6 +46,27 @@ class SettingsPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text('ACCOUNT', style: theme.textTheme.labelLarge?.copyWith(color: ext.mutedFg)),
           ),
+          if (passkeysEnabled)
+            ListTile(
+              title: Text('REGISTER PASSKEY', style: theme.textTheme.bodyMedium),
+              trailing: Icon(Icons.fingerprint, size: 18, color: ext.mutedFg),
+              onTap: () async {
+                try {
+                  await ref.read(authProvider.notifier).registerPasskey();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Passkey registered successfully')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: ${e.toString()}')),
+                    );
+                  }
+                }
+              },
+            ),
           ListTile(
             title: Text('SIGN OUT', style: theme.textTheme.bodyMedium),
             trailing: Icon(Icons.logout, size: 18, color: ext.dangerColor),

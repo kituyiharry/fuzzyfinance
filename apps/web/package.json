@@ -25,7 +25,8 @@
 	"dependencies": {
 		"@fuzzyfinance/db": "*",
 		"@google/genai": "^1.46.0",
-		"@google/generative-ai": "^0.24.1"
+		"@google/generative-ai": "^0.24.1",
+		"@simplewebauthn/server": "^9.0.3"
 	},
 	"devDependencies": {
 		"@better-auth/cli": "~1.4.21",

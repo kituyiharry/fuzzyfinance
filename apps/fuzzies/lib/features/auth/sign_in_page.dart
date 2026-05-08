@@ -13,6 +13,10 @@ class SignInPage extends ConsumerWidget {
     final ext = context.fuzzy;
     final authAsync = ref.watch(authProvider);
 
+    final capabilities = ref.watch(capabilitiesProvider);
+    final passkeysEnabled =
+        capabilities.valueOrNull?.passkeysEnabled ?? false;
+
     final isLoading = authAsync.isLoading ||
         (authAsync.valueOrNull?.status == AuthStatus.loading);
 
@@ -85,6 +89,25 @@ class SignInPage extends ConsumerWidget {
                           isLoading ? 'SIGNING IN...' : 'CONTINUE WITH GOOGLE'),
                     ),
                   ),
+                  if (passkeysEnabled) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white54),
+                        ),
+                        onPressed: isLoading
+                            ? null
+                            : () => ref
+                                .read(authProvider.notifier)
+                                .signInWithPasskey(),
+                        icon: const Icon(Icons.fingerprint, size: 18),
+                        label: const Text('SIGN IN WITH PASSKEY'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   Text(
                     'By continuing you agree to our Terms of Service and Privacy Policy.',

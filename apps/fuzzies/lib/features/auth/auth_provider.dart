@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_service.dart';
+import '../../core/auth/passkey_service.dart';
 import '../../models/server_capabilities.dart';
 import '../home/home_provider.dart';
 
@@ -57,6 +58,27 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         AuthState(status: AuthStatus.signedOut, error: e.toString()),
       );
     }
+  }
+
+  Future<void> signInWithPasskey() async {
+    state = const AsyncLoading();
+    final client = ref.read(apiClientProvider);
+    final service = PasskeyService(client);
+    try {
+      final email = await service.authenticateWithPasskey();
+      ref.invalidate(capabilitiesProvider);
+      state = AsyncData(AuthState(status: AuthStatus.signedIn, email: email));
+    } catch (e) {
+      state = AsyncData(
+        AuthState(status: AuthStatus.signedOut, error: e.toString()),
+      );
+    }
+  }
+
+  Future<void> registerPasskey() async {
+    final client = ref.read(apiClientProvider);
+    final service = PasskeyService(client);
+    await service.registerPasskey();
   }
 
   Future<void> signOut() async {

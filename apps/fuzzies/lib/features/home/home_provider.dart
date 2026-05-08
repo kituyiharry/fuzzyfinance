@@ -312,6 +312,7 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
       Endpoints.receiptsSearch,
       data: {'query': query},
     );
+    debugPrint('[search] receipts raw response (${resp.statusCode}): ${resp.data}');
     return (resp.data ?? [])
         .map((e) => ReceiptItem(Receipt.fromJson(e as Map<String, dynamic>)))
         .toList();
@@ -323,6 +324,7 @@ class SearchNotifier extends AsyncNotifier<List<TimelineItem>> {
       Endpoints.salesSearch,
       data: {'query': query},
     );
+    debugPrint('[search] sales raw response (${resp.statusCode}): ${resp.data}');
     return (resp.data ?? [])
         .map((e) => SaleItem(Sale.fromJson(e as Map<String, dynamic>)))
         .toList();
