@@ -55,44 +55,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/receipt/:id',
         pageBuilder: (_, state) => CustomTransitionPage<void>(
           key: state.pageKey,
+          opaque: false,
           child: ReceiptDetailPage(id: state.pathParameters['id']!),
-          transitionDuration: const Duration(milliseconds: 350),
-          reverseTransitionDuration: const Duration(milliseconds: 350),
-          // transitionsBuilder: (_, animation, __, child) => FadeTransition(
-          //   opacity: CurvedAnimation(
-          //       parent: animation, curve: Curves.easeInQuart),
-          //   child: child,
-          // ),
-          transitionsBuilder: (_, animation, _, child) => 
-                SlideTransition(
-                    position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0), // Off-screen right
-                    end: Offset.zero,              // Original position
-                ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInQuad)),
-                child: Opacity(opacity: animation.value, child: child),
-          )
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
+            child: child,
+          ),
         ),
       ),
       GoRoute(
         path: '/sale/:id',
         pageBuilder: (_, state) => CustomTransitionPage<void>(
           key: state.pageKey,
+          opaque: false,
           child: SaleDetailPage(id: state.pathParameters['id']!),
-          transitionDuration: const Duration(milliseconds: 350),
-          reverseTransitionDuration: const Duration(milliseconds: 350),
-          // transitionsBuilder: (_, animation, __, child) => FadeTransition(
-          //   opacity: CurvedAnimation(
-          //       parent: animation, curve: Curves.easeIn),
-          //   child: child,
-          // ),
-          transitionsBuilder: (_, animation, __, child) => 
-                SlideTransition(
-                    position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0), // Off-screen right
-                    end: Offset.zero,              // Original position
-                ).animate(CurvedAnimation( parent: animation, curve: Curves.easeInQuad)),
-                child: Opacity(opacity: animation.value, child: child),
-            )
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
+            child: child,
+          ),
         ),
       ),
       GoRoute(path: '/settings', builder: (ctx, st) => const SettingsPage()),

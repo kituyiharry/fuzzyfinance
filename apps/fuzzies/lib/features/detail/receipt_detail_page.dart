@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -181,26 +183,39 @@ class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
               ];
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: const BackButton(),
         title: null,
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: actions,
       ),
-      body: receipt == null
-          ? async.when(
-              loading: () => const Center(
-                child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (_) => const SizedBox(),
-            )
-          : _buildContent(context, receipt),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: ColoredBox(
+              color: theme.scaffoldBackgroundColor.withValues(alpha: 0.22),
+            ),
+          ),
+          receipt == null
+              ? async.when(
+                  loading: () => const Center(
+                    child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                  data: (_) => const SizedBox(),
+                )
+              : _buildContent(context, receipt),
+        ],
+      ),
     );
   }
 
@@ -221,7 +236,13 @@ class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
         receipt.errorMessage?.startsWith('AUTH_REQUIRED:') ?? false;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(0, 4, 4, 32),
+      physics: ClampingScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        MediaQuery.of(context).padding.top + kToolbarHeight + 4,
+        4,
+        32,
+      ),
       children: [
         if (isAuthError)
           _AuthRequiredBanner(margin: const EdgeInsets.fromLTRB(16, 4, 16, 0)),
