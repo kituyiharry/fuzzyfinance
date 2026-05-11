@@ -10,7 +10,7 @@ export async function indexReceipt(env, receipt) {
 
 	// Generate embedding via Workers AI
 	/** @type {{ data: number[][] }} */
-	const embeddingResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+	const embeddingResult = await env.AI.run('@cf/google/embeddinggemma-300m', {
 		text: [text]
 	});
 
@@ -47,7 +47,7 @@ export async function indexReceipt(env, receipt) {
  */
 export async function searchReceipts(env, userId, query, topK = 10) {
 	/** @type {{ data: number[][] }} */
-	const embeddingResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+	const embeddingResult = await env.AI.run('@cf/google/embeddinggemma-300m', {
 		text: [query]
 	});
 
@@ -89,7 +89,7 @@ export async function indexSale(env, sale) {
 	const text = _buildSaleIndexText(sale);
 
 	/** @type {{ data: number[][] }} */
-	const embeddingResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+	const embeddingResult = await env.AI.run('@cf/google/embeddinggemma-300m', {
 		text: [text]
 	});
 
@@ -127,7 +127,7 @@ export async function indexSale(env, sale) {
  */
 export async function searchSales(env, userId, query, topK = 10) {
 	/** @type {{ data: number[][] }} */
-	const embeddingResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+	const embeddingResult = await env.AI.run('@cf/google/embeddinggemma-300m', {
 		text: [query]
 	});
 
