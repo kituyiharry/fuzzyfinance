@@ -55,7 +55,7 @@
 	);
 </script>
 
-<div class="flex flex-1 overflow-hidden bg-(--color-bg) text-(--color-fg)">
+<div class="flex h-screen overflow-hidden bg-(--color-bg) text-(--color-fg)">
 	<!-- Sidebar -->
 	<aside class="flex-col border-r-2 border-(--color-border) bg-(--color-bg) shrink-0
 		{sidebarOpen ? 'fixed inset-y-0 left-0 z-50 flex w-72' : 'hidden md:flex md:w-56 md:relative md:shrink-0'}">
