@@ -35,7 +35,7 @@ const EXTRACTION_SCHEMA = {
 	properties: {
 		relevant: {
 			type: SchemaType.BOOLEAN,
-			description: 'true if this document is a sales-related record — including: sales invoices, sales orders, purchase orders, revenue records, shift reports, end-of-day reports, daily sales summaries, cash register/till reports, and POS summary reports. false if it is something else entirely (e.g. an ID card, personal photo, non-financial document, or a purchase receipt for expenses rather than sales).'
+			description: 'true if this document is a revenue record — including: sales invoices, revenue invoices, sales orders, purchase orders, income records, shift reports, end-of-day reports, daily sales/revenue summaries, cash register/till reports, and POS summary reports. false if it is something else entirely (e.g. an ID card, personal photo, non-financial document, or an expense receipt for money paid out rather than income received).'
 		},
 		relevanceReason: {
 			type: SchemaType.STRING,
@@ -123,9 +123,9 @@ const EXTRACTION_SCHEMA = {
 	required: ['relevant', 'date', 'totalRevenue', 'currency', 'category', 'lineItems']
 };
 
-const SYSTEM_PROMPT = `You are a sales document extraction assistant.
+const SYSTEM_PROMPT = `You are a revenue document extraction assistant.
 
-First, determine whether the provided document is a sales-related record. This includes: sales invoices, sales orders, purchase orders, revenue records, shift reports, end-of-day reports, daily sales summaries, cash register/till reports, and POS summary reports. If it is NOT (e.g. it is a personal expense receipt, ID card, personal photo, blank page, or any non-sales document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
+First, determine whether the provided document is a revenue record. This includes: sales invoices, revenue invoices, sales orders, purchase orders, income records, shift reports, end-of-day reports, daily sales/revenue summaries, cash register/till reports, and POS summary reports. If it is NOT (e.g. it is a personal expense receipt, ID card, personal photo, blank page, or any non-revenue document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
 
 If it IS a sales document, set relevant to true, relevanceReason to empty string, and extract all financial data. Return only valid JSON matching the schema.
 

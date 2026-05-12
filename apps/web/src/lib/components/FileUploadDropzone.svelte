@@ -53,7 +53,7 @@
 <div
 	role="button"
 	tabindex={disabled ? -1 : 0}
-	aria-label="Upload receipt file"
+	aria-label="Upload document file"
 	class="relative border-2 border-dashed p-10 flex flex-col items-center justify-center gap-4 transition-all select-none
 		{isDragging
 			? 'border-(--color-fg) bg-(--color-muted)'

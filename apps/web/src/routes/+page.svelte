@@ -13,7 +13,7 @@
 	};
 
 	const STATS = [
-		{ label: 'RECEIPTS PROCESSED',  value: '>10' },
+		{ label: 'DOCUMENTS PROCESSED',  value: '>10' },
 		{ label: 'TOTAL TRACKED',       value: '>2000'  },
 		{ label: 'EXPORTS GENERATED',   value: '>3'  },
 		{ label: 'UPTIME',              value: '99.9%'  },
@@ -44,7 +44,7 @@
 				Fuzzy<br/>Finance
 			</h1>
 			<p class="font-mono text-xs mt-5 opacity-60 max-w-xs leading-relaxed uppercase tracking-wider">
-				Autonomous receipt intelligence and financial operations platform.
+				Autonomous expense and revenue intelligence platform.
 			</p>
 		</div>
 

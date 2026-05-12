@@ -112,7 +112,7 @@
 	}
 
 	async function deleteSale() {
-		if (!await showConfirm('Delete this sale? This cannot be undone.', { variant: 'danger' })) return;
+		if (!await showConfirm('Delete this revenue document? This cannot be undone.', { variant: 'danger' })) return;
 		deleting = true;
 		try {
 			const res = await fetch(`/api/sales/${sale.id}`, { method: 'DELETE' });
@@ -136,7 +136,7 @@
 	}
 
 	async function doCommit() {
-		if (!await showConfirm('Commit this sale to cloud storage? This cannot be undone.')) return;
+		if (!await showConfirm('Commit this revenue document to cloud storage? This cannot be undone.')) return;
 		committing = true;
 		try {
 			const res = await fetch(`/api/sales/${sale.id}/commit`, { method: 'POST' });
@@ -145,7 +145,7 @@
 	}
 
 	async function doAbort() {
-		if (!await showConfirm('Discard this sale? It will be permanently deleted.', { variant: 'danger' })) return;
+		if (!await showConfirm('Discard this revenue document? It will be permanently deleted.', { variant: 'danger' })) return;
 		aborting = true;
 		try {
 			const res = await fetch(`/api/sales/${sale.id}/abort`, { method: 'POST' });
@@ -249,14 +249,14 @@
 </script>
 
 <svelte:head>
-	<title>{sale.documentTitle ?? 'Sale'} | FuzzyFinance</title>
+	<title>{sale.documentTitle ?? 'Revenue'} | FuzzyFinance</title>
 </svelte:head>
 
 <div class="max-w-3xl mx-auto flex flex-col gap-6">
 	<!-- Header row -->
 	<div class="flex items-center justify-between gap-4 flex-wrap">
 		<a href="/dashboard/sales" class="font-mono text-[10px] uppercase font-black text-(--color-muted-foreground) no-underline hover:text-(--color-fg) transition-colors">
-			← ALL SALES
+			← ALL REVENUE
 		</a>
 		<div class="flex items-center gap-3 flex-wrap">
 			<ReceiptStatusBadge status={sale.status} />
@@ -330,7 +330,7 @@
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
 				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A SALES RECORD</span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A REVENUE RECORD</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
 				{sale.errorMessage.replace('NOT_RELEVANT:', '').trim()}

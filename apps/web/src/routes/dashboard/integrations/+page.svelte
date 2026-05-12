@@ -73,7 +73,7 @@
 			name: 'Google Workspace',
 			description: 'Connect Google Drive for receipt storage and Google Sheets for ledger sync.',
 			capabilities: [
-				'Receipt upload to Google Drive',
+				'Expense document upload to Google Drive',
 				'Spreadsheet creation & update via Sheets API'
 			],
 			badge: 'G'
@@ -83,7 +83,7 @@
 			name: 'Microsoft 365',
 			description: 'Connect OneDrive for receipt storage and Excel Online for spreadsheet automation.',
 			capabilities: [
-				'Receipt upload to OneDrive',
+				'Expense document upload to OneDrive',
 				'Workbook creation & update via Excel Graph API'
 			],
 			badge: 'M'

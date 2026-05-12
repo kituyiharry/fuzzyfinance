@@ -26,7 +26,7 @@
 			<EmptyState
 				message="No exports yet"
 				submessage="Select receipts from the receipts page and click Export to generate a CSV."
-				ctaLabel="Go to Receipts"
+				ctaLabel="Go to Expenses"
 				ctaHref={resolve("/dashboard/receipts")}
 			/>
 		{:else}
@@ -34,7 +34,7 @@
 				<table class="w-full text-left border-collapse">
 					<thead>
 						<tr class="border-b-2 border-(--color-border)">
-							{#each ['Created', 'File', 'Receipts', 'Rows', ''] as col (col)}
+							{#each ['Created', 'File', 'Expenses', 'Rows', ''] as col (col)}
 								<th class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) pb-2 pr-4 font-bold">{col}</th>
 							{/each}
 						</tr>

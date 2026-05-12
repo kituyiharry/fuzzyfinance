@@ -170,7 +170,7 @@
 				bind:value={queryInput}
 				onkeydown={handleKeydown}
 				rows={2}
-				placeholder="Ask anything about your receipts or sales — e.g. 'How much revenue did I generate last month?'"
+				placeholder="Ask anything about your expenses or revenue — e.g. 'How much revenue did I generate last month?'"
 				class="flex-1 resize-none border-2 border-(--color-border) border-r-0 bg-(--color-bg) text-(--color-fg) font-mono text-[11px] px-4 py-3 placeholder:text-(--color-muted-foreground) focus:outline-none focus:border-(--color-fg) transition-colors"
 				disabled={querying}
 			></textarea>
@@ -204,7 +204,7 @@
 		<MetricCard
 			label="Storage Used"
 			value={formatBytes(data.totalStorageBytes)}
-			sublabel="receipts + sales"
+			sublabel="expenses + revenue"
 		/>
 
 		<!-- Daily uploads card — two progress bars (receipts / sales) -->
@@ -213,10 +213,10 @@
 				Today's Uploads
 			</span>
 
-			<!-- Receipts row -->
+			<!-- Expenses row -->
 			<div class="flex flex-col gap-1">
 				<div class="flex items-center justify-between">
-					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">Receipts</span>
+					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">Expenses</span>
 					<span class="font-mono text-[9px] font-black {receiptLimitNearOrReached ? 'text-(--color-warning)' : 'text-(--color-fg)'}">
 						{data.todayCount} / {data.dailyLimit}
 					</span>
@@ -229,10 +229,10 @@
 				</div>
 			</div>
 
-			<!-- Sales row -->
+			<!-- Revenue row -->
 			<div class="flex flex-col gap-1">
 				<div class="flex items-center justify-between">
-					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">Sales</span>
+					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">Revenue</span>
 					<span class="font-mono text-[9px] font-black {salesLimitNearOrReached ? 'text-(--color-warning)' : 'text-(--color-fg)'}">
 						{data.salesTodayCount} / {data.dailyLimit}
 					</span>
@@ -247,10 +247,10 @@
 		</div>
 	</div>
 
-	<!-- Receipt staging panel -->
+	<!-- Expense staging panel -->
 	{#if data.stagedCount > 0 || data.editedCount > 0}
 		<div>
-			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Receipts — Pending Review</p>
+			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Expenses — Pending Review</p>
 			<div class="grid grid-cols-3 gap-3">
 				<MetricCard label="Staged"    value={data.stagedCount}    sublabel="awaiting review"     accent={data.stagedCount > 0} />
 				<MetricCard label="Edited"    value={data.editedCount}    sublabel="AI corrections made" />
@@ -259,10 +259,10 @@
 		</div>
 	{/if}
 
-	<!-- Sales staging panel -->
+	<!-- Revenue staging panel -->
 	{#if data.salesStagedCount > 0 || data.salesEditedCount > 0}
 		<div>
-			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Sales — Pending Review</p>
+			<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Revenue — Pending Review</p>
 			<div class="grid grid-cols-3 gap-3">
 				<MetricCard label="Staged"    value={data.salesStagedCount}    sublabel="awaiting review"     accent={data.salesStagedCount > 0} />
 				<MetricCard label="Edited"    value={data.salesEditedCount}    sublabel="AI corrections made" />
@@ -273,10 +273,10 @@
 
 	<!-- Spending charts -->
 	<div>
-		<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Spending — Receipts</p>
+		<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Spending — Expenses</p>
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-			<Card title="Spending by Receipt Date">
-				<SpendingChart data={data.spendingByReceiptDate} label="Amount (receipt date)" />
+			<Card title="Spending by Expense Date">
+				<SpendingChart data={data.spendingByReceiptDate} label="Amount (expense date)" />
 			</Card>
 			<Card title="Spending by Upload Date">
 				<SpendingChart data={data.spendingByProcessingDate} label="Amount (uploaded)" />
@@ -286,10 +286,10 @@
 
 	<!-- Revenue charts -->
 	<div>
-		<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Revenue — Sales</p>
+		<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) font-bold mb-2">Revenue</p>
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-			<Card title="Revenue by Sale Date">
-				<SpendingChart data={data.revenueByDate} label="Revenue (sale date)" />
+			<Card title="Revenue by Document Date">
+				<SpendingChart data={data.revenueByDate} label="Revenue (document date)" />
 			</Card>
 			<Card title="Revenue by Upload Date">
 				<SpendingChart data={data.revenueByProcessingDate} label="Revenue (uploaded)" />
@@ -305,7 +305,7 @@
 				{data.integrationStatus === 'none' ? 'opacity-50 pointer-events-none' : ''}"
 		>
 			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg)">
-				Upload Receipt →
+				Upload Expense →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
 				{data.integrationStatus === 'none'
@@ -321,7 +321,7 @@
 			class="border-2 border-(--color-border) p-5 no-underline group transition-all hover:border-(--color-fg) hover:shadow-(--shadow-sm)"
 		>
 			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg)">
-				View All Receipts →
+				View All Expenses →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
 				{data.successCount} committed · {data.stagedCount} staged · {data.failedCount} failed
@@ -334,7 +334,7 @@
 				{data.integrationStatus === 'none' ? 'opacity-50 pointer-events-none' : ''}"
 		>
 			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg)">
-				Upload Sale →
+				Upload Revenue →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
 				{data.integrationStatus === 'none'
@@ -350,7 +350,7 @@
 			class="border-2 border-(--color-border) p-5 no-underline group transition-all hover:border-(--color-fg) hover:shadow-(--shadow-sm)"
 		>
 			<p class="font-black text-xs uppercase tracking-widest text-(--color-fg)">
-				View All Sales →
+				View All Revenue →
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1.5">
 				{data.salesSuccessCount} committed · {data.salesStagedCount} staged · {data.salesFailedCount} failed

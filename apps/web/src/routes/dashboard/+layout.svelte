@@ -29,8 +29,8 @@
 
 	const NAV = [
 		{ href: '/dashboard',                   label: 'Overview',       /** @param {string} p */ match: (p) => p === '/dashboard' },
-		{ href: '/dashboard/receipts',          label: 'Receipts',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
-		{ href: '/dashboard/sales',             label: 'Sales',          /** @param {string} p */ match: (p) => p.startsWith('/dashboard/sales') },
+		{ href: '/dashboard/receipts',          label: 'Expenses',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
+		{ href: '/dashboard/sales',             label: 'Revenue',          /** @param {string} p */ match: (p) => p.startsWith('/dashboard/sales') },
 		{ href: '/dashboard/exports',           label: 'Exports',        /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
 		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
 		{ href: '/dashboard/announcements',     label: 'Announcements',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/announcements') },
@@ -40,8 +40,8 @@
 	/** @type {Record<string, { title: string; sub: string }>} */
 	const PAGE_TITLES = {
 		'/dashboard':                   { title: 'Overview',       sub: 'Financial control centre' },
-		'/dashboard/receipts':          { title: 'Receipts',       sub: 'Manage and review receipts' },
-		'/dashboard/sales':             { title: 'Sales',          sub: 'Track sales and revenue documents' },
+		'/dashboard/receipts':          { title: 'Expenses',       sub: 'Manage and review expense documents' },
+		'/dashboard/sales':             { title: 'Revenue',        sub: 'Track revenue documents' },
 		'/dashboard/exports':           { title: 'Exports',        sub: 'Download CSV reports' },
 		'/dashboard/integrations':      { title: 'Integrations',   sub: 'Cloud workspace connections' },
 		'/dashboard/announcements':     { title: 'Announcements',  sub: 'Platform updates and notices' },

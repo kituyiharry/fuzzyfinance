@@ -117,7 +117,7 @@
 	}
 
 	async function deleteReceipt() {
-		if (!await showConfirm('Delete this receipt? This cannot be undone.', { variant: 'danger' })) return;
+		if (!await showConfirm('Delete this expense? This cannot be undone.', { variant: 'danger' })) return;
 		deleting = true;
 		try {
 			const res = await fetch(`/api/receipts/${receipt.id}`, { method: 'DELETE' });
@@ -141,7 +141,7 @@
 	}
 
 	async function doCommit() {
-		if (!await showConfirm('Commit this receipt to cloud storage? This cannot be undone.')) return;
+		if (!await showConfirm('Commit this expense to cloud storage? This cannot be undone.')) return;
 		committing = true;
 		try {
 			const res = await fetch(`/api/receipts/${receipt.id}/commit`, { method: 'POST' });
@@ -150,7 +150,7 @@
 	}
 
 	async function doAbort() {
-		if (!await showConfirm('Discard this receipt? It will be permanently deleted.', { variant: 'danger' })) return;
+		if (!await showConfirm('Discard this expense? It will be permanently deleted.', { variant: 'danger' })) return;
 		aborting = true;
 		try {
 			const res = await fetch(`/api/receipts/${receipt.id}/abort`, { method: 'POST' });
@@ -244,14 +244,14 @@
 </script>
 
 <svelte:head>
-	<title>{receipt.merchantName ?? 'Receipt'} | FuzzyFinance</title>
+	<title>{receipt.merchantName ?? 'Expense'} | FuzzyFinance</title>
 </svelte:head>
 
 <div class="max-w-3xl mx-auto flex flex-col gap-6">
 	<!-- Header row -->
 	<div class="flex items-center justify-between gap-4 flex-wrap">
 		<a href="/dashboard/receipts" class="font-mono text-[10px] uppercase font-black text-(--color-muted-foreground) no-underline hover:text-(--color-fg) transition-colors">
-			← ALL RECEIPTS
+			← ALL EXPENSES
 		</a>
 		<div class="flex items-center gap-3 flex-wrap">
 			<ReceiptStatusBadge status={receipt.status} />
@@ -325,7 +325,7 @@
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
 				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A RECEIPT</span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS AN EXPENSE DOCUMENT</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
 				{receipt.errorMessage.replace('NOT_RELEVANT:', '').trim()}
@@ -343,7 +343,7 @@
 				</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				This receipt shows signals that may indicate it was digitally generated or altered. Please verify before committing.
+				This expense document shows signals that may indicate it was digitally generated or altered. Please verify before committing.
 			</p>
 			{#if authSignals.length}
 				<ul class="pl-4 flex flex-col gap-0.5">
@@ -359,10 +359,10 @@
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
 				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">POSSIBLE DUPLICATE RECEIPT</span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">POSSIBLE DUPLICATE EXPENSE</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				This receipt may be a duplicate — it shares a receipt or invoice number with an existing entry.
+				This expense may be a duplicate — it shares an expense or invoice number with an existing entry.
 			</p>
 			<div class="pl-4 mt-1">
 				<a href="/dashboard/receipts/{receipt.duplicateOf}"
@@ -389,7 +389,7 @@
 
 	<!-- INFO tab -->
 	{#if activeTab === 'info'}
-		<Card title={editing ? 'Edit Receipt' : (receipt.merchantName ?? 'Receipt')}>
+		<Card title={editing ? 'Edit Expense' : (receipt.merchantName ?? 'Expense')}>
 			{#if editing && receipt.status === 'staged'}
 				<div class="grid grid-cols-2 gap-x-8 gap-y-4">
 					{#each [

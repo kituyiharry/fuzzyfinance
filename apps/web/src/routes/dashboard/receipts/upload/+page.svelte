@@ -135,7 +135,7 @@
 </script>
 
 <svelte:head>
-	<title>Upload Receipt | FuzzyFinance</title>
+	<title>Upload Expense | FuzzyFinance</title>
 </svelte:head>
 
 <div class="max-w-2xl mx-auto flex flex-col gap-6">
@@ -152,7 +152,7 @@
 				</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				You have uploaded {data.todayCount} of {data.dailyLimit} receipts today. The limit resets at midnight UTC.
+				You have uploaded {data.todayCount} of {data.dailyLimit} expense documents today. The limit resets at midnight UTC.
 			</p>
 		</div>
 	{:else if data.todayCount >= data.dailyLimit * 0.8}
@@ -171,7 +171,7 @@
 				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">FILE ALREADY UPLOADED</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				This exact file or a similar file has already been uploaded. View the existing receipt or upload anyway.
+				This exact file or a similar file has already been uploaded. View the existing expense or upload anyway.
 			</p>
 			<div class="pl-4 flex gap-3 mt-1">
 				<a
@@ -190,9 +190,9 @@
 		</div>
 	{/if}
 
-	<Card title="Upload Receipt Document">
+	<Card title="Upload Expense Document">
 		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-6">
-			UPLOAD AN IMAGE, SCREENSHOT OR PDF OF YOUR RECEIPT. THE DOCUMENT WILL BE PROCESSED BY AI TO EXTRACT
+			UPLOAD AN IMAGE, SCREENSHOT OR PDF OF YOUR EXPENSE DOCUMENT. THE DOCUMENT WILL BE PROCESSED BY AI TO EXTRACT
 			FINANCIAL DATA AND SYNCED TO YOUR CONNECTED CLOUD INTEGRATIONS.
 		</p>
 
@@ -212,7 +212,7 @@
 						disabled={uploadBlocked || stage === 'uploading'}
 						class="btn-primary text-xs font-black uppercase tracking-widest disabled:opacity-50"
 					>
-						{stage === 'uploading' ? 'UPLOADING...' : 'PROCESS RECEIPT'}
+						{stage === 'uploading' ? 'UPLOADING...' : 'PROCESS EXPENSE'}
 					</button>
 				</div>
 			{/if}
@@ -225,10 +225,10 @@
 					<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A RECEIPT</span>
 				</div>
 				<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-					{errorMsg?.replace('NOT_RELEVANT:', '').trim() ?? 'The uploaded document does not appear to be a receipt, invoice, or expense record.'}
+					{errorMsg?.replace('NOT_RELEVANT:', '').trim() ?? 'The uploaded document does not appear to be an expense, invoice, or bill.'}
 				</p>
 				<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-					Please upload a receipt, invoice, bill, or similar expense document.
+					Please upload an expense receipt, invoice, bill, or similar expense document.
 				</p>
 				<div class="pl-4 flex gap-3 mt-1">
 					<button

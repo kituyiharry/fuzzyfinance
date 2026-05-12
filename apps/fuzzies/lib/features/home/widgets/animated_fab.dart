@@ -164,25 +164,25 @@ class _AnimatedFabState extends ConsumerState<AnimatedFab>
     final actions = [
       _FabAction(
         icon: Icons.camera_alt,
-        label: 'RECEIPT PHOTO',
+        label: 'EXPENSE PHOTO',
         onTap: () => _handleUpload(_UploadKind.receiptCamera),
         color: ext.infoColor,
       ),
       _FabAction(
         icon: Icons.upload_file,
-        label: 'RECEIPT FILE',
+        label: 'EXPENSE FILE',
         onTap: () => _handleUpload(_UploadKind.receiptFile),
         color: ext.infoColor,
       ),
       _FabAction(
         icon: Icons.camera_enhance,
-        label: 'SALE PHOTO',
+        label: 'REVENUE PHOTO',
         onTap: () => _handleUpload(_UploadKind.saleCamera),
         color: ext.successColor,
       ),
       _FabAction(
         icon: Icons.attach_money,
-        label: 'SALE FILE',
+        label: 'REVENUE FILE',
         onTap: () => _handleUpload(_UploadKind.saleFile),
         color: ext.successColor,
       ),

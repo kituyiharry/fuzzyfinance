@@ -124,7 +124,7 @@
 </script>
 
 <svelte:head>
-	<title>Receipts | FuzzyFinance</title>
+	<title>Expenses | FuzzyFinance</title>
 </svelte:head>
 
 <div class="flex flex-col gap-6 max-w-5xl mx-auto">
@@ -133,7 +133,7 @@
 		<div class="flex-1 flex gap-2">
 			<input
 				type="text"
-				placeholder="SEARCH RECEIPTS..."
+				placeholder="SEARCH EXPENSES..."
 				bind:value={searchQuery}
 				onkeydown={(e) => e.key === 'Enter' && runSearch()}
 				class="flex-1 border-2 border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-xs px-3 py-2 tracking-widest placeholder:text-(--color-muted-foreground) focus:outline-none focus:border-(--color-fg)"
@@ -157,7 +157,7 @@
 					href="/dashboard/receipts/upload"
 					class="btn-primary text-xs font-black uppercase tracking-widest no-underline px-4 py-2 inline-flex items-center"
 				>
-					+ UPLOAD RECEIPT
+					+ UPLOAD EXPENSE
 				</a>
 			{/if}
 		</div>
@@ -275,11 +275,11 @@
 		{/if}
 	</div>
 
-	<Card title="Receipts ({data.total})">
+	<Card title="Expenses ({data.total})">
 		{#if data.receipts.length === 0}
 			<div class="py-12 text-center">
 				<p class="font-mono text-xs uppercase text-(--color-muted-foreground)">
-					{activeFilterCount > 0 ? 'NO MATCHING RECEIPTS FOUND.' : 'NO RECEIPTS YET. UPLOAD YOUR FIRST RECEIPT TO GET STARTED.'}
+					{activeFilterCount > 0 ? 'NO MATCHING EXPENSES FOUND.' : 'NO EXPENSES YET. UPLOAD YOUR FIRST EXPENSE DOCUMENT TO GET STARTED.'}
 				</p>
 				{#if activeFilterCount > 0}
 					<button onclick={clearAll} class="inline-block mt-4 font-black text-xs uppercase tracking-widest underline text-(--color-fg)">
@@ -287,7 +287,7 @@
 					</button>
 				{:else}
 					<a href="/dashboard/receipts/upload" class="inline-block mt-4 font-black text-xs uppercase tracking-widest underline text-(--color-fg)">
-						Upload Receipt →
+						Upload Expense →
 					</a>
 				{/if}
 			</div>

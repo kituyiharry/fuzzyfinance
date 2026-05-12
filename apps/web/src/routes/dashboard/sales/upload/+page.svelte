@@ -129,7 +129,7 @@
 </script>
 
 <svelte:head>
-	<title>Upload Sale | FuzzyFinance</title>
+	<title>Upload Revenue | FuzzyFinance</title>
 </svelte:head>
 
 <div class="max-w-2xl mx-auto flex flex-col gap-6">
@@ -145,7 +145,7 @@
 				</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				You have uploaded {data.todayCount} of {data.dailyLimit} sales documents today. The limit resets at midnight UTC.
+				You have uploaded {data.todayCount} of {data.dailyLimit} revenue documents today. The limit resets at midnight UTC.
 			</p>
 		</div>
 	{:else if data.todayCount >= data.dailyLimit * 0.8}
@@ -164,7 +164,7 @@
 				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">FILE ALREADY UPLOADED</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				This exact file or a similar file has already been uploaded. View the existing sale or upload anyway.
+				This exact file or a similar file has already been uploaded. View the existing revenue document or upload anyway.
 			</p>
 			<div class="pl-4 flex gap-3 mt-1">
 				<a
@@ -183,9 +183,9 @@
 		</div>
 	{/if}
 
-	<Card title="Upload Sales Document">
+	<Card title="Upload Revenue Document">
 		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-6">
-			UPLOAD AN IMAGE, SCREENSHOT OR PDF OF YOUR SALES DOCUMENT. THE DOCUMENT WILL BE SYNCED TO YOUR CONNECTED CLOUD INTEGRATIONS.
+			UPLOAD AN IMAGE, SCREENSHOT OR PDF OF YOUR REVENUE DOCUMENT. THE DOCUMENT WILL BE PROCESSED BY AI TO EXTRACT FINANCIAL DATA AND SYNCED TO YOUR CONNECTED CLOUD INTEGRATIONS.
 		</p>
 
 		{#if stage === 'idle' || stage === 'uploading'}
@@ -204,7 +204,7 @@
 						disabled={uploadBlocked || stage === 'uploading'}
 						class="btn-primary text-xs font-black uppercase tracking-widest disabled:opacity-50"
 					>
-						{stage === 'uploading' ? 'UPLOADING...' : 'PROCESS SALE'}
+						{stage === 'uploading' ? 'UPLOADING...' : 'PROCESS REVENUE DOC'}
 					</button>
 				</div>
 			{/if}
@@ -217,10 +217,10 @@
 				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A SALES RECORD</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				{errorMsg?.replace('NOT_RELEVANT:', '').trim() ?? 'The uploaded document does not appear to be a sales report, invoice, or revenue document.'}
+				{errorMsg?.replace('NOT_RELEVANT:', '').trim() ?? 'The uploaded document does not appear to be a revenue record, invoice, or income document.'}
 			</p>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				Please upload a sales invoice, sales order, revenue report, or similar financial document.
+				Please upload a revenue document, sales invoice, income report, or similar financial document.
 			</p>
 			<div class="pl-4 flex gap-3 mt-1">
 				<button

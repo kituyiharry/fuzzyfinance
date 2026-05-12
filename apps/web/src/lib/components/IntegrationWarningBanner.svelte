@@ -7,12 +7,12 @@
 	const MESSAGE = {
 		none: {
 			headline: 'NO CLOUD INTEGRATION CONNECTED',
-			body: 'Receipts cannot be uploaded or synced until you connect at least one cloud workspace provider.',
+			body: 'Expense documents cannot be uploaded or synced until you connect at least one cloud workspace provider.',
 			cta: 'Connect an Integration →'
 		},
 		all_expired: {
 			headline: 'INTEGRATION TOKENS EXPIRED',
-			body: 'Your connected integration credentials have expired. Re-authorize to resume receipt uploads and sync.',
+			body: 'Your connected integration credentials have expired. Re-authorize to resume expense document uploads and sync.',
 			cta: 'Re-authorize →'
 		}
 	};

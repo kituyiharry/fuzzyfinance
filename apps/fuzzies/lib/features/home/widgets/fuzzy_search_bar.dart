@@ -47,7 +47,7 @@ class _FuzzySearchBarState extends ConsumerState<FuzzySearchBar> {
         onChanged: _onChanged,
         style: theme.textTheme.bodyMedium,
         decoration: InputDecoration(
-          hintText: 'SEARCH RECEIPTS & SALES',
+          hintText: 'SEARCH EXPENSES & REVENUE',
           prefixIcon: Icon(Icons.search, size: 20, color: theme.colorScheme.onSurface),
           suffixIcon: _active
               ? IconButton(

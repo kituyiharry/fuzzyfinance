@@ -32,7 +32,7 @@ const EXTRACTION_SCHEMA = {
 	properties: {
 		relevant: {
 			type: SchemaType.BOOLEAN,
-			description: 'true if this document is a receipt, invoice, bill, or expense record. false if it is something else entirely (e.g. an ID card, personal photo, blank page, social media screenshot, or unrelated document).'
+			description: 'true if this document is an expense record — including receipts, invoices, bills, purchase records, or any document showing money paid out. false if it is something else entirely (e.g. an ID card, personal photo, blank page, social media screenshot, or unrelated document).'
 		},
 		relevanceReason: {
 			type: SchemaType.STRING,
@@ -81,9 +81,9 @@ const EXTRACTION_SCHEMA = {
 	required: ['relevant', 'merchant', 'date', 'total', 'currency', 'lineItems', 'authenticityRisk', 'authenticitySignals']
 };
 
-const SYSTEM_PROMPT = `You are a receipt data extraction assistant.
+const SYSTEM_PROMPT = `You are an expense document extraction assistant.
 
-First, determine whether the provided document is a receipt, invoice, bill, or expense record. If it is NOT (e.g. it is an ID card, passport, personal photo, screenshot of a social media post, blank page, or any non-financial document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
+First, determine whether the provided document is an expense document — this includes receipts, invoices, bills, purchase records, or any other record of money paid out. If it is NOT (e.g. it is an ID card, passport, personal photo, screenshot of a social media post, blank page, or any non-financial document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
 
 If it IS a financial/receipt document, set relevant to true, relevanceReason to empty string, and extract all information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array. For tags, infer up to 5 short lowercase keyword tags. For receiptNumber, extract any printed receipt number, transaction reference, confirmation code, or order number. For invoiceNumber, extract any printed invoice or bill number. Use empty strings if not visible.
 
