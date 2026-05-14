@@ -1,9 +1,7 @@
 <script>
 	import Card from '$lib/components/Card.svelte';
-	import ReceiptStatusBadge from '$lib/components/ReceiptStatusBadge.svelte';
 	import FileUploadDropzone from '$lib/components/FileUploadDropzone.svelte';
 	import IntegrationWarningBanner from '$lib/components/IntegrationWarningBanner.svelte';
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
 	/** @type {{ data: import('./$types').PageData }} */
@@ -13,119 +11,176 @@
 		data.integrationStatus === 'none' || data.todayCount >= data.dailyLimit
 	);
 
-	/** @type {File | null} */
-	let selectedFile = $state(null);
+	/**
+	 * @typedef {{
+	 *   id:          string;
+	 *   file:        File;
+	 *   stage:       'queued' | 'uploading' | 'processing' | 'complete' | 'failed' | 'not_relevant' | 'duplicate';
+	 *   docId:       string | null;
+	 *   pollData:    { status: string; documentTitle?: string|null; totalRevenue?: string|null; currency?: string|null } | null;
+	 *   error:       string | null;
+	 *   duplicateId: string | null;
+	 *   forced:      boolean;
+	 * }} QueueItem
+	 */
 
-	/** @type {'idle' | 'uploading' | 'processing' | 'complete' | 'failed' | 'not_relevant'} */
-	let stage = $state('idle');
+	/** @type {QueueItem[]} */
+	let queue = $state([]);
+	let running = $state(false);
+	let truncatedCount = $state(0);
 
-	/** @type {string | null} */
-	let saleId = $state(null);
+	// Items that have consumed or will consume a daily slot (excludes duplicates rejected by server)
+	const submittedCount = $derived(queue.filter(q => q.stage !== 'duplicate').length);
+	const remaining = $derived(Math.max(0, data.dailyLimit - data.todayCount - submittedCount));
 
-	/** @type {string | null} */
-	let errorMsg = $state(null);
+	const completedCount = $derived(
+		queue.filter(q => ['complete', 'failed', 'not_relevant', 'duplicate'].includes(q.stage)).length
+	);
+	const successCount = $derived(queue.filter(q => q.stage === 'complete').length);
+	const progress = $derived(queue.length > 0 ? Math.round(completedCount / queue.length * 100) : 0);
+	const allDone = $derived(queue.length > 0 && completedCount === queue.length);
+	const hasActive = $derived(queue.some(q => q.stage === 'uploading' || q.stage === 'processing'));
+	const hasQueued = $derived(queue.some(q => q.stage === 'queued'));
 
-	/** @type {{ status: string; documentTitle?: string | null; totalRevenue?: string | null; currency?: string | null } | null} */
-	let pollData = $state(null);
+	$effect(() => {
+		if (!hasActive) return;
+		/** @param {BeforeUnloadEvent} e */
+		const handler = (e) => {
+			e.preventDefault();
+			e.returnValue = '';
+		};
+		window.addEventListener('beforeunload', handler);
+		return () => window.removeEventListener('beforeunload', handler);
+	});
 
-	/** @type {string | null} */
-	let duplicateSaleId = $state(null);
+	const TERMINAL = new Set(['complete', 'complete_no_sync', 'staged', 'failed']);
 
-	/** @type {boolean} */
-	let forceUpload = $state(false);
+	/** @param {number} ms */
+	const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-	/** @type {ReturnType<typeof setInterval> | null} */
-	let pollInterval = $state(null);
-
-	const TERMINAL_STATUSES = new Set(['complete', 'complete_no_sync', 'failed']);
-
-	/** @param {File} file */
-	function handleFile(file) {
-		if (uploadBlocked) return;
-		selectedFile = file;
-		stage    = 'idle';
-		errorMsg = null;
-		pollData = null;
-		saleId   = null;
+	/** @param {string} id @param {Partial<QueueItem>} updates */
+	function patchItem(id, updates) {
+		const idx = queue.findIndex(q => q.id === id);
+		if (idx !== -1) queue[idx] = { ...queue[idx], ...updates };
 	}
 
-	async function upload() {
-		if (!selectedFile || uploadBlocked) return;
-		stage    = 'uploading';
-		errorMsg = null;
-		duplicateSaleId = null;
+	/** @param {File[]} files */
+	function addFiles(files) {
+		if (uploadBlocked) return;
+		const slots = remaining;
+		const accepted = files.slice(0, slots);
+		truncatedCount = files.length - accepted.length;
+		if (!accepted.length) return;
+		/** @type {QueueItem[]} */
+		const items = accepted.map(f => ({
+			id: crypto.randomUUID(),
+			file: f,
+			stage: 'queued',
+			docId: null,
+			pollData: null,
+			error: null,
+			duplicateId: null,
+			forced: false
+		}));
+		queue = [...queue, ...items];
+	}
+
+	/** @returns {Promise<void>} */
+	async function runQueue() {
+		running = true;
+		try {
+			let next;
+			while ((next = queue.find(q => q.stage === 'queued'))) {
+				const ok = await processOne(next.id, next.file, next.forced);
+				if (!ok) break;
+			}
+		} finally {
+			running = false;
+		}
+	}
+
+	/**
+	 * @param {string} id
+	 * @param {File} file
+	 * @param {boolean} forced
+	 * @returns {Promise<boolean>} false means the queue should stop
+	 */
+	async function processOne(id, file, forced) {
+		patchItem(id, { stage: 'uploading' });
 
 		const form = new FormData();
-		form.append('file', selectedFile);
-		if (forceUpload) form.append('force', 'true');
+		form.append('file', file);
+		if (forced) form.append('force', 'true');
 
 		try {
 			const res = await fetch('/api/sales', { method: 'POST', body: form });
 
+			if (res.status === 429) {
+				patchItem(id, { error: 'Daily upload limit reached. Try again tomorrow.', stage: 'failed' });
+				return false;
+			}
+
 			if (res.status === 409) {
 				const body = await res.json();
-				duplicateSaleId = body.duplicateSaleId ?? null;
-				stage = 'idle';
-				return;
+				patchItem(id, { stage: 'duplicate', duplicateId: body.duplicateSaleId ?? null });
+				return true;
 			}
 
 			if (!res.ok) {
 				const body = await res.json().catch(() => ({ message: res.statusText }));
-				throw new Error(body.message ?? res.statusText);
+				patchItem(id, { error: body.message ?? res.statusText, stage: 'failed' });
+				return true;
 			}
 
 			const body = await res.json();
-			saleId      = body.saleId;
-			stage       = 'processing';
-			forceUpload = false;
-			startPolling();
+			const docId = body.saleId;
+			patchItem(id, { docId, stage: 'processing' });
+			await pollOne(id, docId);
+			return true;
 		} catch (err) {
-			stage    = 'failed';
-			errorMsg = String(err);
+			patchItem(id, { error: String(err), stage: 'failed' });
+			return true;
 		}
 	}
 
-	function uploadAnyway() {
-		duplicateSaleId = null;
-		forceUpload = true;
-		upload();
-	}
-
-	function startPolling() {
-		if (pollInterval) clearInterval(pollInterval);
-		pollInterval = setInterval(async () => {
-			if (!saleId) return;
+	/**
+	 * @param {string} id
+	 * @param {string} docId
+	 */
+	async function pollOne(id, docId) {
+		while (true) {
+			await sleep(2000);
 			try {
-				const res = await fetch(`/api/sales/${saleId}/status`);
-				if (!res.ok) return;
+				const res = await fetch(`/api/sales/${docId}/status`);
+				if (!res.ok) continue;
 				const status = await res.json();
-				pollData = status;
+				patchItem(id, { pollData: status });
 
-				if (TERMINAL_STATUSES.has(status.status)) {
-					clearInterval(pollInterval ?? undefined);
-					pollInterval = null;
-					errorMsg = status.status === 'failed' ? (status.errorMessage ?? 'Processing failed') : null;
-					if (errorMsg?.startsWith('NOT_RELEVANT:')) {
-						stage = 'not_relevant';
-					} else {
-						stage = status.status === 'failed' ? 'failed' : 'complete';
-					}
+				if (TERMINAL.has(status.status)) {
+					const notRelevant = status.status === 'failed' && status.errorMessage?.startsWith('NOT_RELEVANT:');
+					patchItem(id, {
+						error: status.status === 'failed' && !notRelevant ? (status.errorMessage ?? 'Processing failed') : null,
+						stage: notRelevant ? 'not_relevant' : status.status === 'failed' ? 'failed' : 'complete'
+					});
+					return;
 				}
-			} catch {
-				// ignore transient poll errors
-			}
-		}, 2000);
+			} catch { /* ignore transient errors */ }
+		}
 	}
 
-	function goToSale() {
-		if (saleId) goto(resolve(`/dashboard/sales/${saleId}`));
+	/** @param {string} itemId */
+	async function forceUpload(itemId) {
+		const item = queue.find(q => q.id === itemId);
+		if (!item) return;
+		patchItem(itemId, { forced: true, duplicateId: null, stage: 'queued' });
+		if (!running) runQueue();
 	}
 
-	const STAGE_STEPS = [
-		{ key: 'uploading',  label: 'UPLOADING FILE' },
-		{ key: 'processing', label: 'AI EXTRACTION' },
-		{ key: 'complete',   label: 'COMPLETE' }
-	];
+	function clearQueue() {
+		if (hasActive) return;
+		queue = [];
+		truncatedCount = 0;
+	}
 </script>
 
 <svelte:head>
@@ -140,9 +195,7 @@
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-1">
 			<div class="flex items-center gap-2">
 				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">
-					DAILY LIMIT REACHED
-				</span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DAILY LIMIT REACHED</span>
 			</div>
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
 				You have uploaded {data.todayCount} of {data.dailyLimit} revenue documents today. The limit resets at midnight UTC.
@@ -151,149 +204,175 @@
 	{:else if data.todayCount >= data.dailyLimit * 0.8}
 		<div class="border-2 border-(--color-border) bg-(--color-bg) p-3 flex items-center gap-2">
 			<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-			<span class="font-mono text-[10px] text-(--color-muted-foreground)">
-				{data.todayCount} / {data.dailyLimit} uploads used today
-			</span>
+			<span class="font-mono text-[10px] text-(--color-muted-foreground)">{data.todayCount} / {data.dailyLimit} uploads used today</span>
 		</div>
 	{/if}
 
-	{#if duplicateSaleId && stage === 'idle'}
-		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
-			<div class="flex items-center gap-2">
-				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">FILE ALREADY UPLOADED</span>
-			</div>
-			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				This exact file or a similar file has already been uploaded. View the existing revenue document or upload anyway.
-			</p>
-			<div class="pl-4 flex gap-3 mt-1">
-				<a
-					href="/dashboard/sales/{duplicateSaleId}"
-					class="btn-secondary text-[10px] font-black uppercase tracking-widest no-underline inline-flex items-center px-3 py-1.5"
-				>
-					VIEW EXISTING →
-				</a>
-				<button
-					onclick={uploadAnyway}
-					class="font-mono text-[10px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) border border-dashed border-(--color-border) px-3 py-1.5 transition-colors"
-				>
-					UPLOAD ANYWAY
-				</button>
-			</div>
+	{#if hasActive}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-3 flex items-center gap-2">
+			<span class="w-1.5 h-1.5 bg-(--color-warning-border) shrink-0 animate-pulse"></span>
+			<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">PROCESSING IN PROGRESS — DO NOT CLOSE OR LEAVE THIS PAGE</span>
 		</div>
 	{/if}
 
-	<Card title="Upload Revenue Document">
+	<Card title="Upload Revenue Documents">
 		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-6">
-			UPLOAD AN IMAGE, SCREENSHOT OR PDF OF YOUR REVENUE DOCUMENT. THE DOCUMENT WILL BE PROCESSED BY AI TO EXTRACT FINANCIAL DATA AND SYNCED TO YOUR CONNECTED CLOUD INTEGRATIONS.
+			UPLOAD ONE OR MORE IMAGES, SCREENSHOTS OR PDFS OF YOUR REVENUE DOCUMENTS. EACH FILE IS PROCESSED BY AI TO EXTRACT FINANCIAL DATA AND SYNCED TO YOUR CONNECTED CLOUD INTEGRATIONS.
 		</p>
 
-		{#if stage === 'idle' || stage === 'uploading'}
-			<FileUploadDropzone onfile={handleFile} disabled={uploadBlocked || stage === 'uploading'} />
+		<FileUploadDropzone onfiles={addFiles} multiple={true} disabled={uploadBlocked || remaining === 0} />
 
-			{#if selectedFile && !uploadBlocked}
-				<div class="mt-4 border-2 border-(--color-border) p-4 flex items-center justify-between gap-4">
-					<div class="flex flex-col gap-1">
-						<span class="font-bold text-xs text-(--color-fg) truncate max-w-xs">{selectedFile.name}</span>
-						<span class="font-mono text-[10px] text-(--color-muted-foreground)">
-							{selectedFile.type} · {(selectedFile.size / 1024).toFixed(1)} KB
-						</span>
-					</div>
-					<button
-						onclick={upload}
-						disabled={uploadBlocked || stage === 'uploading'}
-						class="btn-primary text-xs font-black uppercase tracking-widest disabled:opacity-50"
-					>
-						{stage === 'uploading' ? 'UPLOADING...' : 'PROCESS REVENUE DOC'}
-					</button>
-				</div>
+		<div class="mt-3 flex items-center justify-between gap-3">
+			<span class="font-mono text-[10px] uppercase tracking-widest {remaining === 0 ? 'text-(--color-warning)' : 'text-(--color-muted-foreground)'}">
+				{remaining} / {data.dailyLimit} UPLOADS REMAINING TODAY
+			</span>
+			{#if queue.length > 0}
+				<span class="font-mono text-[10px] uppercase tracking-widest text-(--color-muted-foreground)">
+					{queue.length} FILE{queue.length !== 1 ? 'S' : ''} ADDED
+				</span>
 			{/if}
+		</div>
+
+		{#if truncatedCount > 0}
+			<div class="mt-2 flex items-center gap-2 border border-(--color-warning-border) bg-(--color-warning-muted) px-3 py-2">
+				<span class="w-1.5 h-1.5 bg-(--color-warning-border) shrink-0"></span>
+				<p class="font-mono text-[10px] text-(--color-warning) font-bold uppercase">
+					{truncatedCount} FILE{truncatedCount !== 1 ? 'S' : ''} SKIPPED — DAILY LIMIT WOULD BE EXCEEDED
+				</p>
+			</div>
 		{/if}
 
-		{#if stage === 'not_relevant'}
-		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-5 flex flex-col gap-3">
-			<div class="flex items-center gap-2">
-				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
-				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">DOCUMENT NOT RECOGNISED AS A SALES RECORD</span>
-			</div>
-			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				{errorMsg?.replace('NOT_RELEVANT:', '').trim() ?? 'The uploaded document does not appear to be a revenue record, invoice, or income document.'}
-			</p>
-			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
-				Please upload a revenue document, sales invoice, income report, or similar financial document.
-			</p>
-			<div class="pl-4 flex gap-3 mt-1">
-				<button
-					onclick={() => { stage = 'idle'; selectedFile = null; errorMsg = null; }}
-					class="btn-primary text-[10px] font-black uppercase tracking-widest px-3 py-1.5"
-				>
-					TRY ANOTHER FILE
-				</button>
-			</div>
-		</div>
-	{/if}
+		{#if queue.length > 0}
+			{#if hasQueued && !running}
+				<div class="mt-3 flex justify-end">
+					<button
+						onclick={runQueue}
+						class="font-mono text-[10px] font-black uppercase tracking-widest px-4 py-1.5 bg-(--color-fg) text-(--color-bg) hover:opacity-90 transition-opacity"
+					>START PROCESSING →</button>
+				</div>
+			{/if}
 
-	{#if stage === 'processing' || stage === 'complete' || stage === 'failed'}
-			<div class="flex flex-col gap-2 mb-6">
-				{#each STAGE_STEPS as step, i (step.key)}
-					{@const isDone = stage === 'complete' || (stage !== 'uploading' && i === 0)}
-					{@const isActive = (step.key === 'processing' && stage === 'processing') || (step.key === 'complete' && stage === 'complete')}
-					<div class="flex items-center gap-3">
-						<div class="w-5 h-5 border-2 {isDone || isActive ? 'border-(--color-fg) bg-(--nav-active-bg)' : 'border-(--color-border)'} flex items-center justify-center shrink-0">
-							{#if isDone && step.key !== 'processing'}
-								<span class="text-[9px] font-black text-(--nav-active-fg)">✓</span>
-							{:else if isActive && stage === 'processing'}
-								<span class="text-[9px] font-black text-(--nav-active-fg) animate-pulse">·</span>
-							{/if}
+			<!-- Progress bar -->
+			<div class="mt-6 flex flex-col gap-2">
+				<div class="flex items-center justify-between">
+					<span class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground)">
+						{completedCount} / {queue.length} PROCESSED
+					</span>
+					{#if allDone}
+						<button
+							onclick={clearQueue}
+							class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) transition-colors border-0 bg-transparent"
+						>CLEAR ✕</button>
+					{/if}
+				</div>
+				<div class="w-full h-1.5 bg-(--color-muted)">
+					<div
+						class="h-1.5 transition-all duration-500 {allDone ? 'bg-(--color-success)' : 'bg-(--color-fg)'}"
+						style="width: {progress}%"
+					></div>
+				</div>
+			</div>
+
+			<!-- File rows -->
+			<div class="mt-4 flex flex-col gap-2">
+				{#each queue as item (item.id)}
+					{@const borderColor = item.stage === 'complete'
+						? 'border-(--color-success-border)'
+						: item.stage === 'failed'
+							? 'border-(--color-danger-border)'
+							: item.stage === 'not_relevant' || item.stage === 'duplicate'
+								? 'border-(--color-warning-border)'
+								: 'border-(--color-border)'}
+					<div class="border-2 {borderColor} p-3 flex flex-col gap-2">
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2 min-w-0">
+								<div class="w-2 h-2 shrink-0
+									{item.stage === 'queued' ? 'border border-(--color-border)' : ''}
+									{item.stage === 'uploading' || item.stage === 'processing' ? 'bg-(--color-fg) animate-pulse' : ''}
+									{item.stage === 'complete' ? 'bg-(--color-success)' : ''}
+									{item.stage === 'failed' ? 'bg-(--color-danger-border)' : ''}
+									{item.stage === 'not_relevant' || item.stage === 'duplicate' ? 'bg-(--color-warning-border)' : ''}
+								"></div>
+								<span class="font-mono text-[10px] font-black text-(--color-fg) truncate">{item.file.name}</span>
+							</div>
+							<div class="flex items-center gap-3 shrink-0">
+								<span class="font-mono text-[9px] text-(--color-muted-foreground)">{(item.file.size / 1024).toFixed(0)} KB</span>
+								<span class="font-mono text-[9px] font-black uppercase tracking-widest
+									{item.stage === 'queued' ? 'text-(--color-muted-foreground)' : ''}
+									{item.stage === 'uploading' || item.stage === 'processing' ? 'text-(--color-fg)' : ''}
+									{item.stage === 'complete' ? 'text-(--color-success)' : ''}
+									{item.stage === 'failed' ? 'text-(--color-danger)' : ''}
+									{item.stage === 'not_relevant' || item.stage === 'duplicate' ? 'text-(--color-warning)' : ''}
+								">
+									{item.stage === 'queued' ? 'QUEUED' :
+									 item.stage === 'uploading' ? 'UPLOADING...' :
+									 item.stage === 'processing' ? 'EXTRACTING...' :
+									 item.stage === 'complete' ? '✓ DONE' :
+									 item.stage === 'failed' ? '✕ FAILED' :
+									 item.stage === 'not_relevant' ? 'NOT RECOGNISED' :
+									 'DUPLICATE'}
+								</span>
+							</div>
 						</div>
-						<span class="font-mono text-[10px] uppercase tracking-widest {isActive ? 'font-black text-(--color-fg)' : 'text-(--color-muted-foreground)'}">
-							{step.label}
-						</span>
+
+						{#if item.stage === 'complete' && item.pollData}
+							<div class="pl-4 flex gap-4 flex-wrap items-center">
+								{#if item.pollData.documentTitle}
+									<span class="font-mono text-[9px] text-(--color-muted-foreground)">
+										TITLE: <span class="text-(--color-fg) font-black">{item.pollData.documentTitle}</span>
+									</span>
+								{/if}
+								{#if item.pollData.totalRevenue}
+									<span class="font-mono text-[9px] text-(--color-muted-foreground)">
+										REVENUE: <span class="text-(--color-fg) font-black">{item.pollData.totalRevenue} {item.pollData.currency ?? ''}</span>
+									</span>
+								{/if}
+								{#if item.docId}
+									<a href="/dashboard/sales/{item.docId}"
+										class="font-mono text-[9px] font-black uppercase tracking-widest text-(--color-fg) underline decoration-dotted hover:decoration-solid no-underline">
+										VIEW →
+									</a>
+								{/if}
+							</div>
+						{/if}
+
+						{#if item.stage === 'failed' && item.error}
+							<p class="pl-4 font-mono text-[9px] text-(--color-danger) uppercase">{item.error}</p>
+						{/if}
+
+						{#if item.stage === 'not_relevant'}
+							<p class="pl-4 font-mono text-[9px] text-(--color-warning)">
+								{item.error?.replace('NOT_RELEVANT:', '').trim() ?? 'Document not recognised as a revenue document.'}
+							</p>
+						{/if}
+
+						{#if item.stage === 'duplicate'}
+							<div class="pl-4 flex gap-3 items-center flex-wrap">
+								<span class="font-mono text-[9px] text-(--color-warning) uppercase">File already exists</span>
+								{#if item.duplicateId}
+									<a href="/dashboard/sales/{item.duplicateId}"
+										class="font-mono text-[9px] font-black uppercase text-(--color-fg) underline decoration-dotted hover:decoration-solid no-underline">
+										VIEW EXISTING →
+									</a>
+								{/if}
+								<button
+									onclick={() => forceUpload(item.id)}
+									class="font-mono text-[9px] uppercase text-(--color-muted-foreground) hover:text-(--color-fg) transition-colors border-0 bg-transparent"
+								>UPLOAD ANYWAY</button>
+							</div>
+						{/if}
 					</div>
 				{/each}
 			</div>
 
-			{#if pollData}
-				<div class="border-2 border-(--color-border) p-4 flex flex-col gap-2">
-					<div class="flex items-center justify-between">
-						<span class="font-mono text-[10px] uppercase text-(--color-muted-foreground)">STATUS</span>
-						<ReceiptStatusBadge status={pollData.status} />
-					</div>
-					{#if pollData.documentTitle}
-						<div class="flex gap-2 font-mono text-[10px]">
-							<span class="text-(--color-muted-foreground) uppercase">DOCUMENT:</span>
-							<span class="font-bold text-(--color-fg)">{pollData.documentTitle}</span>
-						</div>
-					{/if}
-					{#if pollData.totalRevenue}
-						<div class="flex gap-2 font-mono text-[10px]">
-							<span class="text-(--color-muted-foreground) uppercase">REVENUE:</span>
-							<span class="font-bold text-(--color-fg)">{pollData.totalRevenue} {pollData.currency ?? ''}</span>
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<div class="border-2 border-(--color-border) p-4 font-mono text-[10px] text-(--color-muted-foreground) uppercase animate-pulse">
-					AWAITING EXTRACTION...
-				</div>
-			{/if}
-
-			{#if stage === 'failed'}
-				<div class="mt-4 border-2 border-(--color-danger-border) bg-(--color-danger-muted) p-4 font-mono text-[10px] text-(--color-danger) uppercase">
-					PROCESSING FAILED: {errorMsg}
-				</div>
-			{/if}
-
-			{#if stage === 'complete'}
-				<div class="mt-4 flex gap-3">
-					<button onclick={goToSale} class="btn-primary text-xs font-black uppercase tracking-widest">
-						VIEW SALE →
-					</button>
-					<a
-						href={resolve("/dashboard/sales/upload")}
-						class="btn-secondary text-xs font-black uppercase tracking-widest no-underline inline-flex items-center px-4 py-2"
-					>
-						UPLOAD ANOTHER
+			{#if allDone}
+				<div class="mt-4 flex items-center gap-4 flex-wrap">
+					<span class="font-mono text-[10px] text-(--color-muted-foreground) uppercase">
+						{successCount} complete · {queue.length - successCount} other
+					</span>
+					<a href={resolve('/dashboard/sales')}
+						class="font-mono text-[9px] font-black uppercase tracking-widest text-(--color-fg) underline decoration-dotted hover:decoration-solid no-underline">
+						VIEW ALL REVENUE →
 					</a>
 				</div>
 			{/if}

@@ -3,8 +3,7 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and, ne, sql, desc } from 'drizzle-orm';
 import { processReceipt } from '$lib/server/receipt-processor';
-
-const DAILY_LIMIT = 30;
+import { DAILY_LIMIT } from '$lib/server/limits';
 
 const ALLOWED_MIME_TYPES = new Set([
 	'image/jpeg',

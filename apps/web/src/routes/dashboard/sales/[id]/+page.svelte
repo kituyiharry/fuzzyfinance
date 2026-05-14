@@ -326,6 +326,24 @@
 				{/if}
 			</div>
 		</div>
+	{:else if sale.status === 'complete_no_sync'}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">CLOUD SYNC FAILED</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				This revenue document could not be synced to your cloud integration. Re-authorizing your integration may resolve the issue.
+			</p>
+			<div class="pl-4 mt-1 flex items-center gap-4">
+				<a href="/dashboard/integrations" class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-fg) underline decoration-dotted hover:decoration-solid">
+					RE-AUTHORIZE INTEGRATION →
+				</a>
+				<Button variant="secondary" onclick={retrySync} class="text-xs font-black uppercase tracking-widest" disabled={retrying}>
+					{retrying ? 'RETRYING...' : 'RETRY SYNC'}
+				</Button>
+			</div>
+		</div>
 	{:else if sale.errorMessage?.startsWith('NOT_RELEVANT:')}
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">

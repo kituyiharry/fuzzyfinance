@@ -1,13 +1,15 @@
 <script>
 	/**
 	 * @type {{
-	 *   onfile:   (file: File) => void;
-	 *   accept?:  string;
-	 *   maxMb?:   number;
+	 *   onfile?:   ((file: File) => void) | null;
+	 *   onfiles?:  ((files: File[]) => void) | null;
+	 *   multiple?: boolean;
+	 *   accept?:   string;
+	 *   maxMb?:    number;
 	 *   disabled?: boolean;
 	 * }}
 	 */
-	let { onfile, accept = 'image/jpeg,image/png,image/webp,application/pdf', maxMb = 10, disabled = false } = $props();
+	let { onfile = null, onfiles = null, multiple = false, accept = 'image/jpeg,image/png,image/webp,application/pdf', maxMb = 10, disabled = false } = $props();
 
 	let isDragging = $state(false);
 	let errorMsg   = $state('');
@@ -32,15 +34,27 @@
 		e.preventDefault();
 		isDragging = false;
 		if (disabled) return;
-		const file = e.dataTransfer?.files?.[0];
-		if (file && validate(file)) onfile(file);
+		if (multiple && onfiles) {
+			const files = Array.from(e.dataTransfer?.files ?? []);
+			const valid = files.filter(f => validate(f));
+			if (valid.length) onfiles(valid);
+		} else {
+			const file = e.dataTransfer?.files?.[0];
+			if (file && validate(file) && onfile) onfile(file);
+		}
 	}
 
 	/** @param {Event} e */
 	function onInput(e) {
 		const input = /** @type {HTMLInputElement} */ (e.currentTarget);
-		const file = input.files?.[0];
-		if (file && validate(file)) onfile(file);
+		if (multiple && onfiles) {
+			const files = Array.from(input.files ?? []);
+			const valid = files.filter(f => validate(f));
+			if (valid.length) onfiles(valid);
+		} else {
+			const file = input.files?.[0];
+			if (file && validate(file) && onfile) onfile(file);
+		}
 		input.value = '';
 	}
 
@@ -49,7 +63,6 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	role="button"
 	tabindex={disabled ? -1 : 0}
@@ -72,6 +85,7 @@
 		type="file"
 		{accept}
 		{disabled}
+		multiple={multiple || undefined}
 		class="sr-only"
 		oninput={onInput}
 	/>
@@ -91,10 +105,10 @@
 
 	<div class="text-center">
 		<p class="font-black uppercase tracking-widest text-xs text-(--color-fg)">
-			{isDragging ? 'Drop file here' : 'Drag & drop or click to select'}
+			{isDragging ? 'Drop file here' : multiple ? 'Drag & drop or click to select files' : 'Drag & drop or click to select'}
 		</p>
 		<p class="font-mono text-[10px] text-(--color-muted-foreground) mt-1 uppercase tracking-wider">
-			JPEG · PNG · WEBP · PDF — max {maxMb} MB
+			JPEG · PNG · WEBP · PDF — {multiple ? `max ${maxMb} MB each` : `max ${maxMb} MB`}
 		</p>
 	</div>
 

@@ -86,7 +86,8 @@
 				'Expense document upload to OneDrive',
 				'Workbook creation & update via Excel Graph API'
 			],
-			badge: 'M'
+			badge: 'M',
+			comingSoon: true
 		}
 	];
 </script>
@@ -114,127 +115,183 @@
 
 		<div class="flex flex-col gap-6">
 			{#each PROVIDERS as provider (provider.id)}
-				{@const integration = data.integrations[provider.id]}
-				{@const connected = !!integration}
-
-				<div
-					class="border-2 {connected
-						? 'border-(--color-fg)'
-						: 'border-(--color-border)'} p-6 flex flex-col gap-4 transition-all"
-				>
-					<!-- Provider header -->
-					<div class="flex items-start justify-between gap-4">
-						<div class="flex items-center gap-4">
-							<div
-								class="w-10 h-10 border-2 border-(--color-border) bg-(--color-bg) flex items-center justify-center font-black text-sm shrink-0"
-							>
-								{provider.badge}
+				{#if provider.comingSoon}
+					<div class="border-2 border-(--color-border) p-6 flex flex-col gap-4 opacity-60">
+						<!-- Provider header -->
+						<div class="flex items-start justify-between gap-4">
+							<div class="flex items-center gap-4">
+								<div
+									class="w-10 h-10 border-2 border-(--color-border) bg-(--color-bg) flex items-center justify-center font-black text-sm shrink-0"
+								>
+									{provider.badge}
+								</div>
+								<div>
+									<h3 class="font-black uppercase tracking-tight text-sm text-(--color-fg)">
+										{provider.name}
+									</h3>
+									<p class="text-[10px] font-mono text-(--color-muted-foreground) mt-0.5">
+										{provider.description}
+									</p>
+								</div>
 							</div>
-							<div>
-								<h3 class="font-black uppercase tracking-tight text-sm text-(--color-fg)">
-									{provider.name}
-								</h3>
-								<p class="text-[10px] font-mono text-(--color-muted-foreground) mt-0.5">
-									{provider.description}
-								</p>
-							</div>
-						</div>
 
-						<div class="shrink-0">
-							{#if connected}
-								<span
-									class="inline-block px-2 py-1 border border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) text-[9px] font-black uppercase tracking-widest"
-								>CONNECTED</span>
-							{:else}
+							<div class="shrink-0">
 								<span
 									class="inline-block px-2 py-1 border border-(--color-border) text-(--color-muted-foreground) text-[9px] font-black uppercase tracking-widest"
-								>NOT LINKED</span>
-							{/if}
+								>COMING SOON</span>
+							</div>
 						</div>
-					</div>
 
-					<!-- Capabilities -->
-					<ul class="flex flex-col gap-1">
-						{#each provider.capabilities as cap (cap)}
-							<li
-								class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)"
-							>
-								<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
-								{cap}
-							</li>
-						{/each}
-					</ul>
+						<!-- Capabilities -->
+						<ul class="flex flex-col gap-1">
+							{#each provider.capabilities as cap (cap)}
+								<li
+									class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)"
+								>
+									<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
+									{cap}
+								</li>
+							{/each}
+						</ul>
 
-					<!-- Connected details -->
-					{#if connected && integration}
-						<div class="border-t border-(--color-border) pt-4 flex flex-col gap-2">
-							{#if integration.accountEmail}
-								<div class="flex gap-2 items-baseline font-mono text-[10px]">
-									<span class="text-(--color-muted-foreground) uppercase">ACCOUNT:</span>
-									<span class="font-bold text-(--color-fg)">{integration.accountEmail}</span>
-								</div>
-							{/if}
+						<p class="font-mono text-[10px] text-(--color-muted-foreground)">
+							Microsoft 365 integration is not yet available.
+						</p>
 
-							{#if integration.tokenExpiresAt}
-								<div class="flex gap-2 items-baseline font-mono text-[10px]">
-									<span class="text-(--color-muted-foreground) uppercase">TOKEN EXPIRES:</span>
-									<span class="font-bold text-(--color-fg)">
-										{new Date(integration.tokenExpiresAt).toLocaleString()}
-									</span>
-								</div>
-							{/if}
-
-							{#if integration.scopes.length}
-								<div class="flex flex-col gap-1">
-									<span class="font-mono text-[10px] uppercase text-(--color-muted-foreground)">
-										GRANTED SCOPES:
-									</span>
-									<ul class="flex flex-col gap-0.5 pl-2">
-										{#each integration.scopes as scope (scope)}
-											{@const label = scopeLabel(scope)}
-											{#if label}
-												<li
-													class="font-mono text-[10px] text-(--color-fg) flex items-center gap-2"
-												>
-													<span class="text-(--color-success)">+</span>
-													{label}
-												</li>
-											{/if}
-										{/each}
-									</ul>
-								</div>
-							{/if}
-						</div>
-					{/if}
-
-					<!-- Actions -->
-					<div class="flex gap-3 pt-2">
-						{#if connected}
-							<Button
-								variant="danger"
-								onclick={() => disconnect(provider.id)}
-								class="text-xs font-black uppercase tracking-widest"
-							>
-								{disconnecting[provider.id] ? 'REVOKING...' : 'REVOKE ACCESS'}
-							</Button>
-							<Button
-								variant="secondary"
-								onclick={() => connect(provider.id)}
-								class="text-xs font-black uppercase tracking-widest"
-							>
-								{connecting[provider.id] ? 'REDIRECTING...' : 'RE-AUTHORIZE'}
-							</Button>
-						{:else}
+						<!-- Disabled action -->
+						<div class="flex gap-3 pt-2">
 							<Button
 								variant="primary"
-								onclick={() => connect(provider.id)}
+								disabled={true}
 								class="text-xs font-black uppercase tracking-widest"
 							>
-								{connecting[provider.id] ? 'REDIRECTING...' : 'AUTHORIZE ACCESS'}
+								NOT AVAILABLE
 							</Button>
-						{/if}
+						</div>
 					</div>
-				</div>
+				{:else}
+					{@const integration = data.integrations[provider.id]}
+					{@const connected = !!integration}
+
+					<div
+						class="border-2 {connected
+							? 'border-(--color-fg)'
+							: 'border-(--color-border)'} p-6 flex flex-col gap-4 transition-all"
+					>
+						<!-- Provider header -->
+						<div class="flex items-start justify-between gap-4">
+							<div class="flex items-center gap-4">
+								<div
+									class="w-10 h-10 border-2 border-(--color-border) bg-(--color-bg) flex items-center justify-center font-black text-sm shrink-0"
+								>
+									{provider.badge}
+								</div>
+								<div>
+									<h3 class="font-black uppercase tracking-tight text-sm text-(--color-fg)">
+										{provider.name}
+									</h3>
+									<p class="text-[10px] font-mono text-(--color-muted-foreground) mt-0.5">
+										{provider.description}
+									</p>
+								</div>
+							</div>
+
+							<div class="shrink-0">
+								{#if connected}
+									<span
+										class="inline-block px-2 py-1 border border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) text-[9px] font-black uppercase tracking-widest"
+									>CONNECTED</span>
+								{:else}
+									<span
+										class="inline-block px-2 py-1 border border-(--color-border) text-(--color-muted-foreground) text-[9px] font-black uppercase tracking-widest"
+									>NOT LINKED</span>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Capabilities -->
+						<ul class="flex flex-col gap-1">
+							{#each provider.capabilities as cap (cap)}
+								<li
+									class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)"
+								>
+									<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
+									{cap}
+								</li>
+							{/each}
+						</ul>
+
+						<!-- Connected details -->
+						{#if connected && integration}
+							<div class="border-t border-(--color-border) pt-4 flex flex-col gap-2">
+								{#if integration.accountEmail}
+									<div class="flex gap-2 items-baseline font-mono text-[10px]">
+										<span class="text-(--color-muted-foreground) uppercase">ACCOUNT:</span>
+										<span class="font-bold text-(--color-fg)">{integration.accountEmail}</span>
+									</div>
+								{/if}
+
+								{#if integration.tokenExpiresAt}
+									<div class="flex gap-2 items-baseline font-mono text-[10px]">
+										<span class="text-(--color-muted-foreground) uppercase">TOKEN EXPIRES:</span>
+										<span class="font-bold text-(--color-fg)">
+											{new Date(integration.tokenExpiresAt).toLocaleString()}
+										</span>
+									</div>
+								{/if}
+
+								{#if integration.scopes.length}
+									<div class="flex flex-col gap-1">
+										<span class="font-mono text-[10px] uppercase text-(--color-muted-foreground)">
+											GRANTED SCOPES:
+										</span>
+										<ul class="flex flex-col gap-0.5 pl-2">
+											{#each integration.scopes as scope (scope)}
+												{@const label = scopeLabel(scope)}
+												{#if label}
+													<li
+														class="font-mono text-[10px] text-(--color-fg) flex items-center gap-2"
+													>
+														<span class="text-(--color-success)">+</span>
+														{label}
+													</li>
+												{/if}
+											{/each}
+										</ul>
+									</div>
+								{/if}
+							</div>
+						{/if}
+
+						<!-- Actions -->
+						<div class="flex gap-3 pt-2">
+							{#if connected}
+								<Button
+									variant="danger"
+									onclick={() => disconnect(provider.id)}
+									class="text-xs font-black uppercase tracking-widest"
+								>
+									{disconnecting[provider.id] ? 'REVOKING...' : 'REVOKE ACCESS'}
+								</Button>
+								<Button
+									variant="secondary"
+									onclick={() => connect(provider.id)}
+									class="text-xs font-black uppercase tracking-widest"
+								>
+									{connecting[provider.id] ? 'REDIRECTING...' : 'RE-AUTHORIZE'}
+								</Button>
+							{:else}
+								<Button
+									variant="primary"
+									onclick={() => connect(provider.id)}
+									class="text-xs font-black uppercase tracking-widest"
+								>
+									{connecting[provider.id] ? 'REDIRECTING...' : 'AUTHORIZE ACCESS'}
+								</Button>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			{/each}
 		</div>
 	</Card>

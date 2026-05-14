@@ -2,8 +2,7 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, sql, and, inArray, isNotNull } from 'drizzle-orm';
 import { getIntegrationStatus } from '$lib/server/integration-health';
-
-const DAILY_LIMIT = 30;
+import { DAILY_LIMIT } from '$lib/server/limits';
 
 /**
  * @typedef {{
