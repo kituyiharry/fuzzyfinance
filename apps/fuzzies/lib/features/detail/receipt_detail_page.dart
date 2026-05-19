@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
@@ -43,6 +44,59 @@ class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
   bool _aborting = false;
   bool _deleting = false;
   Receipt? _receipt;
+
+  Timer? _statusTimer;
+  bool _recovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final snap = ref.read(receiptDetailProvider(widget.id));
+      if (snap.hasValue && snap.value?.status == ReceiptStatus.processing) {
+        _startStatusPolling();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _statusTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startStatusPolling() {
+    if (_statusTimer != null) return;
+    if (mounted) setState(() => _recovering = true);
+    _statusTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) {
+        _statusTimer?.cancel();
+        _statusTimer = null;
+        return;
+      }
+      try {
+        final client = ref.read(apiClientProvider);
+        final resp = await client.dio.get<Map<String, dynamic>>(
+          Endpoints.receiptStatus(widget.id),
+        );
+        final newStatus = ReceiptStatus.fromString(
+          resp.data?['status'] as String? ?? '',
+        );
+        if (newStatus != ReceiptStatus.processing) {
+          _statusTimer?.cancel();
+          _statusTimer = null;
+          await LocalCache.instance.invalidate(CacheKeys.receipt(widget.id));
+          if (mounted) {
+            ref.invalidate(receiptDetailProvider(widget.id));
+            setState(() => _recovering = false);
+          }
+        }
+      } catch (_) {
+        // non-fatal, keep polling
+      }
+    });
+  }
 
   Future<void> _invalidateListCache() async {
     await LocalCache.instance.invalidate(CacheKeys.receipts);
@@ -140,6 +194,12 @@ class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
     final theme = Theme.of(context);
     final ext = context.fuzzy;
     final async = ref.watch(receiptDetailProvider(widget.id));
+
+    ref.listen(receiptDetailProvider(widget.id), (_, next) {
+      if (next.hasValue && next.value?.status == ReceiptStatus.processing && _statusTimer == null) {
+        _startStatusPolling();
+      }
+    });
 
     if (async.hasValue) _receipt = async.value;
     final receipt = _receipt;
@@ -247,6 +307,11 @@ class _ReceiptDetailPageState extends ConsumerState<ReceiptDetailPage> {
       children: [
         if (isAuthError)
           _AuthRequiredBanner(margin: const EdgeInsets.fromLTRB(16, 4, 16, 0)),
+        if (_recovering)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: _RecoveringBanner(),
+          ),
         Hero(
           tag: itemHeroTag(type: 'receipt', id: widget.id),
           flightShuttleBuilder: (_, animation, __, fromCtx, ___) =>
@@ -1074,6 +1139,38 @@ class _LineItemRow extends StatelessWidget {
 }
 
 // ── Auth-required banner ──────────────────────────────────────────────────────
+
+class _RecoveringBanner extends StatelessWidget {
+  const _RecoveringBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        border: Border.all(color: ext.mutedFg.withValues(alpha: 0.4)),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: 8,
+          height: 8,
+          child: CircularProgressIndicator(strokeWidth: 1.5, color: ext.mutedFg),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'AUTO-CHECKING...',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: ext.mutedFg,
+            fontSize: 9,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ]),
+    );
+  }
+}
 
 class _AuthRequiredBanner extends StatelessWidget {
   const _AuthRequiredBanner({required this.margin});

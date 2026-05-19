@@ -26,6 +26,14 @@ export async function GET({ params, locals }) {
 
 	// Auto-heal stuck processing rows
 	if (sale.status === 'processing') {
+		// Extraction completed but status transition was missed → move to staged
+		if (sale.documentTitle != null || sale.totalRevenue != null) {
+			await db.update(schema.sale)
+				.set({ status: 'staged' })
+				.where(eq(schema.sale.id, params.id));
+			return json({ ...sale, status: 'staged' });
+		}
+		// Still genuinely processing — fail after timeout
 		const age = Date.now() - (sale.updatedAt?.getTime() ?? 0);
 		if (age > STUCK_PROCESSING_MS) {
 			const msg = 'Processing timed out. Please re-upload this document.';

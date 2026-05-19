@@ -27,6 +27,14 @@ export async function GET({ params, locals }) {
 
 	// Auto-heal stuck processing rows
 	if (receipt.status === 'processing') {
+		// Extraction completed but status transition was missed → move to staged
+		if (receipt.merchantName != null || receipt.total != null) {
+			await db.update(schema.receipt)
+				.set({ status: 'staged' })
+				.where(eq(schema.receipt.id, params.id));
+			return json({ ...receipt, status: 'staged' });
+		}
+		// Still genuinely processing — fail after timeout
 		const age = Date.now() - (receipt.updatedAt?.getTime() ?? 0);
 		if (age > STUCK_PROCESSING_MS) {
 			const msg = 'Processing timed out. Please re-upload this receipt.';

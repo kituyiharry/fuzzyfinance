@@ -303,6 +303,31 @@
 		if (!receipt.correctedFields) return 0;
 		try { return JSON.parse(receipt.correctedFields).length; } catch { return 0; }
 	});
+
+	let recovering = $state(false);
+
+	$effect(() => {
+		if (receipt.status !== 'processing') return;
+		let stopped = false;
+		recovering = true;
+		(async () => {
+			while (!stopped) {
+				await new Promise(r => setTimeout(r, 3000));
+				if (stopped) break;
+				try {
+					const res = await fetch(`/api/receipts/${receipt.id}/status`);
+					if (!res.ok || stopped) break;
+					const body = await res.json();
+					if (body.status !== 'processing') {
+						await invalidateAll();
+						break;
+					}
+				} catch { break; }
+			}
+			if (!stopped) recovering = false;
+		})();
+		return () => { stopped = true; recovering = false; };
+	});
 </script>
 
 <svelte:head>
@@ -317,6 +342,12 @@
 		</a>
 		<div class="flex items-center gap-3 flex-wrap">
 			<ReceiptStatusBadge status={receipt.status} />
+
+			{#if recovering}
+				<span class="font-mono text-[9px] text-(--color-muted-foreground) uppercase animate-pulse">
+					AUTO-CHECKING...
+				</span>
+			{/if}
 
 			{#if receipt.status !== 'staged' && correctedCount > 0}
 				<span class="font-mono text-[9px] border border-(--color-warning-border) text-(--color-warning) bg-(--color-warning-muted) px-2 py-0.5 font-bold uppercase">
