@@ -141,13 +141,15 @@ export async function processReceipt(env, receiptId) {
 	// Persist normalised line items
 	if (extraction.lineItems?.length) {
 		const items = extraction.lineItems.map((li, i) => ({
-			id:          crypto.randomUUID(),
+			id:                crypto.randomUUID(),
 			receiptId,
-			description: li.description || null,
-			qty:         li.qty         || null,
-			unitPrice:   li.unitPrice   || null,
-			total:       li.total       || null,
-			sortOrder:   i
+			description:       li.description       || null,
+			qty:               li.qty               || null,
+			unitPrice:         li.unitPrice         || null,
+			total:             li.total             || null,
+			primaryCategory:   li.primaryCategory   || null,
+			secondaryCategory: li.secondaryCategory || null,
+			sortOrder:         i
 		}));
 		logger.info(LOG, 'inserting_line_items', { receiptId, count: items.length });
 		try {

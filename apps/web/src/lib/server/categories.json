@@ -1,0 +1,329 @@
+[
+  {
+    "primary": "Food & Grocery",
+    "secondary": [
+      "Fresh Produce",
+      "Meat & Seafood",
+      "Dairy & Eggs",
+      "Bakery & Bread",
+      "Deli & Charcuterie",
+      "Pantry & Dry Goods",
+      "Snacks & Confectionery",
+      "Breakfast & Cereal",
+      "Beverages",
+      "Frozen Food",
+      "International & World Foods",
+      "Organic & Specialty Foods",
+      "Baby & Toddler Food",
+      "Condiments, Sauces & Spreads",
+      "Ready Meals & Meal Kits",
+      "Vegetarian & Vegan"
+    ]
+  },
+  {
+    "primary": "Health & Beauty",
+    "secondary": [
+      "Vitamins & Supplements",
+      "Skincare",
+      "Hair Care",
+      "Cosmetics & Makeup",
+      "Dental Care",
+      "Deodorants & Fragrances",
+      "Shaving & Hair Removal",
+      "Shower, Bath & Soap",
+      "Sun Protection",
+      "Period & Continence Care",
+      "First Aid & Medicinal",
+      "Sexual Health & Family Planning",
+      "Travel & Minis"
+    ]
+  },
+  {
+    "primary": "Baby & Maternity",
+    "secondary": [
+      "Nappies & Changing",
+      "Baby Formula & Feeding",
+      "Baby Bath & Skincare",
+      "Baby Health & Medicinal",
+      "Baby Clothing & Accessories",
+      "Dummies, Teethers & Soothers",
+      "Postpartum & Maternity Care",
+      "Baby Monitors & Safety"
+    ]
+  },
+  {
+    "primary": "Pets",
+    "secondary": [
+      "Dog & Puppy",
+      "Cat & Kitten",
+      "Bird",
+      "Fish & Aquatic",
+      "Small Animals & Reptiles",
+      "Pet Accessories & Grooming",
+      "Pet Health & Flea Control"
+    ]
+  },
+  {
+    "primary": "Home & Living",
+    "secondary": [
+      "Furniture",
+      "Bedding & Manchester",
+      "Home Decor & Accessories",
+      "Lighting",
+      "Rugs & Flooring",
+      "Storage & Organisation",
+      "Cleaning Supplies & Equipment",
+      "Laundry",
+      "Kitchenware & Tableware",
+      "Bathroom Accessories",
+      "Air Fresheners & Home Fragrance",
+      "Candles & Diffusers",
+      "Pest Control"
+    ]
+  },
+  {
+    "primary": "Kitchen & Dining",
+    "secondary": [
+      "Kitchen Appliances",
+      "Cookware & Bakeware",
+      "Kitchen Storage & Organisation",
+      "Knives & Utensils",
+      "Tableware & Servingware",
+      "Coffee & Tea",
+      "Beverage Makers",
+      "Kitchen Cleaning"
+    ]
+  },
+  {
+    "primary": "Appliances",
+    "secondary": [
+      "Refrigerators & Freezers",
+      "Washing Machines & Dryers",
+      "Dishwashers",
+      "Vacuum Cleaners & Floor Care",
+      "Microwaves & Ovens",
+      "Air Conditioners & Fans",
+      "Heaters & Air Treatment",
+      "Irons & Steamers",
+      "Personal Care Appliances"
+    ]
+  },
+  {
+    "primary": "Electronics & Technology",
+    "secondary": [
+      "Mobile Phones & Accessories",
+      "Computers & Laptops",
+      "Tablets & eReaders",
+      "TVs & Home Theatre",
+      "Audio, Headphones & Speakers",
+      "Cameras & Photography",
+      "Smart Home",
+      "Wearables & Smartwatches",
+      "Gaming Consoles & Accessories",
+      "PC Components & IT Accessories",
+      "Batteries & Power",
+      "Drones & Action Cameras",
+      "Networking & Internet",
+      "Printers & Office Tech"
+    ]
+  },
+  {
+    "primary": "Software & Apps",
+    "secondary": [
+      "Business",
+      "Games",
+      "Developer Tools",
+      "Education",
+      "Entertainment",
+      "Finance",
+      "Graphics & Design",
+      "Health & Fitness",
+      "Lifestyle",
+      "Medical",
+      "Music",
+      "Photo & Video",
+      "Productivity",
+      "Social Networking",
+      "Sports",
+      "Travel",
+      "Utilities & Weather"
+    ]
+  },
+  {
+    "primary": "Gaming",
+    "secondary": [
+      "PlayStation",
+      "Xbox",
+      "Nintendo",
+      "PC Gaming",
+      "Virtual Reality & Mixed Reality",
+      "Handheld & Mobile Gaming",
+      "Retro & Arcade Gaming",
+      "Gaming Accessories & Furniture",
+      "Digital Games & Gift Cards"
+    ]
+  },
+  {
+    "primary": "Outdoor Living & Garden",
+    "secondary": [
+      "BBQs & Outdoor Cooking",
+      "Outdoor Furniture & Shade",
+      "Gardening Tools & Equipment",
+      "Plants, Seeds & Lawn Care",
+      "Garden Decor & Structures",
+      "Outdoor Heating & Cooling",
+      "Irrigation & Water Conservation",
+      "Pest Control (Outdoor)",
+      "Camping & Recreation",
+      "Swimming Pools, Spas & Saunas",
+      "Sheds & Storage"
+    ]
+  },
+  {
+    "primary": "Tools & Hardware",
+    "secondary": [
+      "Power Tools",
+      "Hand Tools",
+      "Tool Storage & Accessories",
+      "Safety Equipment & Workwear",
+      "Building & Construction Materials",
+      "Electrical & Wiring",
+      "Plumbing & Bathroom Fittings",
+      "Flooring & Tiling",
+      "Paint, Woodcare & Wallpaper",
+      "Fencing & Gates",
+      "Roofing & Insulation",
+      "Welding & Soldering",
+      "Heavy Lifting Equipment"
+    ]
+  },
+  {
+    "primary": "Furniture & Office",
+    "secondary": [
+      "Office Chairs & Desks",
+      "Home Office Furniture",
+      "Living Room Furniture",
+      "Bedroom Furniture",
+      "Dining Furniture",
+      "Kids Furniture",
+      "Bookshelves & Storage Units",
+      "Outdoor Furniture"
+    ]
+  },
+  {
+    "primary": "Clothing, Shoes & Accessories",
+    "secondary": [
+      "Women's Clothing",
+      "Men's Clothing",
+      "Kids' Clothing",
+      "Baby Clothing",
+      "Footwear",
+      "Underwear & Socks",
+      "Jewellery & Watches",
+      "Bags & Luggage",
+      "Accessories & Hats"
+    ]
+  },
+  {
+    "primary": "Sports & Fitness",
+    "secondary": [
+      "Fitness Equipment",
+      "Cycling",
+      "Golf",
+      "Running & Yoga",
+      "Outdoor & Adventure Sports",
+      "Team Sports",
+      "Water Sports",
+      "Camping & Hiking",
+      "Wearables & Fitness Trackers"
+    ]
+  },
+  {
+    "primary": "Toys, Games & Hobbies",
+    "secondary": [
+      "Action Figures & Collectibles",
+      "Board Games & Puzzles",
+      "Building & Construction Toys",
+      "Remote Control & Drones",
+      "Outdoor Play Equipment",
+      "Educational Toys",
+      "Arts & Crafts",
+      "Model Kits & Trains",
+      "Trading Card Games",
+      "Plush & Stuffed Toys"
+    ]
+  },
+  {
+    "primary": "Books, Movies & Music",
+    "secondary": [
+      "Books",
+      "DVDs & Blu-ray",
+      "Vinyl & Music",
+      "Digital Media & Streaming",
+      "Music Collectibles & Merchandise"
+    ]
+  },
+  {
+    "primary": "Stationery & Office Supplies",
+    "secondary": [
+      "Pens, Pencils & Markers",
+      "Notebooks, Journals & Planners",
+      "Filing & Organisation",
+      "Labels & Stickers",
+      "Sticky Notes & Accessories",
+      "Correction Products"
+    ]
+  },
+  {
+    "primary": "Automotive",
+    "secondary": [
+      "Car Parts & Accessories",
+      "Car Care & Cleaning",
+      "Motorcycles & Parts",
+      "Boats & Marine",
+      "Car Electronics & Dash Cams",
+      "Tyres & Wheels"
+    ]
+  },
+  {
+    "primary": "Electrical & Smart Home",
+    "secondary": [
+      "Smart Lighting & Power",
+      "Smart Security & Doorbells",
+      "Smart Speakers & Displays",
+      "Home Automation",
+      "Solar & EV Charging",
+      "Electrical Accessories & Wiring"
+    ]
+  },
+  {
+    "primary": "Assisted Living & Accessibility",
+    "secondary": [
+      "Mobility Aids",
+      "Bathroom Safety",
+      "Daily Living Aids",
+      "Home Safety & Modifications",
+      "Bedroom Support",
+      "Health & Wellness Aids"
+    ]
+  },
+  {
+    "primary": "Party, Celebrations & Gifts",
+    "secondary": [
+      "Party Supplies & Decorations",
+      "Gift Wrap & Cards",
+      "Seasonal & Holiday Decor",
+      "Disposable Tableware",
+      "Celebration Cakes & Candles"
+    ]
+  },
+  {
+    "primary": "Food Service & Commercial",
+    "secondary": [
+      "Commercial Kitchen Equipment",
+      "Catering Supplies",
+      "Industrial Cleaning",
+      "Business Supplies"
+    ]
+  }
+]

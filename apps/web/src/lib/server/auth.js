@@ -9,7 +9,10 @@ export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
-	trustedOrigins: ["http://localhost:5173", "https://fuzzies.app", "http://192.168.1.163:5173", "http://10.0.0.7:5173"],
+	trustedOrigins: [
+        "http://localhost:5173", "https://fuzzies.app", "http://192.168.1.163:5173", "http://10.0.0.7:5173", 
+        "fuzzyfinance.admin-c6f.workers.dev"
+    ],
 	advanced: {
 		// Native mobile clients (Dio) send session cookies but no Origin header,
 		// which triggers better-auth's CSRF check → 403. SvelteKit-level CSRF is

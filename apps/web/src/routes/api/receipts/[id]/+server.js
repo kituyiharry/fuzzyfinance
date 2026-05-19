@@ -102,8 +102,15 @@ export async function PATCH({ params, locals, request }) {
 		if (incomingDate !== originalDate) correctedFields.push('receiptDate');
 
 		// Compare line items by JSON structure (strip DB-only fields like id, sortOrder)
-		/** @param {{ description?: string; qty?: string; unitPrice?: string; total?: string }} li */
-		const normaliseItem = (li) => ({ description: li.description, qty: li.qty, unitPrice: li.unitPrice, total: li.total });
+		/** @param {{ description?: string; qty?: string; unitPrice?: string; total?: string; primaryCategory?: string; secondaryCategory?: string }} li */
+		const normaliseItem = (li) => ({
+			description:       li.description       || null,
+			qty:               li.qty               || null,
+			unitPrice:         li.unitPrice         || null,
+			total:             li.total             || null,
+			primaryCategory:   li.primaryCategory   || null,
+			secondaryCategory: li.secondaryCategory || null
+		});
 		const incomingItems = (lineItems ?? []).map(normaliseItem);
 		const originalItems = (ai.lineItems ?? []).map(normaliseItem);
 		if (JSON.stringify(incomingItems) !== JSON.stringify(originalItems)) {
@@ -122,13 +129,15 @@ export async function PATCH({ params, locals, request }) {
 
 	if (lineItems.length) {
 		const items = lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
-			id:          crypto.randomUUID(),
-			receiptId:   params.id,
-			description: li.description || null,
-			qty:         li.qty         || null,
-			unitPrice:   li.unitPrice   || null,
-			total:       li.total       || null,
-			sortOrder:   i
+			id:                crypto.randomUUID(),
+			receiptId:         params.id,
+			description:       li.description       || null,
+			qty:               li.qty               || null,
+			unitPrice:         li.unitPrice         || null,
+			total:             li.total             || null,
+			primaryCategory:   li.primaryCategory   || null,
+			secondaryCategory: li.secondaryCategory || null,
+			sortOrder:         i
 		}));
 		logger.info(LOG, 'inserting_line_items', { receiptId: params.id, count: items.length });
 		try {

@@ -1,6 +1,13 @@
 import { SchemaType } from '@google/generative-ai';
 import { GoogleGenAI } from "@google/genai";
 import { env } from '$env/dynamic/private';
+import categories from '$lib/server/categories.json';
+
+// Pre-build category reference for the system prompt and schema
+const _PRIMARY_NAMES = categories.map((c) => c.primary);
+const _CATEGORY_HIERARCHY = categories
+	.map((c) => `${c.primary}: ${c.secondary.join(', ')}`)
+	.join('\n');
 
 const GEMINI_TIMEOUT_MS = 25_000;
 
@@ -21,7 +28,7 @@ const GEMINI_TIMEOUT_MS = 25_000;
  *   category:            string;
  *   notes:               string;
  *   tags:                string[];
- *   lineItems:           Array<{ description: string; qty: string; unitPrice: string; total: string }>;
+ *   lineItems:           Array<{ description: string; qty: string; unitPrice: string; total: string; primaryCategory: string; secondaryCategory: string }>;
  *   authenticityRisk:    string;
  *   authenticitySignals: string[];
  * }} ReceiptExtraction
@@ -63,9 +70,18 @@ const EXTRACTION_SCHEMA = {
 					description: { type: SchemaType.STRING },
 					qty:         { type: SchemaType.STRING },
 					unitPrice:   { type: SchemaType.STRING },
-					total:       { type: SchemaType.STRING }
+					total:       { type: SchemaType.STRING },
+					primaryCategory: {
+						type: SchemaType.STRING,
+						enum: [..._PRIMARY_NAMES, 'Other'],
+						description: 'Primary category for this line item. Must be one of the defined primary categories or "Other" if none fits.'
+					},
+					secondaryCategory: {
+						type: SchemaType.STRING,
+						description: 'Secondary category within the chosen primaryCategory. Must be one of the valid secondary values for that primary. Use empty string if primaryCategory is "Other".'
+					}
 				},
-				required: ['description', 'qty', 'unitPrice', 'total']
+				required: ['description', 'qty', 'unitPrice', 'total', 'primaryCategory', 'secondaryCategory']
 			}
 		},
 		authenticityRisk: {
@@ -86,6 +102,10 @@ const SYSTEM_PROMPT = `You are an expense document extraction assistant.
 First, determine whether the provided document is an expense document — this includes receipts, invoices, bills, purchase records, or any other record of money paid out. If it is NOT (e.g. it is an ID card, passport, personal photo, screenshot of a social media post, blank page, or any non-financial document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
 
 If it IS a financial/receipt document, set relevant to true, relevanceReason to empty string, and extract all information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array. For tags, infer up to 5 short lowercase keyword tags. For receiptNumber, extract any printed receipt number, transaction reference, confirmation code, or order number. For invoiceNumber, extract any printed invoice or bill number. Use empty strings if not visible.
+
+For each line item, classify it using the following category taxonomy. Choose the most specific primaryCategory and a secondaryCategory from its list. Use "Other" for primaryCategory only if no category fits, and leave secondaryCategory as an empty string in that case.
+
+${_CATEGORY_HIERARCHY}
 
 Additionally, assess the visual authenticity of the document for the authenticityRisk and authenticitySignals fields. Check whether: line-item prices sum to the subtotal, tax and subtotal sum to the total, fonts are consistent throughout, the layout matches genuine POS terminal output, thermal-paper grain or realistic printing artifacts are present, and no signs of digital compositing are visible. Set authenticityRisk to "low" for clearly genuine receipts, "medium" for minor concerns, or "high" for strong signs of fabrication. Always populate authenticitySignals with any specific concerns; leave it as an empty array only when risk is "low". Do NOT flag the transaction date as suspicious or future-dated — date validation against the current date is handled separately after extraction and must not be part of your assessment.`;
 
