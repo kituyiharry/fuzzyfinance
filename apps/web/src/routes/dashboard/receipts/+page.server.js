@@ -1,7 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { and, eq, sql, desc, asc, like, gte, lte, or } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, like, gte, lte, or, inArray } from 'drizzle-orm';
+import { searchReceipts } from '$lib/server/vectorize';
 
 const PAGE_SIZE = 10;
 
@@ -18,7 +19,7 @@ const SORT_MAP = {
 };
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url }) {
+export async function load({ locals, url, platform }) {
 	if (!locals.user) redirect(302, '/');
 
 	const uid = locals.user.id;
@@ -39,11 +40,25 @@ export async function load({ locals, url }) {
 	const conditions = [eq(schema.receipt.userId, uid)];
 
 	if (q) {
-		const textSearch = or(
-			like(schema.receipt.merchantName, `%${q}%`),
-			like(schema.receipt.category,     `%${q}%`),
-			like(schema.receipt.notes,        `%${q}%`)
+		let vectorIds = /** @type {string[]} */ ([]);
+		try {
+			if (platform?.env?.AI && platform?.env?.VECTORIZE) {
+				const matches = await searchReceipts(platform.env, uid, q, 50);
+				vectorIds = matches.map(m => m.id);
+			}
+		} catch { /* non-fatal — fall back to LIKE */ }
+
+		const likeCondition = or(
+			like(schema.receipt.merchantName,  `%${q}%`),
+			like(schema.receipt.category,      `%${q}%`),
+			like(schema.receipt.notes,         `%${q}%`),
+			like(schema.receipt.lineItemsJson, `%${q}%`)
 		);
+
+		const textSearch = vectorIds.length > 0
+			? or(inArray(schema.receipt.id, vectorIds), likeCondition)
+			: likeCondition;
+
 		if (textSearch) conditions.push(textSearch);
 	}
 	if (status   && STATUSES.includes(status))   conditions.push(eq(schema.receipt.status, status));
