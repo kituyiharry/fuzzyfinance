@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/endpoints.dart';
+import '../../core/constants/expense_categories.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/receipt.dart';
 
@@ -50,15 +51,22 @@ class _ReceiptEditPageState extends ConsumerState<ReceiptEditPage> {
     _category = TextEditingController(text: r.category ?? '');
     _notes = TextEditingController(text: r.notes ?? '');
     _tags = TextEditingController(text: r.tags.join(', '));
-    _lineItems = r.lineItems
-        .map((li) => _LineItemState(
-              id: li.id,
-              description: TextEditingController(text: li.description ?? ''),
-              qty: TextEditingController(text: li.qty ?? ''),
-              unitPrice: TextEditingController(text: li.unitPrice ?? ''),
-              total: TextEditingController(text: li.total ?? ''),
-            ))
-        .toList();
+    _lineItems = r.lineItems.map((li) {
+      final validSecondary = li.secondaryCategory?.isNotEmpty == true &&
+              secondaryOptionsFor(li.primaryCategory).contains(li.secondaryCategory)
+          ? li.secondaryCategory
+          : null;
+      return _LineItemState(
+        id: li.id,
+        description: TextEditingController(text: li.description ?? ''),
+        qty: TextEditingController(text: li.qty ?? ''),
+        unitPrice: TextEditingController(text: li.unitPrice ?? ''),
+        total: TextEditingController(text: li.total ?? ''),
+        primaryCategory:
+            li.primaryCategory?.isNotEmpty == true ? li.primaryCategory : null,
+        secondaryCategory: validSecondary,
+      );
+    }).toList();
   }
 
   @override
@@ -116,6 +124,10 @@ class _ReceiptEditPageState extends ConsumerState<ReceiptEditPage> {
                 'qty': li.qty.text.trim(),
                 'unitPrice': li.unitPrice.text.trim(),
                 'total': li.total.text.trim(),
+                if (li.primaryCategory != null)
+                  'primaryCategory': li.primaryCategory,
+                if (li.secondaryCategory != null)
+                  'secondaryCategory': li.secondaryCategory,
               })
           .toList(),
     };
@@ -161,6 +173,8 @@ class _ReceiptEditPageState extends ConsumerState<ReceiptEditPage> {
         qty: TextEditingController(),
         unitPrice: TextEditingController(),
         total: TextEditingController(),
+        primaryCategory: null,
+        secondaryCategory: null,
       ));
     });
   }
@@ -270,6 +284,8 @@ class _LineItemState {
     required this.qty,
     required this.unitPrice,
     required this.total,
+    this.primaryCategory,
+    this.secondaryCategory,
   });
 
   final String? id;
@@ -277,6 +293,8 @@ class _LineItemState {
   final TextEditingController qty;
   final TextEditingController unitPrice;
   final TextEditingController total;
+  String? primaryCategory;
+  String? secondaryCategory;
 
   void dispose() {
     description.dispose();
@@ -396,7 +414,7 @@ class _DateField extends StatelessWidget {
   }
 }
 
-class _LineItemEditor extends StatelessWidget {
+class _LineItemEditor extends StatefulWidget {
   const _LineItemEditor({
     required this.index,
     required this.state,
@@ -408,40 +426,69 @@ class _LineItemEditor extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
+  State<_LineItemEditor> createState() => _LineItemEditorState();
+}
+
+class _LineItemEditorState extends State<_LineItemEditor> {
+  late String? _primary;
+  late String? _secondary;
+
+  @override
+  void initState() {
+    super.initState();
+    _primary = widget.state.primaryCategory;
+    _secondary = widget.state.secondaryCategory;
+  }
+
+  void _onPrimaryChanged(String? val) {
+    setState(() {
+      _primary = val;
+      _secondary = null;
+      widget.state.primaryCategory = val;
+      widget.state.secondaryCategory = null;
+    });
+  }
+
+  void _onSecondaryChanged(String? val) {
+    setState(() {
+      _secondary = val;
+      widget.state.secondaryCategory = val;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ext = context.fuzzy;
+    final secondaryOpts = secondaryOptionsFor(_primary);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: ext.border, width: 1),
-      ),
+      decoration: BoxDecoration(border: Border.all(color: ext.border, width: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('ITEM ${index + 1}',
+              Text('ITEM ${widget.index + 1}',
                   style: theme.textTheme.labelLarge
                       ?.copyWith(color: ext.mutedFg, fontSize: 9)),
               const Spacer(),
               GestureDetector(
-                onTap: onRemove,
+                onTap: widget.onRemove,
                 child: Icon(Icons.close, size: 16, color: ext.dangerColor),
               ),
             ],
           ),
           const SizedBox(height: 8),
           TextField(
-            controller: state.description,
+            controller: widget.state.description,
             style: theme.textTheme.bodyMedium,
             decoration: InputDecoration(
               hintText: 'Description',
-              hintStyle:
-                  theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              hintStyle: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               isDense: true,
             ),
           ),
@@ -450,15 +497,14 @@ class _LineItemEditor extends StatelessWidget {
             children: [
               Expanded(
                 child: TextField(
-                  controller: state.qty,
+                  controller: widget.state.qty,
                   keyboardType: TextInputType.number,
                   style: theme.textTheme.bodyMedium,
                   decoration: InputDecoration(
                     hintText: 'Qty',
-                    hintStyle: theme.textTheme.bodySmall
-                        ?.copyWith(color: ext.mutedFg),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
+                    hintStyle: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     isDense: true,
                   ),
                 ),
@@ -466,15 +512,14 @@ class _LineItemEditor extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
-                  controller: state.unitPrice,
+                  controller: widget.state.unitPrice,
                   keyboardType: TextInputType.number,
                   style: theme.textTheme.bodyMedium,
                   decoration: InputDecoration(
                     hintText: 'Unit price',
-                    hintStyle: theme.textTheme.bodySmall
-                        ?.copyWith(color: ext.mutedFg),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
+                    hintStyle: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     isDense: true,
                   ),
                 ),
@@ -482,23 +527,129 @@ class _LineItemEditor extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
-                  controller: state.total,
+                  controller: widget.state.total,
                   keyboardType: TextInputType.number,
                   style: theme.textTheme.bodyMedium,
                   decoration: InputDecoration(
                     hintText: 'Total',
-                    hintStyle: theme.textTheme.bodySmall
-                        ?.copyWith(color: ext.mutedFg),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
+                    hintStyle: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     isDense: true,
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          // Primary category
+          _DropdownField(
+            label: 'Primary Category',
+            value: _primary,
+            items: const ['General', ...kPrimaryCategories],
+            hint: '— Select —',
+            onChanged: _onPrimaryChanged,
+          ),
+          const SizedBox(height: 6),
+          // Secondary category
+          if (secondaryOpts.isNotEmpty)
+            _DropdownField(
+              label: 'Secondary Category',
+              value: _secondary,
+              items: secondaryOpts,
+              hint: '— Select —',
+              onChanged: _onSecondaryChanged,
+            )
+          else
+            _DisabledDropdownField(label: 'Secondary Category'),
         ],
       ),
+    );
+  }
+}
+
+// ── Dropdown form fields ──────────────────────────────────────────────────────
+
+class _DropdownField extends StatelessWidget {
+  const _DropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String? value;
+  final List<String> items;
+  final String hint;
+  final void Function(String?) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: theme.textTheme.labelLarge
+                ?.copyWith(color: ext.mutedFg, fontSize: 9)),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          value: value,
+          isExpanded: true,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            isDense: true,
+          ),
+          hint: Text(hint,
+              style: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg)),
+          items: items
+              .map((item) => DropdownMenuItem(
+                    value: item,
+                    child: Text(item, style: theme.textTheme.bodyMedium,
+                        overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _DisabledDropdownField extends StatelessWidget {
+  const _DisabledDropdownField({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ext = context.fuzzy;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: theme.textTheme.labelLarge
+                ?.copyWith(color: ext.mutedFg, fontSize: 9)),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          value: null,
+          isExpanded: true,
+          decoration: InputDecoration(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            isDense: true,
+          ),
+          hint: Text('— N/A —',
+              style: theme.textTheme.bodySmall?.copyWith(color: ext.mutedFg)),
+          items: const [],
+          onChanged: null,
+        ),
+      ],
     );
   }
 }

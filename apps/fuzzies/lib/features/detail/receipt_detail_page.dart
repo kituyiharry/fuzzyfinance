@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/endpoints.dart';
 import '../../core/cache/local_cache.dart';
+import '../../core/constants/expense_categories.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/ledger.dart';
 import '../../models/receipt.dart';
@@ -557,28 +558,125 @@ class _LineItemsTab extends StatelessWidget {
   const _LineItemsTab({required this.receipt});
   final Receipt receipt;
 
+  List<({String primary, List<({String secondary, List<ReceiptLineItem> items})> sections})>
+      _buildGroups() {
+    // Bucket items into primary → secondary
+    final raw = <String, Map<String, List<ReceiptLineItem>>>{};
+    for (final li in receipt.lineItems) {
+      final primary =
+          (li.primaryCategory?.isNotEmpty ?? false) ? li.primaryCategory! : 'General';
+      final secondary = li.secondaryCategory ?? '';
+      raw.putIfAbsent(primary, () => {}).putIfAbsent(secondary, () => []).add(li);
+    }
+
+    // Sort primaries by taxonomy order, General last
+    final sortedPrimaries = raw.keys.toList()
+      ..sort((a, b) {
+        if (a == 'General') return 1;
+        if (b == 'General') return -1;
+        final ai = kPrimaryCategories.indexOf(a);
+        final bi = kPrimaryCategories.indexOf(b);
+        return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
+      });
+
+    return sortedPrimaries.map((primary) {
+      final secMap = raw[primary]!;
+      final secOrder = secondaryOptionsFor(primary);
+      final sortedSecondaries = secMap.keys.toList()
+        ..sort((a, b) {
+          if (a.isEmpty && b.isNotEmpty) return 1;
+          if (a.isNotEmpty && b.isEmpty) return -1;
+          final ai = secOrder.indexOf(a);
+          final bi = secOrder.indexOf(b);
+          if (ai == -1 && bi == -1) return a.compareTo(b);
+          if (ai == -1) return 1;
+          if (bi == -1) return -1;
+          return ai.compareTo(bi);
+        });
+      return (
+        primary: primary,
+        sections: sortedSecondaries
+            .map((sec) => (secondary: sec, items: secMap[sec]!))
+            .toList(),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ext = context.fuzzy;
+
     if (receipt.lineItems.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
         child: Text('No line items.',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: context.fuzzy.mutedFg)),
+            style: theme.textTheme.bodyMedium?.copyWith(color: ext.mutedFg)),
       );
     }
+
+    final groups = _buildGroups();
+    final legendStyle =
+        theme.textTheme.labelSmall?.copyWith(color: ext.mutedFg, fontSize: 9);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
-        children: receipt.lineItems
-            .map((li) => _LineItemRow(
-                  description: li.description ?? '',
-                  qty: li.qty,
-                  unitPrice: li.unitPrice,
-                  total: li.total,
-                ))
-            .toList(),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Column legend
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 4),
+            child: Row(
+              children: [
+                Expanded(child: Text('DESCRIPTION', style: legendStyle)),
+                SizedBox(
+                    width: 32,
+                    child: Text('QTY', style: legendStyle, textAlign: TextAlign.right)),
+                const SizedBox(width: 8),
+                SizedBox(
+                    width: 56,
+                    child: Text('TOTAL', style: legendStyle, textAlign: TextAlign.right)),
+              ],
+            ),
+          ),
+          Divider(color: ext.border, height: 1, thickness: 1),
+          const SizedBox(height: 4),
+
+          for (final group in groups) ...[
+            // Primary category header
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 2),
+              child: Text(
+                group.primary.toUpperCase(),
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(fontSize: 9, letterSpacing: 1.2),
+              ),
+            ),
+            for (final section in group.sections) ...[
+              if (section.secondary.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
+                  child: Text(
+                    section.secondary,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: ext.mutedFg, fontSize: 9),
+                  ),
+                ),
+              for (final li in section.items)
+                Padding(
+                  padding:
+                      EdgeInsets.only(left: section.secondary.isNotEmpty ? 24 : 12),
+                  child: _LineItemRow(
+                    description: li.description ?? '',
+                    qty: li.qty,
+                    unitPrice: li.unitPrice,
+                    total: li.total,
+                  ),
+                ),
+            ],
+          ],
+        ],
       ),
     );
   }

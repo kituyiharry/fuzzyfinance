@@ -109,6 +109,8 @@ class ReceiptLineItem {
     this.qty,
     this.unitPrice,
     this.total,
+    this.primaryCategory,
+    this.secondaryCategory,
   });
 
   final String? id;
@@ -116,6 +118,8 @@ class ReceiptLineItem {
   final String? qty;
   final String? unitPrice;
   final String? total;
+  final String? primaryCategory;
+  final String? secondaryCategory;
 
   factory ReceiptLineItem.fromJson(Map<String, dynamic> json) =>
       ReceiptLineItem(
@@ -124,5 +128,7 @@ class ReceiptLineItem {
         qty: json['qty'] as String?,
         unitPrice: json['unitPrice'] as String?,
         total: json['total'] as String?,
+        primaryCategory: json['primaryCategory'] as String?,
+        secondaryCategory: json['secondaryCategory'] as String?,
       );
 }

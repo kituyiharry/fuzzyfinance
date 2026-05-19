@@ -105,11 +105,13 @@ export const receiptLineItem = sqliteTable(
     receiptId:   text("receipt_id")
       .notNull()
       .references(() => receipt.id, { onDelete: "cascade" }),
-    description: text("description"),
-    qty:         text("qty"),
-    unitPrice:   text("unit_price"),
-    total:       text("total"),
-    sortOrder:   integer("sort_order").notNull().default(0),
+    description:       text("description"),
+    qty:               text("qty"),
+    unitPrice:         text("unit_price"),
+    total:             text("total"),
+    primaryCategory:   text("primary_category"),
+    secondaryCategory: text("secondary_category"),
+    sortOrder:         integer("sort_order").notNull().default(0),
   },
   (table) => [
     index("receipt_line_item_receiptId_idx").on(table.receiptId),
