@@ -140,14 +140,26 @@ For dates: use ISO 8601 format (YYYY-MM-DD). Empty string if not visible.
 For tags: infer up to 5 short lowercase tags describing the nature of this sale.`;
 
 /**
+ * @param {string | null | undefined} accessToken
+ * @returns {GoogleGenAI}
+ */
+function _makeGenAI(accessToken) {
+	if (accessToken) {
+		return new GoogleGenAI({ httpOptions: { headers: { Authorization: `Bearer ${accessToken}` } } });
+	}
+	return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+}
+
+/**
  * Extracts structured sales data from file bytes using Gemini.
  *
  * @param {Uint8Array | ArrayBuffer} fileBytes
  * @param {string} mimeType — e.g. 'image/jpeg', 'application/pdf'
+ * @param {string | null} [accessToken] - Google OAuth access token; falls back to GEMINI_API_KEY when absent
  * @returns {Promise<SaleExtraction>}
  */
-export async function extractSaleData(fileBytes, mimeType) {
-	const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+export async function extractSaleData(fileBytes, mimeType, accessToken = null) {
+	const genAI = _makeGenAI(accessToken);
 
 	const bytes = fileBytes instanceof ArrayBuffer ? new Uint8Array(fileBytes) : fileBytes;
 	let binary = '';

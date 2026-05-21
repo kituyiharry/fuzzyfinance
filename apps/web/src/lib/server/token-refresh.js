@@ -3,6 +3,36 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq } from 'drizzle-orm';
 
+const GEMINI_SCOPE = 'https://www.googleapis.com/auth/generative-language.retriever';
+
+/**
+ * Returns a valid Google OAuth access token scoped for the Generative Language
+ * API, or null if the user has no Google integration or has not granted the
+ * required scope. Errors (including expired refresh tokens) are swallowed so
+ * callers can silently fall back to the GEMINI_API_KEY.
+ *
+ * @param {string} userId
+ * @returns {Promise<string | null>}
+ */
+export async function getGeminiAccessToken(userId) {
+	try {
+		const rows = await db
+			.select()
+			.from(schema.integration)
+			.where(eq(schema.integration.userId, userId));
+
+		const integration = rows.find((r) => r.provider === 'google');
+		if (!integration) return null;
+
+		const grantedScopes = integration.scopes ? JSON.parse(integration.scopes) : [];
+		if (!grantedScopes.includes(GEMINI_SCOPE)) return null;
+
+		return await _ensureFresh(integration, 'google', false);
+	} catch {
+		return null;
+	}
+}
+
 /**
  * Returns a valid access token for the given integration, refreshing it first
  * if it has expired or is within 30 minutes of expiry.

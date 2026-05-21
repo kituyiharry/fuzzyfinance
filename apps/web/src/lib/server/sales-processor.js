@@ -5,6 +5,7 @@ import { extractSaleData } from '$lib/server/sales-gemini';
 import { indexSale } from '$lib/server/vectorize';
 import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
+import { getGeminiAccessToken } from '$lib/server/token-refresh';
 
 const LOG = '[sales-processor]';
 
@@ -43,9 +44,12 @@ export async function processSale(env, saleId) {
 	}
 
 	// ── Step 3: AI extraction ──────────────────────────────────────────────
+	const geminiToken = await getGeminiAccessToken(sale.userId ?? '');
+	if (geminiToken) logger.info(LOG, 'using_oauth_token', { saleId });
+
 	let extraction;
 	try {
-		extraction = await extractSaleData(fileBytes, sale.rawMimeType ?? 'image/jpeg');
+		extraction = await extractSaleData(fileBytes, sale.rawMimeType ?? 'image/jpeg', geminiToken);
 		logger.info(LOG, 'extracted', { saleId, documentTitle: extraction.documentTitle, totalRevenue: extraction.totalRevenue, itemCount: extraction.lineItems?.length ?? 0 });
 	} catch (/** @type {any} */ err) {
 		logger.error(LOG, 'extraction_failed', { saleId, code: err?.code, err: String(err) });

@@ -6,6 +6,7 @@ import { indexReceipt } from '$lib/server/vectorize';
 import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
 import { scanFileMetadata } from '$lib/server/authenticity';
+import { getGeminiAccessToken } from '$lib/server/token-refresh';
 
 const LOG = '[receipt-processor]';
 
@@ -62,9 +63,12 @@ export async function processReceipt(env, receiptId) {
 	}
 
 	// ── Step 2: AI extraction ──────────────────────────────────────────
+	const geminiToken = await getGeminiAccessToken(receipt.userId ?? '');
+	if (geminiToken) logger.info(LOG, 'using_oauth_token', { receiptId });
+
 	let extraction;
 	try {
-		extraction = await extractReceiptData(fileBytes, receipt.rawMimeType ?? 'image/jpeg', metaScan.signals);
+		extraction = await extractReceiptData(fileBytes, receipt.rawMimeType ?? 'image/jpeg', metaScan.signals, geminiToken);
 		logger.info(LOG, 'extracted', { receiptId, merchant: extraction.merchant, total: extraction.total, itemCount: extraction.lineItems?.length ?? 0, authenticityRisk: extraction.authenticityRisk });
 	} catch (/** @type {any} */ err) {
 		logger.error(LOG, 'extraction_failed', { receiptId, code: err?.code, err: String(err) });

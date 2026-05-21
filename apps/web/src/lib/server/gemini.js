@@ -110,15 +110,27 @@ ${_CATEGORY_HIERARCHY}
 Additionally, assess the visual authenticity of the document for the authenticityRisk and authenticitySignals fields. Check whether: line-item prices sum to the subtotal, tax and subtotal sum to the total, fonts are consistent throughout, the layout matches genuine POS terminal output, thermal-paper grain or realistic printing artifacts are present, and no signs of digital compositing are visible. Set authenticityRisk to "low" for clearly genuine receipts, "medium" for minor concerns, or "high" for strong signs of fabrication. Always populate authenticitySignals with any specific concerns; leave it as an empty array only when risk is "low". Do NOT flag the transaction date as suspicious or future-dated — date validation against the current date is handled separately after extraction and must not be part of your assessment.`;
 
 /**
+ * @param {string | null | undefined} accessToken
+ * @returns {GoogleGenAI}
+ */
+function _makeGenAI(accessToken) {
+	if (accessToken) {
+		return new GoogleGenAI({ httpOptions: { headers: { Authorization: `Bearer ${accessToken}` } } });
+	}
+	return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+}
+
+/**
  * Extracts structured receipt data from file bytes using Gemini.
  *
  * @param {Uint8Array | ArrayBuffer} fileBytes
  * @param {string} mimeType - e.g. 'image/jpeg', 'image/png', 'application/pdf'
  * @param {string[]} [preAuthSignals] - signals from pre-extraction metadata scan to include as context
+ * @param {string | null} [accessToken] - Google OAuth access token; falls back to GEMINI_API_KEY when absent
  * @returns {Promise<ReceiptExtraction>}
  */
-export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = []) {
-	const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [], accessToken = null) {
+	const genAI = _makeGenAI(accessToken);
 
 	const bytes = fileBytes instanceof ArrayBuffer ? new Uint8Array(fileBytes) : fileBytes;
 	let binary = '';

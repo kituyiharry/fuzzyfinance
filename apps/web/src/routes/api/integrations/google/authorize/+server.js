@@ -5,7 +5,8 @@ const GOOGLE_SCOPES = [
 	'openid',
 	'email',
 	'https://www.googleapis.com/auth/drive.file',
-	'https://www.googleapis.com/auth/spreadsheets'
+	'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/generative-language.retriever'
 ];
 
 /** @type {import('./$types').RequestHandler} */
