@@ -1,7 +1,0 @@
-[package]
-name = "galvani-solver"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-galvani-parser = { workspace = true }
