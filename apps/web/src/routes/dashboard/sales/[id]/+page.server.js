@@ -3,6 +3,7 @@ import { redirect, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and, asc } from 'drizzle-orm';
+import categories from '$lib/server/categories.json';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, locals }) {
@@ -27,5 +28,5 @@ export async function load({ params, locals }) {
 		receivable = { ...receivableRow, updates };
 	}
 
-	return { sale, lineItems, receivable };
+	return { sale, lineItems, receivable, categories };
 }

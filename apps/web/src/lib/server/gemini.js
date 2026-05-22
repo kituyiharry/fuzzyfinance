@@ -2,6 +2,7 @@ import { SchemaType } from '@google/generative-ai';
 import { GoogleGenAI } from "@google/genai";
 import { env } from '$env/dynamic/private';
 import categories from '$lib/server/categories.json';
+import { generateWithOAuth } from '$lib/server/gemini-rest';
 
 // Pre-build category reference for the system prompt and schema
 const _PRIMARY_NAMES = categories.map((c) => c.primary);
@@ -110,17 +111,6 @@ ${_CATEGORY_HIERARCHY}
 Additionally, assess the visual authenticity of the document for the authenticityRisk and authenticitySignals fields. Check whether: line-item prices sum to the subtotal, tax and subtotal sum to the total, fonts are consistent throughout, the layout matches genuine POS terminal output, thermal-paper grain or realistic printing artifacts are present, and no signs of digital compositing are visible. Set authenticityRisk to "low" for clearly genuine receipts, "medium" for minor concerns, or "high" for strong signs of fabrication. Always populate authenticitySignals with any specific concerns; leave it as an empty array only when risk is "low". Do NOT flag the transaction date as suspicious or future-dated — date validation against the current date is handled separately after extraction and must not be part of your assessment.`;
 
 /**
- * @param {string | null | undefined} accessToken
- * @returns {GoogleGenAI}
- */
-function _makeGenAI(accessToken) {
-	if (accessToken) {
-		return new GoogleGenAI({ httpOptions: { headers: { Authorization: `Bearer ${accessToken}` } } });
-	}
-	return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-}
-
-/**
  * Extracts structured receipt data from file bytes using Gemini.
  *
  * @param {Uint8Array | ArrayBuffer} fileBytes
@@ -130,8 +120,6 @@ function _makeGenAI(accessToken) {
  * @returns {Promise<ReceiptExtraction>}
  */
 export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [], accessToken = null) {
-	const genAI = _makeGenAI(accessToken);
-
 	const bytes = fileBytes instanceof ArrayBuffer ? new Uint8Array(fileBytes) : fileBytes;
 	let binary = '';
 	const len = bytes.byteLength;
@@ -142,23 +130,39 @@ export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [
 		? `\n\nPre-extraction file metadata scan detected the following signals before visual analysis — factor these into your authenticityRisk and authenticitySignals assessment:\n${preAuthSignals.map((s) => `• ${s}`).join('\n')}`
 		: '';
 
-	/** @type {import('@google/genai').GenerateContentResponse} */
-	let result;
+	const generationConfig = {
+		responseMimeType: 'application/json',
+		responseSchema: EXTRACTION_SCHEMA
+	};
+
+	let text;
 	try {
-		result = await _withTimeout(
-			genAI.models.generateContent({
+		if (accessToken) {
+			text = await generateWithOAuth({
+				accessToken,
 				model: 'gemini-3-flash-preview',
-				contents: [
-					SYSTEM_PROMPT + preAuthNote,
+				parts: [
+					{ text: SYSTEM_PROMPT + preAuthNote },
 					{ inlineData: { mimeType, data: base64 } }
 				],
-				config: {
-					responseMimeType: 'application/json',
-					responseSchema: EXTRACTION_SCHEMA
-				}
-			}),
-			GEMINI_TIMEOUT_MS
-		);
+				generationConfig,
+				timeoutMs: GEMINI_TIMEOUT_MS
+			});
+		} else {
+			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+			const result = await _withTimeout(
+				genAI.models.generateContent({
+					model: 'gemini-3-flash-preview',
+					contents: [
+						SYSTEM_PROMPT + preAuthNote,
+						{ inlineData: { mimeType, data: base64 } }
+					],
+					config: generationConfig
+				}),
+				GEMINI_TIMEOUT_MS
+			);
+			text = result.text;
+		}
 	} catch (/** @type {any} */ err) {
 		const msg = String(err?.message ?? err);
 		if (err?.status === 429 || /429|rate.?limit|quota|resource.?exhausted/i.test(msg)) {
@@ -172,7 +176,7 @@ export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [
 	}
 
 	/** @type {ReceiptExtraction} */
-	const parsed = result.text ? JSON.parse(result.text) : {};
+	const parsed = text ? JSON.parse(text) : {};
 
 	if (parsed.relevant === false) {
 		const reason = parsed.relevanceReason?.trim() || 'Document does not appear to be a receipt or expense record.';

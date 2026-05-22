@@ -323,7 +323,29 @@
       "Commercial Kitchen Equipment",
       "Catering Supplies",
       "Industrial Cleaning",
-      "Business Supplies"
+      "Business Supplies", 
+      "Restaurant"
+    ]
+  }, 
+  {
+    "primary": "Business Service",
+    "secondary": [
+       "Accommodation and food services industry",
+       "Administrative and support services industry",
+       "Agriculture, forestry and fishing industry",
+       "Arts and recreation services industry",
+       "Construction industry",
+       "Education and training industry",
+       "Financial and insurance services industry",
+       "Health care and social assistance industry",
+       "Information media and telecommunications industry",
+       "Manufacturing industry",
+       "Mining industry",
+       "Professional, scientific and technical services industry",
+       "Rental, hiring and real estate services industry",
+       "Retail and wholesale trade industry",
+       "Tourism industry",
+       "Transport, postal and warehousing industry"
     ]
   }
 ]

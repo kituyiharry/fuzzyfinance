@@ -102,12 +102,14 @@ export async function PATCH({ params, locals, request }) {
 
 		/** @param {any} li */
 		const normaliseItem = (li) => ({
-			description: li.description,
-			type: li.type,
-			unitsSold: li.unitsSold,
-			buyPrice: li.buyPrice,
-			sellPrice: li.sellPrice,
-			total: li.total
+			description:      li.description      || null,
+			type:             li.type             || null,
+			unitsSold:        li.unitsSold        || null,
+			buyPrice:         li.buyPrice         || null,
+			sellPrice:        li.sellPrice        || null,
+			total:            li.total            || null,
+			primaryCategory:  li.primaryCategory  || null,
+			secondaryCategory: li.secondaryCategory || null
 		});
 		const incomingItems = (lineItems ?? []).map(normaliseItem);
 		const originalItems = (ai.lineItems ?? []).map(normaliseItem);
@@ -126,17 +128,19 @@ export async function PATCH({ params, locals, request }) {
 
 	if (lineItems.length) {
 		const items = lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
-			id:          crypto.randomUUID(),
-			saleId:      params.id,
-			description: li.description || null,
-			type:        li.type        || null,
-			unitsSold:   li.unitsSold   || null,
-			buyPrice:    li.buyPrice    || null,
-			sellPrice:   li.sellPrice   || null,
-			margin:      li.margin      || null,
-			total:       li.total       || null,
-			totalCost:   li.totalCost   || null,
-			sortOrder:   i
+			id:                crypto.randomUUID(),
+			saleId:            params.id,
+			description:       li.description       || null,
+			type:              li.type              || null,
+			unitsSold:         li.unitsSold         || null,
+			buyPrice:          li.buyPrice          || null,
+			sellPrice:         li.sellPrice         || null,
+			margin:            li.margin            || null,
+			total:             li.total             || null,
+			totalCost:         li.totalCost         || null,
+			primaryCategory:   li.primaryCategory   || null,
+			secondaryCategory: li.secondaryCategory || null,
+			sortOrder:         i
 		}));
 		logger.info(LOG, 'inserting_line_items', { saleId: params.id, count: items.length });
 		try {

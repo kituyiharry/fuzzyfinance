@@ -1,6 +1,13 @@
 import { SchemaType } from '@google/generative-ai';
 import { GoogleGenAI } from '@google/genai';
 import { env } from '$env/dynamic/private';
+import categories from '$lib/server/categories.json';
+import { generateWithOAuth } from '$lib/server/gemini-rest';
+
+const _PRIMARY_NAMES = categories.map((c) => c.primary);
+const _CATEGORY_HIERARCHY = categories
+	.map((c) => `${c.primary}: ${c.secondary.join(', ')}`)
+	.join('\n');
 
 const GEMINI_TIMEOUT_MS = 25_000;
 
@@ -18,14 +25,16 @@ const GEMINI_TIMEOUT_MS = 25_000;
  *   notes:         string;
  *   tags:          string[];
  *   lineItems:     Array<{
- *     description: string;
- *     type:        string;
- *     unitsSold:   string;
- *     buyPrice:    string;
- *     sellPrice:   string;
- *     margin:      string;
- *     total:       string;
- *     totalCost:   string;
+ *     description:      string;
+ *     type:             string;
+ *     unitsSold:        string;
+ *     buyPrice:         string;
+ *     sellPrice:        string;
+ *     margin:           string;
+ *     total:            string;
+ *     totalCost:        string;
+ *     primaryCategory:  string;
+ *     secondaryCategory: string;
  *   }>;
  * }} SaleExtraction
  */
@@ -114,9 +123,18 @@ const EXTRACTION_SCHEMA = {
 					totalCost: {
 						type: SchemaType.STRING,
 						description: 'Total cost for this line item as a decimal string. Empty string for services.'
+					},
+					primaryCategory: {
+						type: SchemaType.STRING,
+						enum: [..._PRIMARY_NAMES, 'Other'],
+						description: 'Primary category for this line item. Must be one of the defined primary categories or "Other" if none fits.'
+					},
+					secondaryCategory: {
+						type: SchemaType.STRING,
+						description: 'Secondary category within the chosen primaryCategory. Must be one of the valid secondary values for that primary. Use empty string if primaryCategory is "Other".'
 					}
 				},
-				required: ['description', 'type', 'sellPrice', 'total']
+				required: ['description', 'type', 'sellPrice', 'total', 'primaryCategory', 'secondaryCategory']
 			}
 		}
 	},
@@ -137,18 +155,11 @@ For mixed documents: classify each line item individually.
 For totalMargin: compute as totalRevenue minus totalCost if both are present and not stated.
 For amounts: return only the numeric value without currency symbols.
 For dates: use ISO 8601 format (YYYY-MM-DD). Empty string if not visible.
-For tags: infer up to 5 short lowercase tags describing the nature of this sale.`;
+For tags: infer up to 5 short lowercase tags describing the nature of this sale.
 
-/**
- * @param {string | null | undefined} accessToken
- * @returns {GoogleGenAI}
- */
-function _makeGenAI(accessToken) {
-	if (accessToken) {
-		return new GoogleGenAI({ httpOptions: { headers: { Authorization: `Bearer ${accessToken}` } } });
-	}
-	return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-}
+For each line item, also classify it using the following category taxonomy. Choose the most specific primaryCategory and a secondaryCategory from its list. Use "Other" for primaryCategory only if no category fits, and leave secondaryCategory as an empty string in that case.
+
+${_CATEGORY_HIERARCHY}`;
 
 /**
  * Extracts structured sales data from file bytes using Gemini.
@@ -159,31 +170,45 @@ function _makeGenAI(accessToken) {
  * @returns {Promise<SaleExtraction>}
  */
 export async function extractSaleData(fileBytes, mimeType, accessToken = null) {
-	const genAI = _makeGenAI(accessToken);
-
 	const bytes = fileBytes instanceof ArrayBuffer ? new Uint8Array(fileBytes) : fileBytes;
 	let binary = '';
 	const len = bytes.byteLength;
 	for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
 	const base64 = btoa(binary);
 
-	/** @type {import('@google/genai').GenerateContentResponse} */
-	let result;
+	const generationConfig = {
+		responseMimeType: 'application/json',
+		responseSchema: EXTRACTION_SCHEMA
+	};
+
+	let text;
 	try {
-		result = await _withTimeout(
-			genAI.models.generateContent({
+		if (accessToken) {
+			text = await generateWithOAuth({
+				accessToken,
 				model: 'gemini-3-flash-preview',
-				contents: [
-					SYSTEM_PROMPT,
+				parts: [
+					{ text: SYSTEM_PROMPT },
 					{ inlineData: { mimeType, data: base64 } }
 				],
-				config: {
-					responseMimeType: 'application/json',
-					responseSchema: EXTRACTION_SCHEMA
-				}
-			}),
-			GEMINI_TIMEOUT_MS
-		);
+				generationConfig,
+				timeoutMs: GEMINI_TIMEOUT_MS
+			});
+		} else {
+			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+			const result = await _withTimeout(
+				genAI.models.generateContent({
+					model: 'gemini-3-flash-preview',
+					contents: [
+						SYSTEM_PROMPT,
+						{ inlineData: { mimeType, data: base64 } }
+					],
+					config: generationConfig
+				}),
+				GEMINI_TIMEOUT_MS
+			);
+			text = result.text;
+		}
 	} catch (/** @type {any} */ err) {
 		const msg = String(err?.message ?? err);
 		if (err?.status === 429 || /429|rate.?limit|quota|resource.?exhausted/i.test(msg)) {
@@ -197,7 +222,7 @@ export async function extractSaleData(fileBytes, mimeType, accessToken = null) {
 	}
 
 	/** @type {SaleExtraction} */
-	const parsed = result.text ? JSON.parse(result.text) : {};
+	const parsed = text ? JSON.parse(text) : {};
 
 	if (parsed.relevant === false) {
 		const reason = parsed.relevanceReason?.trim() || 'Document does not appear to be a sales record.';

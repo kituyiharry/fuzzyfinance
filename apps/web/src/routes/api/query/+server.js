@@ -6,6 +6,7 @@ import { searchReceipts } from '$lib/server/vectorize';
 import { GoogleGenAI } from '@google/genai';
 import { env } from '$env/dynamic/private';
 import { getGeminiAccessToken } from '$lib/server/token-refresh';
+import { generateWithOAuth } from '$lib/server/gemini-rest';
 
 const SYSTEM_PROMPT = `You are FuzzyFinance's financial assistant. You help users understand their receipt and spending data. Be concise — answer in 1–4 sentences unless a list or breakdown is specifically requested. You are given two types of data: (1) a spending summary with aggregated totals across all receipts, and (2) individual receipts most relevant to the query. Use the spending summary to answer aggregation questions (totals, most/least, averages, breakdowns). Use individual receipts to answer specific lookup questions. Do not fabricate receipts, merchants, or amounts.`;
 
@@ -150,17 +151,24 @@ export async function POST({ request, locals, platform }) {
 
 	// ── Call Gemini ───────────────────────────────────────────────────
 	const geminiToken = await getGeminiAccessToken(locals.user.id);
-	const genAI = geminiToken
-		? new GoogleGenAI({ httpOptions: { headers: { Authorization: `Bearer ${geminiToken}` } } })
-		: new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
 	let answer;
 	try {
-		const result = await genAI.models.generateContent({
-			model: 'gemini-3-flash-preview',
-			contents: [fullPrompt]
-		});
-		answer = result.text?.trim() ?? "I couldn't generate a response. Please try again.";
+		if (geminiToken) {
+			answer = (await generateWithOAuth({
+				accessToken: geminiToken,
+				model: 'gemini-3-flash-preview',
+				parts: [{ text: fullPrompt }]
+			})).trim();
+		} else {
+			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+			const result = await genAI.models.generateContent({
+				model: 'gemini-3-flash-preview',
+				contents: [fullPrompt]
+			});
+			answer = result.text?.trim() ?? '';
+		}
+		answer ||= "I couldn't generate a response. Please try again.";
 	} catch (/** @type {any} */ err) {
 		const msg = String(err?.message ?? err);
 		if (err?.status === 429 || /429|rate.?limit|quota|resource.?exhausted/i.test(msg)) {

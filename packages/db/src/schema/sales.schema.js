@@ -93,8 +93,10 @@ export const saleLineItem = sqliteTable(
     /** Total sell value for this line item */
     total:       text("total"),
     /** Total cost for this line item — null for services */
-    totalCost:   text("total_cost"),
-    sortOrder:   integer("sort_order").notNull().default(0),
+    totalCost:        text("total_cost"),
+    primaryCategory:  text("primary_category"),
+    secondaryCategory: text("secondary_category"),
+    sortOrder:        integer("sort_order").notNull().default(0),
   },
   (table) => [
     index("sale_line_item_saleId_idx").on(table.saleId),

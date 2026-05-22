@@ -12,6 +12,7 @@
 	let sale       = $derived(data.sale);
 	let lineItems  = $derived(data.lineItems);
 	let receivable = $derived(data.receivable);
+	let categories = $derived(data.categories);
 
 	let activeTab = $state(/** @type {'info' | 'items' | 'receivable'} */ ('info'));
 
@@ -61,7 +62,7 @@
 	let showCloseForm      = $state(false);
 
 	/**
-	 * @typedef {{ id: string; description: string; type: string; unitsSold: string; buyPrice: string; sellPrice: string; margin: string; total: string; totalCost: string }} FormLineItem
+	 * @typedef {{ id: string; description: string; type: string; unitsSold: string; buyPrice: string; sellPrice: string; margin: string; total: string; totalCost: string; primaryCategory: string; secondaryCategory: string }} FormLineItem
 	 */
 
 	let form = $state({
@@ -78,6 +79,41 @@
 		lineItems:     []
 	});
 
+	/** @param {string} primary */
+	function getSecondaryOptions(primary) {
+		if (!primary || primary === 'General') return [];
+		return categories.find(c => c.primary === primary)?.secondary ?? [];
+	}
+
+	let groupedItems = $derived.by(() => {
+		/** @type {Array<{ primary: string; sections: Array<{ secondary: string; items: typeof lineItems }> }>} */
+		const groups = [];
+		for (const li of lineItems) {
+			const primary   = li.primaryCategory  || 'General';
+			const secondary = li.secondaryCategory || '';
+			let group = groups.find(g => g.primary === primary);
+			if (!group) { group = { primary, sections: [] }; groups.push(group); }
+			let section = group.sections.find(s => s.secondary === secondary);
+			if (!section) { section = { secondary, items: [] }; group.sections.push(section); }
+			section.items.push(li);
+		}
+		const primaryOrder = categories.map(c => c.primary);
+		groups.sort((a, b) => {
+			if (a.primary === 'General') return 1;
+			if (b.primary === 'General') return -1;
+			return primaryOrder.indexOf(a.primary) - primaryOrder.indexOf(b.primary);
+		});
+		for (const group of groups) {
+			const secondaryOrder = categories.find(c => c.primary === group.primary)?.secondary ?? [];
+			group.sections.sort((a, b) => {
+				if (!a.secondary) return -1;
+				if (!b.secondary) return 1;
+				return secondaryOrder.indexOf(a.secondary) - secondaryOrder.indexOf(b.secondary);
+			});
+		}
+		return groups;
+	});
+
 	function openEdit() {
 		form.documentTitle = sale.documentTitle ?? '';
 		form.saleDate      = sale.saleDate ? new Date(sale.saleDate).toISOString().slice(0, 10) : '';
@@ -89,15 +125,17 @@
 		form.notes         = sale.notes         ?? '';
 		form.tags          = (() => { try { return JSON.parse(sale.tags ?? '[]').join(', '); } catch { return ''; } })();
 		form.lineItems     = lineItems.map(li => ({
-			id:          li.id,
-			description: li.description ?? '',
-			type:        li.type        ?? '',
-			unitsSold:   li.unitsSold   ?? '',
-			buyPrice:    li.buyPrice    ?? '',
-			sellPrice:   li.sellPrice   ?? '',
-			margin:      li.margin      ?? '',
-			total:       li.total       ?? '',
-			totalCost:   li.totalCost   ?? ''
+			id:               li.id,
+			description:      li.description      ?? '',
+			type:             li.type             ?? '',
+			unitsSold:        li.unitsSold        ?? '',
+			buyPrice:         li.buyPrice         ?? '',
+			sellPrice:        li.sellPrice        ?? '',
+			margin:           li.margin           ?? '',
+			total:            li.total            ?? '',
+			totalCost:        li.totalCost        ?? '',
+			primaryCategory:  li.primaryCategory  ?? '',
+			secondaryCategory: li.secondaryCategory ?? ''
 		}));
 		activeTab = 'info';
 		editing = true;
@@ -156,7 +194,8 @@
 	function addLineItem() {
 		form.lineItems = [...form.lineItems, {
 			id: crypto.randomUUID(),
-			description: '', type: '', unitsSold: '', buyPrice: '', sellPrice: '', margin: '', total: '', totalCost: ''
+			description: '', type: '', unitsSold: '', buyPrice: '', sellPrice: '', margin: '', total: '', totalCost: '',
+			primaryCategory: '', secondaryCategory: ''
 		}];
 	}
 
@@ -545,69 +584,117 @@
 	{#if activeTab === 'items'}
 		{#if editing && sale.status === 'staged'}
 			<Card title="Line Items">
-				<div class="overflow-x-auto">
-					<table class="w-full text-left border-collapse text-xs">
-						<thead>
-							<tr class="border-b-2 border-(--color-border)">
-								{#each ['Description', 'Type', 'Units', 'Buy Price', 'Sell Price', 'Total', ''] as col (col)}
-									<th class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) pb-2 pr-3 font-bold">{col}</th>
-								{/each}
-							</tr>
-						</thead>
-						<tbody>
-							{#each form.lineItems as li (li.id)}
-								<tr class="border-b border-(--color-border)">
-									<td class="py-1 pr-2"><input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.description} /></td>
-									<td class="py-1 pr-2 w-24">
-										<select class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1 py-0.5 w-full focus:outline-none" bind:value={li.type}>
+				<div class="flex flex-col gap-3">
+					{#each form.lineItems as li (li.id)}
+						{@const secondaryOpts = getSecondaryOptions(li.primaryCategory)}
+						<div class="border border-(--color-border) p-3 flex flex-col gap-2">
+							<div class="grid grid-cols-2 gap-2">
+								<div class="col-span-2 flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Description</span>
+									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.description} />
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Type</span>
+									<select class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1.5 py-0.5 w-full focus:outline-none" bind:value={li.type}>
+										<option value="">—</option>
+										<option value="product">Product</option>
+										<option value="service">Service</option>
+									</select>
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Units</span>
+									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.unitsSold} />
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Buy Price</span>
+									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.buyPrice} />
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Sell Price</span>
+									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.sellPrice} />
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Total</span>
+									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.total} />
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Primary Category</span>
+									<select
+										class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1.5 py-0.5 w-full focus:outline-none"
+										bind:value={li.primaryCategory}
+										oninput={() => { li.secondaryCategory = ''; }}
+									>
+										<option value="">General</option>
+										{#each categories as cat (cat.primary)}
+											<option value={cat.primary}>{cat.primary}</option>
+										{/each}
+									</select>
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Secondary Category</span>
+									{#if secondaryOpts.length > 0}
+										<select class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1.5 py-0.5 w-full focus:outline-none" bind:value={li.secondaryCategory}>
 											<option value="">—</option>
-											<option value="product">Product</option>
-											<option value="service">Service</option>
+											{#each secondaryOpts as opt (opt)}
+												<option value={opt}>{opt}</option>
+											{/each}
 										</select>
-									</td>
-									<td class="py-1 pr-2 w-16"><input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.unitsSold} /></td>
-									<td class="py-1 pr-2 w-20"><input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.buyPrice} /></td>
-									<td class="py-1 pr-2 w-20"><input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.sellPrice} /></td>
-									<td class="py-1 pr-2 w-20"><input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.total} /></td>
-									<td class="py-1 w-8">
-										<button onclick={() => removeLineItem(li.id)} class="font-mono text-[10px] text-(--color-danger) hover:opacity-70 font-black" type="button">×</button>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+									{:else}
+										<select class="border border-(--color-border) bg-(--color-muted) text-(--color-muted-foreground) text-xs px-1.5 py-0.5 w-full" disabled>
+											<option>—</option>
+										</select>
+									{/if}
+								</div>
+							</div>
+							<div class="flex justify-end">
+								<button onclick={() => removeLineItem(li.id)} class="font-mono text-[9px] uppercase text-(--color-danger) hover:opacity-70 font-black" type="button">REMOVE</button>
+							</div>
+						</div>
+					{/each}
 				</div>
-				<button onclick={addLineItem} type="button" class="mt-3 font-mono text-[10px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) border border-dashed border-(--color-border) px-3 py-1 transition-colors">
+				<button onclick={addLineItem} type="button" class="mt-3 font-mono text-[10px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) border border-dashed border-(--color-border) px-3 py-1 transition-colors w-full">
 					+ ADD ROW
 				</button>
 			</Card>
 		{:else if lineItems.length > 0}
 			<Card title="Line Items ({lineItems.length})">
-				<div class="overflow-x-auto">
-					<table class="w-full text-left border-collapse">
-						<thead>
-							<tr class="border-b-2 border-(--color-border)">
-								{#each ['Description', 'Type', 'Units', 'Buy Price', 'Sell Price', 'Margin', 'Total', 'Total Cost'] as col (col)}
-									<th class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) pb-2 pr-4 font-bold">{col}</th>
-								{/each}
-							</tr>
-						</thead>
-						<tbody>
-							{#each lineItems as li (li.id)}
-								<tr class="border-b border-(--color-border)">
-									<td class="py-2 pr-4 text-xs text-(--color-fg) max-w-48 truncate">{li.description ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[9px] uppercase text-(--color-muted-foreground)">{li.type ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[10px] text-(--color-fg)">{li.unitsSold ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[10px] text-(--color-fg)">{li.buyPrice ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[10px] text-(--color-fg)">{li.sellPrice ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[10px] text-(--color-fg)">{marginPct(li) ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[10px] font-bold text-(--color-fg)">{li.total ?? '—'}</td>
-									<td class="py-2 pr-4 font-mono text-[10px] text-(--color-fg)">{li.totalCost ?? '—'}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+				<!-- Column legend -->
+				<div class="grid grid-cols-[1fr_4rem_4rem_4rem_4rem_5rem_5rem] gap-x-3 border-b-2 border-(--color-border) pb-1.5 mb-1">
+					{#each ['Description', 'Type', 'Units', 'Buy', 'Sell', 'Margin', 'Total'] as col (col)}
+						<span class="font-mono text-[8px] uppercase tracking-widest text-(--color-muted-foreground) font-bold">{col}</span>
+					{/each}
 				</div>
+
+				{#each groupedItems as group (group.primary)}
+					<!-- Primary category header -->
+					<div class="mt-3 mb-0.5">
+						<span class="font-mono text-[9px] uppercase tracking-widest font-black text-(--color-fg)">{group.primary}</span>
+					</div>
+
+					{#each group.sections as section (section.secondary)}
+						{#if section.secondary}
+							<!-- Secondary sub-header (indented) -->
+							<div class="mb-0.5" style="padding-left: 1rem">
+								<span class="font-mono text-[8px] uppercase tracking-widest text-(--color-muted-foreground)">{section.secondary}</span>
+							</div>
+						{/if}
+
+						{#each section.items as li (li.id)}
+							<div
+								class="grid grid-cols-[1fr_4rem_4rem_4rem_4rem_5rem_5rem] gap-x-3 py-1.5 border-b border-(--color-border) items-center"
+								style="padding-left: {section.secondary ? '2rem' : '1rem'}"
+							>
+								<span class="text-xs text-(--color-fg) truncate">{li.description ?? '—'}</span>
+								<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">{li.type ?? '—'}</span>
+								<span class="font-mono text-[10px] text-(--color-fg)">{li.unitsSold ?? '—'}</span>
+								<span class="font-mono text-[10px] text-(--color-fg)">{li.buyPrice ?? '—'}</span>
+								<span class="font-mono text-[10px] text-(--color-fg)">{li.sellPrice ?? '—'}</span>
+								<span class="font-mono text-[10px] text-(--color-fg)">{marginPct(li) ?? '—'}</span>
+								<span class="font-mono text-[10px] font-bold text-(--color-fg)">{li.total ?? '—'}</span>
+							</div>
+						{/each}
+					{/each}
+				{/each}
 			</Card>
 		{:else}
 			<Card title="Line Items">

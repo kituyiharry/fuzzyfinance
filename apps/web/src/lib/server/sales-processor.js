@@ -109,17 +109,19 @@ export async function processSale(env, saleId) {
 
 		if (extraction.lineItems?.length) {
 			const items = extraction.lineItems.map((li, i) => ({
-				id:          crypto.randomUUID(),
+				id:                crypto.randomUUID(),
 				saleId,
-				description: (li.description || '').trim() || null,
-				type:        li.type || null,
-				unitsSold:   (li.unitsSold || '').trim() || null,
-				buyPrice:    (li.buyPrice || '').trim() || null,
-				sellPrice:   (li.sellPrice || '').trim() || null,
-				margin:      (li.margin || '').trim() || null,
-				total:       (li.total || '').trim() || null,
-				totalCost:   (li.totalCost || '').trim() || null,
-				sortOrder:   i,
+				description:       (li.description || '').trim() || null,
+				type:              li.type || null,
+				unitsSold:         (li.unitsSold || '').trim() || null,
+				buyPrice:          (li.buyPrice || '').trim() || null,
+				sellPrice:         (li.sellPrice || '').trim() || null,
+				margin:            (li.margin || '').trim() || null,
+				total:             (li.total || '').trim() || null,
+				totalCost:         (li.totalCost || '').trim() || null,
+				primaryCategory:   li.primaryCategory   || null,
+				secondaryCategory: li.secondaryCategory || null,
+				sortOrder:         i,
 			}));
 			logger.info(LOG, 'inserting_line_items', { saleId, count: items.length });
 			await batchInsert(db, schema.saleLineItem, items);
