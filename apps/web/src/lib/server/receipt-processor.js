@@ -7,6 +7,7 @@ import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
 import { scanFileMetadata } from '$lib/server/authenticity';
 import { getGeminiAccessToken } from '$lib/server/token-refresh';
+import { normalizeUnitType } from '$lib/server/unit-normalizer';
 
 const LOG = '[receipt-processor]';
 
@@ -151,6 +152,8 @@ export async function processReceipt(env, receiptId) {
 			qty:               li.qty               || null,
 			unitPrice:         li.unitPrice         || null,
 			total:             li.total             || null,
+			unitSize:          li.unitSize          || null,
+			unitType:          normalizeUnitType(li.unitType) || null,
 			primaryCategory:   li.primaryCategory   || null,
 			secondaryCategory: li.secondaryCategory || null,
 			sortOrder:         i

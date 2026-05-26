@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { deleteSaleVector } from '$lib/server/vectorize';
 import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
+import { normalizeUnitType } from '$lib/server/unit-normalizer';
 
 const LOG = '[sales/PATCH]';
 
@@ -108,6 +109,8 @@ export async function PATCH({ params, locals, request }) {
 			buyPrice:         li.buyPrice         || null,
 			sellPrice:        li.sellPrice        || null,
 			total:            li.total            || null,
+			unitSize:         li.unitSize         || null,
+			unitType:         li.unitType         || null,
 			primaryCategory:  li.primaryCategory  || null,
 			secondaryCategory: li.secondaryCategory || null
 		});
@@ -138,8 +141,10 @@ export async function PATCH({ params, locals, request }) {
 			margin:            li.margin            || null,
 			total:             li.total             || null,
 			totalCost:         li.totalCost         || null,
-			primaryCategory:   li.primaryCategory   || null,
-			secondaryCategory: li.secondaryCategory || null,
+			unitSize:          li.unitSize                   || null,
+			unitType:          normalizeUnitType(li.unitType) || null,
+			primaryCategory:   li.primaryCategory            || null,
+			secondaryCategory: li.secondaryCategory          || null,
 			sortOrder:         i
 		}));
 		logger.info(LOG, 'inserting_line_items', { saleId: params.id, count: items.length });

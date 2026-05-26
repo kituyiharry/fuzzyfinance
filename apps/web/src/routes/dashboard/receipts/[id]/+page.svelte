@@ -13,6 +13,7 @@
 	let lineItems  = $derived(data.lineItems);
 	let payable    = $derived(data.payable);
 	let categories = $derived(data.categories);
+	let unitTypes  = $derived(data.unitTypes);
 
 	let activeTab = $state(/** @type {'info' | 'items' | 'payable'} */ ('info'));
 
@@ -62,7 +63,7 @@
 	let showCloseForm   = $state(false);
 
 	/**
-	 * @typedef {{ id: string; description: string; qty: string; unitPrice: string; total: string; primaryCategory: string; secondaryCategory: string }} FormLineItem
+	 * @typedef {{ id: string; description: string; qty: string; unitPrice: string; total: string; unitSize: string; unitType: string; primaryCategory: string; secondaryCategory: string }} FormLineItem
 	 */
 
 	let form = $state({
@@ -104,6 +105,8 @@
 			qty:               li.qty               ?? '',
 			unitPrice:         li.unitPrice         ?? '',
 			total:             li.total             ?? '',
+			unitSize:          li.unitSize          ?? '',
+			unitType:          li.unitType          ?? '',
 			primaryCategory:   li.primaryCategory   ?? '',
 			secondaryCategory: li.secondaryCategory ?? ''
 		}));
@@ -165,6 +168,7 @@
 		form.lineItems = [...form.lineItems, {
 			id: crypto.randomUUID(),
 			description: '', qty: '', unitPrice: '', total: '',
+			unitSize: '', unitType: '',
 			primaryCategory: '', secondaryCategory: ''
 		}];
 	}
@@ -682,6 +686,31 @@
 									type="button"
 								>×</button>
 							</div>
+							<!-- Unit size / type row -->
+							<div class="flex gap-2 mt-1 items-center">
+								<div class="w-20 shrink-0">
+									<input
+										class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)"
+										placeholder="Size (e.g. 2)"
+										bind:value={li.unitSize}
+									/>
+								</div>
+								<div class="w-28 shrink-0">
+									<select
+										class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1 py-0.5 w-full focus:outline-none focus:border-(--color-fg)"
+										bind:value={li.unitType}
+									>
+										<option value="">— unit —</option>
+										{#each unitTypes as group (group.group)}
+											<optgroup label={group.group}>
+												{#each group.types as t (t)}
+													<option value={t}>{t}</option>
+												{/each}
+											</optgroup>
+										{/each}
+									</select>
+								</div>
+							</div>
 							<!-- Category selects row -->
 							<div class="flex gap-2 mt-1.5">
 								<div class="flex-1 min-w-0">
@@ -761,7 +790,12 @@
 									class="flex gap-3 py-1.5 border-b border-(--color-border) items-baseline"
 									style="padding-left: {section.secondary ? '2rem' : '1rem'}"
 								>
-									<span class="flex-1 text-xs text-(--color-fg) min-w-0 break-words">{li.description ?? '—'}</span>
+									<span class="flex-1 min-w-0">
+										<span class="block text-xs text-(--color-fg) break-words">{li.description ?? '—'}</span>
+										{#if li.unitSize}
+											<span class="font-mono text-[9px] text-(--color-muted-foreground)">{li.unitSize}{li.unitType ? ' ' + li.unitType : ''}</span>
+										{/if}
+									</span>
 									<span class="w-8 shrink-0 text-right font-mono text-[10px] text-(--color-muted-foreground)">{li.qty ?? '—'}</span>
 									<span class="w-16 shrink-0 text-right font-mono text-[10px] text-(--color-fg)">{li.unitPrice ?? '—'}</span>
 									<span class="w-16 shrink-0 text-right font-mono text-[10px] font-bold text-(--color-fg)">{li.total ?? '—'}</span>

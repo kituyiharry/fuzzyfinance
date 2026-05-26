@@ -800,6 +800,44 @@ export const receiptLineItem: import("drizzle-orm/sqlite-core").SQLiteTableWithC
         }, {}, {
             length: number;
         }>;
+        unitSize: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "unit_size";
+            tableName: "receipt_line_item";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        unitType: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "unit_type";
+            tableName: "receipt_line_item";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         primaryCategory: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "primary_category";
             tableName: "receipt_line_item";

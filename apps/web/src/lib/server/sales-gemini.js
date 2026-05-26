@@ -33,6 +33,8 @@ const GEMINI_TIMEOUT_MS = 25_000;
  *     margin:           string;
  *     total:            string;
  *     totalCost:        string;
+ *     unitSize:         string;
+ *     unitType:         string;
  *     primaryCategory:  string;
  *     secondaryCategory: string;
  *   }>;
@@ -124,6 +126,14 @@ const EXTRACTION_SCHEMA = {
 						type: SchemaType.STRING,
 						description: 'Total cost for this line item as a decimal string. Empty string for services.'
 					},
+					unitSize: {
+						type: SchemaType.STRING,
+						description: 'Numeric size or quantity measurement of a single unit of this product as a decimal string, e.g. "0.784" for 0.784 kg, "2" for a 2-litre bottle, "40" for a 40-pack. Empty string if the item description does not include a measurement.'
+					},
+					unitType: {
+						type: SchemaType.STRING,
+						description: 'Unit label for the size measurement, e.g. "kg", "g", "L", "ml", "oz", "lb", "pk", "ct", "m". Empty string if unitSize is empty.'
+					},
 					primaryCategory: {
 						type: SchemaType.STRING,
 						enum: [..._PRIMARY_NAMES, 'Other'],
@@ -134,7 +144,7 @@ const EXTRACTION_SCHEMA = {
 						description: 'Secondary category within the chosen primaryCategory. Must be one of the valid secondary values for that primary. Use empty string if primaryCategory is "Other".'
 					}
 				},
-				required: ['description', 'type', 'sellPrice', 'total', 'primaryCategory', 'secondaryCategory']
+				required: ['description', 'type', 'sellPrice', 'total', 'unitSize', 'unitType', 'primaryCategory', 'secondaryCategory']
 			}
 		}
 	},
@@ -150,6 +160,7 @@ If it IS a sales document, set relevant to true, relevanceReason to empty string
 IMPORTANT — Shift reports and end-of-day/till summaries: these documents list the items or product categories sold during a shift or day. Every item or product line shown IS a line item and must be extracted into the lineItems array. Do not return an empty lineItems array for these documents. The document total is the totalRevenue for that period.
 
 For products: extract units sold, buy price (cost), sell price, and margin if visible. Compute margin as (sellPrice - buyPrice) / sellPrice if not stated.
+For each line item, extract unitSize and unitType if the product description includes a size or quantity measurement: e.g. "FullCream Milk 2L" → unitSize "2", unitType "L"; "Tangold Seedless 0.784 kg" → unitSize "0.784", unitType "kg"; "Flushable Wipe 40pk" → unitSize "40", unitType "pk". Use empty strings for both if no measurement is present.
 For services: leave unitsSold, buyPrice, and totalCost empty. The sellPrice is the service fee.
 For mixed documents: classify each line item individually.
 For totalMargin: compute as totalRevenue minus totalCost if both are present and not stated.

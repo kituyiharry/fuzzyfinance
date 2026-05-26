@@ -740,6 +740,82 @@ export const saleLineItem: import("drizzle-orm/sqlite-core").SQLiteTableWithColu
         }, {}, {
             length: number;
         }>;
+        unitSize: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "unit_size";
+            tableName: "sale_line_item";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        unitType: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "unit_type";
+            tableName: "sale_line_item";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        primaryCategory: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "primary_category";
+            tableName: "sale_line_item";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        secondaryCategory: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "secondary_category";
+            tableName: "sale_line_item";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         sortOrder: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "sort_order";
             tableName: "sale_line_item";

@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { deleteReceiptVector } from '$lib/server/vectorize';
 import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
+import { normalizeUnitType } from '$lib/server/unit-normalizer';
 
 const LOG = '[receipts/PATCH]';
 
@@ -102,12 +103,14 @@ export async function PATCH({ params, locals, request }) {
 		if (incomingDate !== originalDate) correctedFields.push('receiptDate');
 
 		// Compare line items by JSON structure (strip DB-only fields like id, sortOrder)
-		/** @param {{ description?: string; qty?: string; unitPrice?: string; total?: string; primaryCategory?: string; secondaryCategory?: string }} li */
+		/** @param {{ description?: string; qty?: string; unitPrice?: string; total?: string; unitSize?: string; unitType?: string; primaryCategory?: string; secondaryCategory?: string }} li */
 		const normaliseItem = (li) => ({
 			description:       li.description       || null,
 			qty:               li.qty               || null,
 			unitPrice:         li.unitPrice         || null,
 			total:             li.total             || null,
+			unitSize:          li.unitSize          || null,
+			unitType:          li.unitType          || null,
 			primaryCategory:   li.primaryCategory   || null,
 			secondaryCategory: li.secondaryCategory || null
 		});
@@ -135,8 +138,10 @@ export async function PATCH({ params, locals, request }) {
 			qty:               li.qty               || null,
 			unitPrice:         li.unitPrice         || null,
 			total:             li.total             || null,
-			primaryCategory:   li.primaryCategory   || null,
-			secondaryCategory: li.secondaryCategory || null,
+			unitSize:          li.unitSize                   || null,
+			unitType:          normalizeUnitType(li.unitType) || null,
+			primaryCategory:   li.primaryCategory            || null,
+			secondaryCategory: li.secondaryCategory          || null,
 			sortOrder:         i
 		}));
 		logger.info(LOG, 'inserting_line_items', { receiptId: params.id, count: items.length });

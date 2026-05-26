@@ -109,6 +109,8 @@ export const receiptLineItem = sqliteTable(
     qty:               text("qty"),
     unitPrice:         text("unit_price"),
     total:             text("total"),
+    unitSize:          text("unit_size"),
+    unitType:          text("unit_type"),
     primaryCategory:   text("primary_category"),
     secondaryCategory: text("secondary_category"),
     sortOrder:         integer("sort_order").notNull().default(0),

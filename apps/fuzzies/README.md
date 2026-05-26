@@ -1,6 +1,6 @@
 # Fuzzies
 
-Mobile companion app for FuzzyFinance. Lets users sign in with Google, view their receipts and sales on a timeline, search across both, and upload new documents from camera or file picker.
+Mobile companion app for FuzzyFinance. Lets users sign in with Google, view their receipts and sales on a timeline, search across both, upload new documents from camera or file picker, and edit extracted data including line item categories.
 
 Targets Android and iOS.
 
@@ -18,6 +18,8 @@ All state is managed with `flutter_riverpod`. The key providers are:
 | `capabilitiesProvider` | `FutureProvider` | Server feature flags from `GET /api/health` |
 | `receiptsProvider` | `FutureProvider` | Fetches and caches the receipt list |
 | `salesProvider` | `FutureProvider` | Fetches and caches the sales list |
+| `receiptDetailProvider` | `FutureProvider.family` | Fetches and caches a single receipt by ID |
+| `saleDetailProvider` | `FutureProvider.family` | Fetches and caches a single sale by ID |
 | `timelineProvider` | `FutureProvider` | Merges + groups receipts and sales by date |
 | `searchProvider` | `AsyncNotifierProvider` | Debounced search with remote + local fallback |
 | `uploadLimitsProvider` | `Provider` | Today's upload counts derived from list data |
@@ -32,8 +34,10 @@ Declarative routing with an auth redirect guard. `_AuthListenable` bridges River
 |---|---|
 | `/sign-in` | Google sign-in |
 | `/home` | Timeline + search + upload |
-| `/receipt/:id` | Receipt detail |
-| `/sale/:id` | Sale detail |
+| `/receipt/:id` | Receipt detail with auto-recovery polling |
+| `/receipt/:id/edit` | Edit receipt fields and line items |
+| `/sale/:id` | Sale detail with auto-recovery polling |
+| `/sale/:id/edit` | Edit sale fields and line items |
 | `/settings` | Theme switcher + sign-out |
 
 ### HTTP — Dio
@@ -97,6 +101,8 @@ lib/
 │   │   └── local_cache.dart       # Hive wrapper with TTL
 │   ├── config/
 │   │   └── app_config.dart        # --dart-define constants
+│   ├── constants/
+│   │   └── expense_categories.dart  # Primary/secondary category taxonomy (mirrors server)
 │   └── theme/
 │       ├── app_colors.dart        # Color tokens for all 3 themes
 │       └── app_theme.dart         # ThemeData factory, ThemeNotifier
@@ -105,8 +111,10 @@ lib/
 │   │   ├── auth_provider.dart     # AuthNotifier, capabilitiesProvider
 │   │   └── sign_in_page.dart
 │   ├── detail/
-│   │   ├── receipt_detail_page.dart
-│   │   └── sale_detail_page.dart
+│   │   ├── receipt_detail_page.dart  # Detail view with status polling
+│   │   ├── receipt_edit_page.dart    # Edit receipt fields and line items
+│   │   ├── sale_detail_page.dart     # Detail view with status polling
+│   │   └── sale_edit_page.dart       # Edit sale fields and line items
 │   ├── home/
 │   │   ├── home_page.dart
 │   │   ├── home_provider.dart
@@ -251,14 +259,16 @@ keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
 | `GET` | `/api/receipts` | required | List all receipts |
 | `POST` | `/api/receipts` | required | Upload receipt (multipart) |
 | `GET` | `/api/receipts/:id` | required | Receipt detail |
-| `GET` | `/api/receipts/:id/status` | required | Processing status |
+| `PATCH` | `/api/receipts/:id` | required | Update receipt fields and line items |
+| `GET` | `/api/receipts/:id/status` | required | Processing status (used by auto-recovery polling) |
 | `POST` | `/api/receipts/:id/commit` | required | Confirm staged receipt |
 | `POST` | `/api/receipts/:id/abort` | required | Discard staged receipt |
 | `POST` | `/api/receipts/search` | required | Semantic search |
 | `GET` | `/api/sales` | required | List all sales |
 | `POST` | `/api/sales` | required | Upload sale (multipart) |
 | `GET` | `/api/sales/:id` | required | Sale detail |
-| `GET` | `/api/sales/:id/status` | required | Processing status |
+| `PATCH` | `/api/sales/:id` | required | Update sale fields and line items |
+| `GET` | `/api/sales/:id/status` | required | Processing status (used by auto-recovery polling) |
 | `POST` | `/api/sales/:id/commit` | required | Confirm staged sale |
 | `POST` | `/api/sales/:id/abort` | required | Discard staged sale |
 | `POST` | `/api/sales/search` | required | Semantic search |

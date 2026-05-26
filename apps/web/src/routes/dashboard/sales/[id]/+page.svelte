@@ -13,6 +13,7 @@
 	let lineItems  = $derived(data.lineItems);
 	let receivable = $derived(data.receivable);
 	let categories = $derived(data.categories);
+	let unitTypes  = $derived(data.unitTypes);
 
 	let activeTab = $state(/** @type {'info' | 'items' | 'receivable'} */ ('info'));
 
@@ -62,7 +63,7 @@
 	let showCloseForm      = $state(false);
 
 	/**
-	 * @typedef {{ id: string; description: string; type: string; unitsSold: string; buyPrice: string; sellPrice: string; margin: string; total: string; totalCost: string; primaryCategory: string; secondaryCategory: string }} FormLineItem
+	 * @typedef {{ id: string; description: string; type: string; unitsSold: string; buyPrice: string; sellPrice: string; margin: string; total: string; totalCost: string; unitSize: string; unitType: string; primaryCategory: string; secondaryCategory: string }} FormLineItem
 	 */
 
 	let form = $state({
@@ -134,6 +135,8 @@
 			margin:           li.margin           ?? '',
 			total:            li.total            ?? '',
 			totalCost:        li.totalCost        ?? '',
+			unitSize:         li.unitSize         ?? '',
+			unitType:         li.unitType         ?? '',
 			primaryCategory:  li.primaryCategory  ?? '',
 			secondaryCategory: li.secondaryCategory ?? ''
 		}));
@@ -195,6 +198,7 @@
 		form.lineItems = [...form.lineItems, {
 			id: crypto.randomUUID(),
 			description: '', type: '', unitsSold: '', buyPrice: '', sellPrice: '', margin: '', total: '', totalCost: '',
+			unitSize: '', unitType: '',
 			primaryCategory: '', secondaryCategory: ''
 		}];
 	}
@@ -618,6 +622,23 @@
 									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.total} />
 								</div>
 								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Size (e.g. 2)</span>
+									<input class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" placeholder="0.784" bind:value={li.unitSize} />
+								</div>
+								<div class="flex flex-col gap-0.5">
+									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Unit Type</span>
+									<select class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) font-mono text-[10px] px-1.5 py-0.5 w-full focus:outline-none focus:border-(--color-fg)" bind:value={li.unitType}>
+										<option value="">— unit —</option>
+										{#each unitTypes as group (group.group)}
+											<optgroup label={group.group}>
+												{#each group.types as t (t)}
+													<option value={t}>{t}</option>
+												{/each}
+											</optgroup>
+										{/each}
+									</select>
+								</div>
+								<div class="flex flex-col gap-0.5">
 									<span class="font-mono text-[8px] uppercase text-(--color-muted-foreground)">Primary Category</span>
 									<select
 										class="border border-(--color-border) bg-(--color-bg) text-(--color-fg) text-xs px-1.5 py-0.5 w-full focus:outline-none"
@@ -684,7 +705,12 @@
 								class="grid grid-cols-[1fr_4rem_4rem_4rem_4rem_5rem_5rem] gap-x-3 py-1.5 border-b border-(--color-border) items-center"
 								style="padding-left: {section.secondary ? '2rem' : '1rem'}"
 							>
-								<span class="text-xs text-(--color-fg) truncate">{li.description ?? '—'}</span>
+								<span class="min-w-0">
+									<span class="block text-xs text-(--color-fg) truncate">{li.description ?? '—'}</span>
+									{#if li.unitSize}
+										<span class="font-mono text-[9px] text-(--color-muted-foreground)">{li.unitSize}{li.unitType ? ' ' + li.unitType : ''}</span>
+									{/if}
+								</span>
 								<span class="font-mono text-[9px] uppercase text-(--color-muted-foreground)">{li.type ?? '—'}</span>
 								<span class="font-mono text-[10px] text-(--color-fg)">{li.unitsSold ?? '—'}</span>
 								<span class="font-mono text-[10px] text-(--color-fg)">{li.buyPrice ?? '—'}</span>

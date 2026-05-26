@@ -94,6 +94,8 @@ export const saleLineItem = sqliteTable(
     total:       text("total"),
     /** Total cost for this line item — null for services */
     totalCost:        text("total_cost"),
+    unitSize:         text("unit_size"),
+    unitType:         text("unit_type"),
     primaryCategory:  text("primary_category"),
     secondaryCategory: text("secondary_category"),
     sortOrder:        integer("sort_order").notNull().default(0),

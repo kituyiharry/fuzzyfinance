@@ -29,7 +29,7 @@ const GEMINI_TIMEOUT_MS = 25_000;
  *   category:            string;
  *   notes:               string;
  *   tags:                string[];
- *   lineItems:           Array<{ description: string; qty: string; unitPrice: string; total: string; primaryCategory: string; secondaryCategory: string }>;
+ *   lineItems:           Array<{ description: string; qty: string; unitPrice: string; total: string; unitSize: string; unitType: string; primaryCategory: string; secondaryCategory: string }>;
  *   authenticityRisk:    string;
  *   authenticitySignals: string[];
  * }} ReceiptExtraction
@@ -72,6 +72,14 @@ const EXTRACTION_SCHEMA = {
 					qty:         { type: SchemaType.STRING },
 					unitPrice:   { type: SchemaType.STRING },
 					total:       { type: SchemaType.STRING },
+					unitSize: {
+						type: SchemaType.STRING,
+						description: 'Numeric size or quantity measurement of a single unit of this product as a decimal string, e.g. "0.784" for 0.784 kg, "2" for a 2-litre bottle, "40" for a 40-pack. Empty string if the item description does not include a measurement.'
+					},
+					unitType: {
+						type: SchemaType.STRING,
+						description: 'Unit label for the size measurement, e.g. "kg", "g", "L", "ml", "oz", "lb", "pk", "ct", "m". Empty string if unitSize is empty.'
+					},
 					primaryCategory: {
 						type: SchemaType.STRING,
 						enum: [..._PRIMARY_NAMES, 'Other'],
@@ -82,7 +90,7 @@ const EXTRACTION_SCHEMA = {
 						description: 'Secondary category within the chosen primaryCategory. Must be one of the valid secondary values for that primary. Use empty string if primaryCategory is "Other".'
 					}
 				},
-				required: ['description', 'qty', 'unitPrice', 'total', 'primaryCategory', 'secondaryCategory']
+				required: ['description', 'qty', 'unitPrice', 'total', 'unitSize', 'unitType', 'primaryCategory', 'secondaryCategory']
 			}
 		},
 		authenticityRisk: {
@@ -103,6 +111,8 @@ const SYSTEM_PROMPT = `You are an expense document extraction assistant.
 First, determine whether the provided document is an expense document — this includes receipts, invoices, bills, purchase records, or any other record of money paid out. If it is NOT (e.g. it is an ID card, passport, personal photo, screenshot of a social media post, blank page, or any non-financial document), set relevant to false and relevanceReason to a brief explanation — then return empty/default values for all other fields.
 
 If it IS a financial/receipt document, set relevant to true, relevanceReason to empty string, and extract all information. Return only valid JSON matching the schema. For any field you cannot determine, use an empty string. For amounts, return only the numeric value without currency symbols. For the date, use ISO 8601 format (YYYY-MM-DD). If no line items are visible, return an empty array. For tags, infer up to 5 short lowercase keyword tags. For receiptNumber, extract any printed receipt number, transaction reference, confirmation code, or order number. For invoiceNumber, extract any printed invoice or bill number. Use empty strings if not visible.
+
+For each line item, extract unitSize and unitType if the product description includes a size or quantity measurement: e.g. "FullCream Milk 2L" → unitSize "2", unitType "L"; "Tangold Seedless 0.784 kg" → unitSize "0.784", unitType "kg"; "Flushable Wipe 40pk" → unitSize "40", unitType "pk". Use empty strings for both if no measurement is present.
 
 For each line item, classify it using the following category taxonomy. Choose the most specific primaryCategory and a secondaryCategory from its list. Use "Other" for primaryCategory only if no category fits, and leave secondaryCategory as an empty string in that case.
 

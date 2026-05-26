@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and, asc } from 'drizzle-orm';
 import categories from '$lib/server/categories.json';
+import { UNIT_TYPES } from '$lib/server/unit-normalizer';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, locals }) {
@@ -28,5 +29,5 @@ export async function load({ params, locals }) {
 		payable = { ...payableRow, updates };
 	}
 
-	return { receipt, lineItems, payable, categories };
+	return { receipt, lineItems, payable, categories, unitTypes: UNIT_TYPES };
 }

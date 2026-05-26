@@ -6,6 +6,7 @@ import { indexSale } from '$lib/server/vectorize';
 import { logger } from '$lib/server/logger';
 import { batchInsert } from '$lib/server/db/batch-insert';
 import { getGeminiAccessToken } from '$lib/server/token-refresh';
+import { normalizeUnitType } from '$lib/server/unit-normalizer';
 
 const LOG = '[sales-processor]';
 
@@ -119,6 +120,8 @@ export async function processSale(env, saleId) {
 				margin:            (li.margin || '').trim() || null,
 				total:             (li.total || '').trim() || null,
 				totalCost:         (li.totalCost || '').trim() || null,
+				unitSize:          (li.unitSize || '').trim() || null,
+				unitType:          normalizeUnitType(li.unitType) || null,
 				primaryCategory:   li.primaryCategory   || null,
 				secondaryCategory: li.secondaryCategory || null,
 				sortOrder:         i,

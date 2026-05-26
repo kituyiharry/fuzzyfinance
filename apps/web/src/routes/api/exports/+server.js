@@ -4,8 +4,9 @@ import { schema } from '@fuzzyfinance/db';
 import { and, eq, inArray } from 'drizzle-orm';
 
 const CSV_HEADERS = [
-	'Receipt ID', 'Merchant', 'Receipt Date', 'Category', 'Tags',
-	'Receipt Total', 'Currency', 'Line Item Description', 'Qty', 'Unit Price', 'Line Item Total'
+	'Receipt ID', 'Merchant', 'Receipt Date', 'Uploaded At', 'Category', 'Tags',
+	'Receipt Total', 'Currency', 'Line Item Description', 'Qty', 'Unit Price', 'Line Item Total',
+	'Unit Size', 'Unit Type', 'Primary Category', 'Secondary Category'
 ];
 
 /** @param {unknown} val */
@@ -65,6 +66,7 @@ export async function POST({ locals, request }) {
 		const items = (itemsByReceipt.get(r.id) ?? []).sort((a, b) => a.sortOrder - b.sortOrder);
 		const tags = (() => { try { return JSON.parse(r.tags ?? '[]').join('; '); } catch { return ''; } })();
 		const receiptDate = r.receiptDate ? new Date(r.receiptDate).toISOString().slice(0, 10) : '';
+		const uploadedAt  = r.createdAt   ? new Date(r.createdAt).toISOString().slice(0, 19).replace('T', ' ') : '';
 
 		if (items.length === 0) {
 			// One row for the receipt with no line items
@@ -72,11 +74,12 @@ export async function POST({ locals, request }) {
 				r.id,
 				r.merchantName ?? '',
 				receiptDate,
+				uploadedAt,
 				r.category ?? '',
 				tags,
 				r.total ?? '',
 				r.currency ?? '',
-				'', '', '', ''
+				'', '', '', '', '', '', '', ''
 			]));
 		} else {
 			for (const li of items) {
@@ -84,6 +87,7 @@ export async function POST({ locals, request }) {
 					r.id,
 					r.merchantName ?? '',
 					receiptDate,
+					uploadedAt,
 					r.category ?? '',
 					tags,
 					r.total ?? '',
@@ -91,7 +95,11 @@ export async function POST({ locals, request }) {
 					li.description ?? '',
 					li.qty ?? '',
 					li.unitPrice ?? '',
-					li.total ?? ''
+					li.total ?? '',
+					li.unitSize ?? '',
+					li.unitType ?? '',
+					li.primaryCategory ?? '',
+					li.secondaryCategory ?? ''
 				]));
 			}
 		}

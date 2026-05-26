@@ -10,8 +10,7 @@ Personal finance platform for managing receipts and sales documents with AI-powe
 fuzzyfinance/
 ├── apps/
 │   ├── web/          # SvelteKit web app — primary backend + dashboard
-│   ├── fuzzies/      # Flutter mobile app — iOS & Android companion
-│   └── orsolver/     # Rust constraint solver service (Cloudflare Container)
+│   └── fuzzies/      # Flutter mobile app — iOS & Android companion
 └── packages/
     └── db/           # @fuzzyfinance/db — shared Drizzle schema, DTOs, repos
 ```
@@ -29,8 +28,8 @@ SvelteKit 5 application deployed to Cloudflare Workers. Handles all server-side 
 - **Runtime:** Cloudflare Workers (edge, no Node.js)
 - **Database:** Cloudflare D1 (SQLite) via Drizzle ORM — shared schema from `@fuzzyfinance/db`
 - **Storage:** Cloudflare R2 — uploaded receipt/sale files live here until committed
-- **AI extraction:** Google Gemini (`gemini-2.5-flash`) — parses uploaded documents into structured JSON (merchant, totals, line items, etc.)
-- **Semantic search:** Cloudflare Workers AI (`bge-base-en-v1.5`) generates embeddings; Cloudflare Vectorize stores and queries them
+- **AI extraction:** Google Gemini (`gemini-3-flash-preview`) — parses uploaded documents into structured JSON (merchant, totals, line items, categories, etc.); runs under the user's own Google account when the Gemini OAuth scope is granted, falling back to `GEMINI_API_KEY`
+- **Semantic search:** Cloudflare Workers AI (`@cf/google/embeddinggemma-300m`) generates embeddings; Cloudflare Vectorize stores and queries them
 - **Auth:** better-auth with Google OAuth and a Drizzle SQLite adapter; cookie-based sessions
 - **Cloud sync:** after extraction, receipts/sales can be committed to Google Drive or OneDrive (Microsoft Graph); a linked spreadsheet is updated automatically
 
@@ -139,46 +138,6 @@ flutter build appbundle --release   # preferred for Play Store
 # iOS
 flutter build ios --release
 ```
-
----
-
-### `apps/orsolver` — Constraint Solver Service
-
-Rust microservice that solves FlatZinc constraint satisfaction models using Google OR-Tools CP-SAT. Deployed as a Cloudflare Container fronted by a Worker proxy.
-
-**Architecture**
-
-- **Language:** Rust (edition 2021), async via Tokio, HTTP via Axum
-- **Solver:** Google OR-Tools v9.15 (CP-SAT + FlatZinc frontend), compiled from source at build time via a C++ FFI shim (`orsolver-sys`)
-- **Build:** multi-stage Docker image — Rust builder stage compiles OR-Tools and the server binary; slim Debian runtime stage copies the binary and shared `.so` libraries
-- **Deployment:** Cloudflare Containers (Docker), exposed through a Worker proxy (`src/worker.js`) using a Durable Object binding
-
-**API** (port 3000)
-
-```
-GET  /health          → "ok"
-POST /solve           → { "model": "<FlatZinc>", "debug": false }
-POST /solve/batch     → { "jobs": [{ "id": "...", "model": "..." }] }
-```
-
-**Running locally**
-
-```bash
-cd apps/orsolver
-cargo build                    # first build compiles OR-Tools (~10–20 min)
-cargo run -p orsolver-server   # server on :3000
-cargo test -p orsolver         # integration tests
-```
-
-**Deploying**
-
-```bash
-docker build -t orsolver .
-# Push to Cloudflare Containers registry, then:
-wrangler deploy
-```
-
-The Worker proxy at `wrangler.toml` forwards requests to the container via the `ORSOLVER` Durable Object binding.
 
 ---
 

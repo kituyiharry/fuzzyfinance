@@ -37,8 +37,8 @@ wrangler d1 create fuzzyfinance-db
 wrangler r2 bucket create fuzzyfinance-receipts
 wrangler r2 bucket create fuzzyfinance-receipts-preview   # local/preview dev only
 
-# Vectorize index (768 dims — bge-base-en-v1.5)
-wrangler vectorize create receipts-index --dimensions=768 --metric=cosine
+# Vectorize index (300 dims — @cf/google/embeddinggemma-300m)
+wrangler vectorize create receipts-index --dimensions=300 --metric=cosine
 ```
 
 Copy the `database_id` returned by `d1 create` into `wrangler.jsonc`.
@@ -53,6 +53,7 @@ Create a `.env` file in `apps/web/` (never commit this):
 # Google OAuth — from Google Cloud Console
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+IOS_GOOGLE_CLIENT_ID=      # iOS OAuth client ID for mobile app Google Sign-In
 
 # Microsoft OAuth — from Azure App Registration
 MICROSOFT_CLIENT_ID=
