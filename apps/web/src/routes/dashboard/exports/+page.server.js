@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq, desc, sql } from 'drizzle-orm';
+import { and, eq, desc, sql } from 'drizzle-orm';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals }) {
@@ -17,7 +17,10 @@ export async function load({ locals }) {
 			createdAt:    schema.receiptExport.createdAt
 		})
 		.from(schema.receiptExport)
-		.where(eq(schema.receiptExport.userId, locals.user.id))
+		.where(and(
+			eq(schema.receiptExport.userId, locals.user.id),
+			...(locals.workspaceId ? [eq(schema.receiptExport.workspaceId, locals.workspaceId)] : [])
+		))
 		.orderBy(desc(schema.receiptExport.createdAt));
 
 	const exports = rows.map((ex) => ({

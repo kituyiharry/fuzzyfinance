@@ -16,8 +16,74 @@
 	const visibleBanners = $derived((data.banners ?? []).filter((b) => !dismissedBanners.includes(b.id)));
 
 	let isProfileMenuOpen = $state(false);
-
 	let sidebarOpen = $state(false);
+
+	// Workspace switcher state
+	let workspaceMenuOpen = $state(false);
+	let creatingWorkspace = $state(false);
+	let newWorkspaceName = $state('');
+	/** @type {{ id: string; name: string } | null} */
+	let renamingWorkspace = $state(null);
+	let renameValue = $state('');
+
+	const activeWorkspace = $derived(
+		(data.workspaces ?? []).find(w => w.id === data.activeWorkspaceId) ?? data.workspaces?.[0] ?? null
+	);
+
+	/** @param {string} id */
+	const switchWorkspace = async (id) => {
+		workspaceMenuOpen = false;
+		await fetch(`/api/workspaces/${id}/switch`, { method: 'POST' });
+		window.location.reload();
+	};
+
+	/** @param {SubmitEvent} e */
+	const submitCreate = async (e) => {
+		e.preventDefault();
+		const name = newWorkspaceName.trim();
+		if (!name) return;
+		const res = await fetch('/api/workspaces', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name }),
+		});
+		if (res.ok) {
+			const ws = await res.json();
+			creatingWorkspace = false;
+			newWorkspaceName = '';
+			await fetch(`/api/workspaces/${ws.id}/switch`, { method: 'POST' });
+			window.location.reload();
+		}
+	};
+
+	/** @param {{ id: string; name: string }} ws */
+	const startRename = (ws) => {
+		renamingWorkspace = ws;
+		renameValue = ws.name;
+		workspaceMenuOpen = false;
+	};
+	const cancelRename = () => { renamingWorkspace = null; };
+
+	/** @param {SubmitEvent} e */
+	const submitRename = async (e) => {
+		e.preventDefault();
+		if (!renamingWorkspace || !renameValue.trim()) return;
+		await fetch(`/api/workspaces/${renamingWorkspace.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: renameValue.trim() }),
+		});
+		renamingWorkspace = null;
+		window.location.reload();
+	};
+
+	/** @param {string} id */
+	const deleteWorkspace = async (id) => {
+		if (!confirm('Delete this workspace and all its data? This cannot be undone.')) return;
+		workspaceMenuOpen = false;
+		await fetch(`/api/workspaces/${id}`, { method: 'DELETE' });
+		window.location.reload();
+	};
 
 	onNavigate(() => { sidebarOpen = false; });
 
@@ -168,13 +234,106 @@
 					aria-label="Toggle navigation"
 					aria-expanded={sidebarOpen}
 				>☰</button>
-				<div class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hidden md:flex items-center gap-4">
-					<span>Secure Channel: Active</span>
-					<span class="flex items-center gap-1.5">
-						<span class="w-1.5 h-1.5 bg-green-500 inline-block animate-pulse shrink-0"></span>
-						Online
-					</span>
+				<!-- Workspace switcher -->
+				<div class="hidden md:flex items-center gap-2 relative">
+					<button
+						onclick={() => { workspaceMenuOpen = !workspaceMenuOpen; creatingWorkspace = false; }}
+						class="flex items-center gap-2 px-3 py-1.5 border border-(--color-border) font-mono text-[9px] uppercase tracking-widest text-(--color-fg) hover:bg-(--color-muted) transition-all"
+						aria-expanded={workspaceMenuOpen}
+					>
+						<span class="w-1.5 h-1.5 bg-(--nav-active-fg) shrink-0"></span>
+						{activeWorkspace?.name ?? 'Workspace'}
+						<span class="text-(--color-muted-foreground)">{workspaceMenuOpen ? '▲' : '▼'}</span>
+					</button>
+
+					{#if workspaceMenuOpen}
+						<div class="absolute top-full right-0 mt-1 w-56 bg-(--color-bg) border-2 border-(--color-border) z-50">
+							{#each (data.workspaces ?? []) as ws (ws.id)}
+								<div class="flex items-center group px-3 py-2 bg-(--color-muted) transition-all ">
+									<button
+										onclick={() => switchWorkspace(ws.id)}
+										class="flex-1 text-left font-mono text-[9px] uppercase tracking-widest text-(--color-fg) border-0 bg-transparent truncate"
+									>
+										{#if ws.id === data.activeWorkspaceId}
+											<span class="w-1.5 h-1.5 bg-(--nav-active-fg) inline-block mr-1.5 shrink-0"></span>
+										{/if}
+										{ws.name}
+									</button>
+									<button
+										onclick={() => startRename(ws)}
+										class="opacity-0 group-hover:opacity-100 font-mono text-[9px] text-(--color-muted-foreground) hover:text-(--color-fg) px-1 border-0 bg-transparent transition-all"
+										title="Rename"
+									>✎</button>
+									{#if (data.workspaces ?? []).length > 1}
+										<button
+											onclick={() => deleteWorkspace(ws.id)}
+											class="opacity-0 group-hover:opacity-100 font-mono text-[9px] text-(--color-danger) px-1 border-0 bg-transparent transition-all"
+											title="Delete"
+										>✕</button>
+									{/if}
+								</div>
+							{/each}
+							<div class="border-t border-(--color-border-subtle)"></div>
+							{#if creatingWorkspace}
+								<form onsubmit={submitCreate} class="flex gap-1 p-2">
+									<!-- svelte-ignore a11y_autofocus -->
+									<input
+										bind:value={newWorkspaceName}
+										placeholder="Name"
+										maxlength="50"
+										autofocus
+										class="flex-1 font-mono text-[9px] px-2 py-1 border border-(--color-border) bg-(--color-bg) text-(--color-fg) min-w-0"
+									/>
+									<button type="submit" class="font-mono text-[9px] px-2 py-1 bg-(--color-fg) text-(--color-bg) border-0">OK</button>
+									<button type="button" onclick={() => (creatingWorkspace = false)} class="font-mono text-[9px] px-1 text-(--color-muted-foreground) border-0 bg-transparent">✕</button>
+								</form>
+							{:else}
+								<button
+									onclick={() => (creatingWorkspace = true)}
+									class="w-full text-left px-3 py-2.5 font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) hover:text-(--color-fg) hover:bg-(--color-muted) border-0 bg-transparent transition-all"
+								>
+									+ New Workspace
+								</button>
+							{/if}
+						</div>
+					{/if}
 				</div>
+
+				<!-- Rename modal -->
+				{#if renamingWorkspace}
+					<div
+						class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60"
+						role="dialog"
+						aria-modal="true"
+						tabindex="-1"
+						onclick={cancelRename}
+						onkeydown={(e) => e.key === 'Escape' && cancelRename()}
+					>
+						<div
+							role="presentation"
+							onclick={(e) => e.stopPropagation()}
+							onkeydown={(e) => e.stopPropagation()}
+						>
+						<form
+							onsubmit={submitRename}
+							class="bg-(--color-bg) border-2 border-(--color-border) p-4 flex flex-col gap-3 w-64"
+						>
+							<p class="font-mono text-[9px] uppercase tracking-widest text-(--color-fg)">Rename Workspace</p>
+							<!-- svelte-ignore a11y_autofocus -->
+							<input
+								bind:value={renameValue}
+								maxlength="50"
+								autofocus
+								class="font-mono text-[9px] px-2 py-1.5 border border-(--color-border) bg-(--color-bg) text-(--color-fg) w-full"
+							/>
+							<div class="flex gap-2">
+								<button type="submit" class="flex-1 font-mono text-[9px] uppercase tracking-widest bg-(--color-fg) text-(--color-bg) py-1.5 border-0">Save</button>
+								<button type="button" onclick={cancelRename} class="flex-1 font-mono text-[9px] uppercase tracking-widest border border-(--color-border) text-(--color-fg) py-1.5 bg-transparent">Cancel</button>
+							</div>
+						</form>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</header>
 

@@ -23,12 +23,13 @@ const SALES_HEADERS = [
  * Finds or creates the FuzzyFinance Receipts folder in the user's OneDrive root.
  *
  * @param {string} accessToken
+ * @param {string} [folderName] Override the default folder name (for workspace-specific folders)
  * @returns {Promise<string>} folder item ID
  */
-export async function ensureReceiptFolder(accessToken) {
+export async function ensureReceiptFolder(accessToken, folderName = FOLDER_NAME) {
 	// Try to get folder by path
 	const res = await tfetch(
-		`${GRAPH}/drive/root:/${FOLDER_NAME}`,
+		`${GRAPH}/drive/root:/${folderName}`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
 
@@ -44,7 +45,7 @@ export async function ensureReceiptFolder(accessToken) {
 			Authorization: `Bearer ${accessToken}`,
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify({ name: FOLDER_NAME, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+		body: JSON.stringify({ name: folderName, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
 	});
 
 	if (!createRes.ok) throw new Error(`OneDrive folder creation failed: ${await createRes.text()}`);
@@ -139,10 +140,10 @@ export async function uploadFileToOneDrive(accessToken, folderId, fileName, mime
  * @param {string} accessToken
  * @param {string} folderId
  * @param {number} year
+ * @param {string} [workbookName] Override the default workbook name (for workspace-specific workbooks)
  * @returns {Promise<string>} workbook item ID
  */
-export async function ensureLedgerWorkbook(accessToken, folderId, year) {
-	const workbookName = `FuzzyFinance Ledger ${year}.xlsx`;
+export async function ensureLedgerWorkbook(accessToken, folderId, year, workbookName = `FuzzyFinance Ledger ${year}.xlsx`) {
 
 	// Try to get workbook by path inside the folder
 	const res = await tfetch(
@@ -286,11 +287,12 @@ async function _writeRow(accessToken, workbookId, sheetName, address, values) {
  * Finds or creates the FuzzyFinance Sales folder in the user's OneDrive root.
  *
  * @param {string} accessToken
+ * @param {string} [folderName] Override the default folder name (for workspace-specific folders)
  * @returns {Promise<string>} folder item ID
  */
-export async function ensureSalesFolder(accessToken) {
+export async function ensureSalesFolder(accessToken, folderName = SALES_FOLDER_NAME) {
 	const res = await tfetch(
-		`${GRAPH}/drive/root:/${SALES_FOLDER_NAME}`,
+		`${GRAPH}/drive/root:/${folderName}`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }
 	);
 	if (res.ok) {
@@ -300,7 +302,7 @@ export async function ensureSalesFolder(accessToken) {
 	const createRes = await tfetch(`${GRAPH}/drive/root/children`, {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ name: SALES_FOLDER_NAME, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+		body: JSON.stringify({ name: folderName, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
 	});
 	if (!createRes.ok) throw new Error(`OneDrive sales folder creation failed: ${await createRes.text()}`);
 	const folder = await createRes.json();
@@ -313,10 +315,10 @@ export async function ensureSalesFolder(accessToken) {
  * @param {string} accessToken
  * @param {string} folderId
  * @param {number} year
+ * @param {string} [workbookName] Override the default workbook name (for workspace-specific workbooks)
  * @returns {Promise<string>} workbook item ID
  */
-export async function ensureSalesLedgerWorkbook(accessToken, folderId, year) {
-	const workbookName = `FuzzyFinance Sales Ledger ${year}.xlsx`;
+export async function ensureSalesLedgerWorkbook(accessToken, folderId, year, workbookName = `FuzzyFinance Sales Ledger ${year}.xlsx`) {
 	const res = await tfetch(
 		`${GRAPH}/drive/items/${folderId}:/${encodeURIComponent(workbookName)}`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } }

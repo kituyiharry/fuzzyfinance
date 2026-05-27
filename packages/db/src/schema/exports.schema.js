@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { user } from "./auth.schema.js";
+import { workspace } from "./workspace.schema.js";
 
 export const receiptExport = sqliteTable(
   "receipt_export",
@@ -9,6 +10,8 @@ export const receiptExport = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspace.id, { onDelete: "cascade" }),
 
     /** Suggested filename, e.g. "export_2026-04-08_5receipts.csv" */
     fileName: text("file_name").notNull(),
@@ -31,5 +34,6 @@ export const receiptExport = sqliteTable(
   },
   (table) => [
     index("receipt_export_userId_idx").on(table.userId),
+    index("receipt_export_workspaceId_idx").on(table.workspaceId),
   ]
 );

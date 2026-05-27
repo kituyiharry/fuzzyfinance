@@ -6,6 +6,7 @@ import {
   index,
 } from "drizzle-orm/sqlite-core";
 import { user } from "./auth.schema.js";
+import { workspace } from "./workspace.schema.js";
 
 /**
  * @typedef {'pending' | 'processing' | 'staged' | 'complete' | 'failed' | 'complete_no_sync'} ReceiptStatus
@@ -18,6 +19,8 @@ export const receipt = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspace.id, { onDelete: "cascade" }),
 
     /* @type {import('drizzle-orm/sqlite-core').SQLiteColumn<any>} */
 
@@ -95,6 +98,7 @@ export const receipt = sqliteTable(
     index("receipt_userId_createdAt_idx").on(table.userId, table.createdAt),
     index("receipt_userId_fileHash_idx").on(table.userId, table.fileHash),
     index("receipt_userId_receiptNumber_idx").on(table.userId, table.receiptNumber),
+    index("receipt_workspaceId_idx").on(table.workspaceId),
   ]
 );
 

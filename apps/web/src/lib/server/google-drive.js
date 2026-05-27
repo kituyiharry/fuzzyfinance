@@ -7,15 +7,15 @@ const FOLDER_NAME = 'FuzzyFinance Receipts';
 const SALES_FOLDER_NAME = 'FuzzyFinance Sales';
 
 /**
- * Finds or creates the FuzzyFinance Receipts folder in the user's Drive root.
+ * Finds or creates a root folder in the user's Drive.
  *
  * @param {string} accessToken
+ * @param {string} [folderName]
  * @returns {Promise<string>} folder ID
  */
-export async function ensureReceiptFolder(accessToken) {
-	// Search for existing folder
+async function ensureRootFolder(accessToken, folderName = FOLDER_NAME) {
 	const q = encodeURIComponent(
-		`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+		`name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
 	);
 	const searchRes = await tfetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
 		headers: { Authorization: `Bearer ${accessToken}` }
@@ -25,17 +25,10 @@ export async function ensureReceiptFolder(accessToken) {
 	const { files } = await searchRes.json();
 	if (files?.length > 0) return files[0].id;
 
-	// Create folder
 	const createRes = await tfetch(`${DRIVE_API}/files`, {
 		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${accessToken}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			name: FOLDER_NAME,
-			mimeType: 'application/vnd.google-apps.folder'
-		})
+		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' })
 	});
 	if (!createRes.ok) throw new Error(`Drive folder creation failed: ${await createRes.text()}`);
 
@@ -44,32 +37,25 @@ export async function ensureReceiptFolder(accessToken) {
 }
 
 /**
+ * Finds or creates the FuzzyFinance Receipts folder in the user's Drive root.
+ *
+ * @param {string} accessToken
+ * @param {string} [folderName] Override the default folder name (for workspace-specific folders)
+ * @returns {Promise<string>} folder ID
+ */
+export async function ensureReceiptFolder(accessToken, folderName = FOLDER_NAME) {
+	return ensureRootFolder(accessToken, folderName);
+}
+
+/**
  * Finds or creates the FuzzyFinance Sales folder in the user's Drive root.
  *
  * @param {string} accessToken
+ * @param {string} [folderName] Override the default folder name (for workspace-specific folders)
  * @returns {Promise<string>} folder ID
  */
-export async function ensureSalesFolder(accessToken) {
-	const q = encodeURIComponent(
-		`name='${SALES_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
-	);
-	const searchRes = await tfetch(`${DRIVE_API}/files?q=${q}&fields=files(id)`, {
-		headers: { Authorization: `Bearer ${accessToken}` }
-	});
-	if (!searchRes.ok) throw new Error(`Drive sales folder search failed: ${await searchRes.text()}`);
-
-	const { files } = await searchRes.json();
-	if (files?.length > 0) return files[0].id;
-
-	const createRes = await tfetch(`${DRIVE_API}/files`, {
-		method: 'POST',
-		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ name: SALES_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
-	});
-	if (!createRes.ok) throw new Error(`Drive sales folder creation failed: ${await createRes.text()}`);
-
-	const folder = await createRes.json();
-	return folder.id;
+export async function ensureSalesFolder(accessToken, folderName = SALES_FOLDER_NAME) {
+	return ensureRootFolder(accessToken, folderName);
 }
 
 /**

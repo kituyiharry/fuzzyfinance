@@ -40,6 +40,25 @@ export const receiptExport: import("drizzle-orm/sqlite-core").SQLiteTableWithCol
         }, {}, {
             length: number;
         }>;
+        workspaceId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "workspace_id";
+            tableName: "receipt_export";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         fileName: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "file_name";
             tableName: "receipt_export";

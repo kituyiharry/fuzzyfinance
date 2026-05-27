@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { user } from "./auth.schema.js";
+import { workspace } from "./workspace.schema.js";
 
 export const sale = sqliteTable(
   "sale",
@@ -9,6 +10,8 @@ export const sale = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspace.id, { onDelete: "cascade" }),
 
     /** 'pending' | 'processing' | 'staged' | 'complete' | 'failed' | 'complete_no_sync' */
     status: text("status").notNull().default("pending"),
@@ -68,6 +71,7 @@ export const sale = sqliteTable(
     index("sale_userId_status_idx").on(table.userId, table.status),
     index("sale_userId_saleDate_idx").on(table.userId, table.saleDate),
     index("sale_userId_fileHash_idx").on(table.userId, table.fileHash),
+    index("sale_workspaceId_idx").on(table.workspaceId),
   ]
 );
 

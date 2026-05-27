@@ -41,6 +41,22 @@ export async function commitSale(env, saleId) {
 		return;
 	}
 
+	// ── Resolve workspace for folder naming ───────────────────────────────
+	const [saleWs] = sale.workspaceId
+		? await db.select({ id: schema.workspace.id, isDefault: schema.workspace.isDefault, driveSlug: schema.workspace.driveSlug })
+			.from(schema.workspace)
+			.where(eq(schema.workspace.id, sale.workspaceId))
+		: [null];
+	const isPersonalWs = !saleWs || saleWs.isDefault;
+	const salesFolderName = isPersonalWs
+		? 'FuzzyFinance Sales'
+		: `FuzzyFinance Sales for ${saleWs.driveSlug}`;
+	const wid = sale.workspaceId ?? '';
+	/** @param {number} y */
+	const salesLedgerSheetName    = (y) => isPersonalWs ? `FuzzyFinance Sales Ledger ${y}` : `FuzzyFinance Sales Ledger for ${saleWs?.driveSlug} ${y}`;
+	/** @param {number} y */
+	const salesLedgerWorkbookName = (y) => `${salesLedgerSheetName(y)}.xlsx`;
+
 	// ── Fetch file bytes from R2 ───────────────────────────────────────────
 	let fileBytes;
 	try {
@@ -81,8 +97,9 @@ export async function commitSale(env, saleId) {
 		}
 		if (!accessToken) continue;
 
-		/** @type {{ folderId?: string; salesFolderId?: string }} */
+		/** @type {{ salesFolderId?: string; workspaceFolders?: Record<string, { salesFolderId?: string }> }} */
 		const meta = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
+		const wsCache = isPersonalWs ? meta : (meta.workspaceFolders?.[wid] ?? {});
 
 		if (provider === 'google') {
 			for (let attempt = 0; attempt < 2; attempt++) {
@@ -94,7 +111,7 @@ export async function commitSale(env, saleId) {
 					}
 					const tok = /** @type {string} */ (accessToken);
 
-					const salesRootId = meta.salesFolderId ?? await driveSalesFolder(tok);
+					const salesRootId = wsCache.salesFolderId ?? await driveSalesFolder(tok, salesFolderName);
 					const uploadFolderId = await driveMonthFolder(tok, salesRootId, year, month);
 
 					if (sale.driveFileId && sale.driveProvider === 'google') {
@@ -111,7 +128,7 @@ export async function commitSale(env, saleId) {
 					}
 
 					if (!sale.sheetId || sale.sheetProvider !== 'google') {
-						const ledgerFileId = await ensureSalesLedgerSheet(tok, salesRootId, year);
+						const ledgerFileId = await ensureSalesLedgerSheet(tok, salesRootId, year, salesLedgerSheetName(year));
 						await ensureSalesMonthTab(tok, ledgerFileId, monthName);
 						await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
 
@@ -119,9 +136,12 @@ export async function commitSale(env, saleId) {
 						await appendSaleRow(tok, ledgerFileId, monthName, saleWithDriveId);
 					}
 
-					if (!meta.salesFolderId) {
+					if (!wsCache.salesFolderId) {
+						const newMeta = isPersonalWs
+							? { ...meta, salesFolderId: salesRootId }
+							: { ...meta, workspaceFolders: { ...meta.workspaceFolders, [wid]: { ...wsCache, salesFolderId: salesRootId } } };
 						await db.update(schema.integration)
-							.set({ metadataJson: JSON.stringify({ ...meta, salesFolderId: salesRootId }) })
+							.set({ metadataJson: JSON.stringify(newMeta) })
 							.where(eq(schema.integration.id, integration.id));
 					}
 					break; // success
@@ -147,7 +167,7 @@ export async function commitSale(env, saleId) {
 					}
 					const tok = /** @type {string} */ (accessToken);
 
-					const salesRootId = meta.salesFolderId ?? await oneDriveSalesFolder(tok);
+					const salesRootId = wsCache.salesFolderId ?? await oneDriveSalesFolder(tok, salesFolderName);
 					const uploadFolderId = await oneDriveMonthFolder(tok, salesRootId, year, month);
 
 					if (sale.driveFileId && sale.driveProvider === 'microsoft') {
@@ -164,7 +184,7 @@ export async function commitSale(env, saleId) {
 					}
 
 					if (!sale.sheetId || sale.sheetProvider !== 'microsoft') {
-						const workbookId = await ensureSalesLedgerWorkbook(tok, salesRootId, year);
+						const workbookId = await ensureSalesLedgerWorkbook(tok, salesRootId, year, salesLedgerWorkbookName(year));
 						await ensureSalesMonthWorksheet(tok, workbookId, monthName);
 						await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
 
@@ -172,9 +192,12 @@ export async function commitSale(env, saleId) {
 						await appendSaleRowExcel(tok, workbookId, monthName, saleWithDriveId);
 					}
 
-					if (!meta.salesFolderId) {
+					if (!wsCache.salesFolderId) {
+						const newMeta = isPersonalWs
+							? { ...meta, salesFolderId: salesRootId }
+							: { ...meta, workspaceFolders: { ...meta.workspaceFolders, [wid]: { ...wsCache, salesFolderId: salesRootId } } };
 						await db.update(schema.integration)
-							.set({ metadataJson: JSON.stringify({ ...meta, salesFolderId: salesRootId }) })
+							.set({ metadataJson: JSON.stringify(newMeta) })
 							.where(eq(schema.integration.id, integration.id));
 					}
 					break; // success

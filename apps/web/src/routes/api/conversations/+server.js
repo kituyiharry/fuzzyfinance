@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
-import { eq, desc } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals }) {
@@ -16,7 +16,10 @@ export async function GET({ locals }) {
 			updatedAt: schema.conversation.updatedAt,
 		})
 		.from(schema.conversation)
-		.where(eq(schema.conversation.userId, locals.user.id))
+		.where(and(
+			eq(schema.conversation.userId, locals.user.id),
+			...(locals.workspaceId ? [eq(schema.conversation.workspaceId, locals.workspaceId)] : [])
+		))
 		.orderBy(desc(schema.conversation.createdAt));
 
 	return json(conversations);
@@ -40,9 +43,10 @@ export async function POST({ request, locals }) {
 	const id = crypto.randomUUID();
 	await db.insert(schema.conversation).values({
 		id,
-		userId:   locals.user.id,
+		userId:      locals.user.id,
+		workspaceId: locals.workspaceId ?? null,
 		title,
-		messages: JSON.stringify(messages),
+		messages:    JSON.stringify(messages),
 	});
 
 	return json({ id, title }, { status: 201 });

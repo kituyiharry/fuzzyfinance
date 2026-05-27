@@ -14,6 +14,7 @@ declare global {
 		interface Locals {
 			user?: User;
 			session?: Session;
+			workspaceId?: string | null;
 		}
 
 		// interface Error {}

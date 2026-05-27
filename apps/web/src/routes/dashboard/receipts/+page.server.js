@@ -37,7 +37,10 @@ export async function load({ locals, url, platform }) {
 	const offset   = (page - 1) * PAGE_SIZE;
 
 	// ── Build WHERE conditions ───────────────────────────────────────────────
-	const conditions = [eq(schema.receipt.userId, uid)];
+	const conditions = [
+		eq(schema.receipt.userId, uid),
+		...(locals.workspaceId ? [eq(schema.receipt.workspaceId, locals.workspaceId)] : []),
+	];
 
 	if (q) {
 		let vectorIds = /** @type {string[]} */ ([]);

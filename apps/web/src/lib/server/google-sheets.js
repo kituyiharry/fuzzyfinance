@@ -25,10 +25,11 @@ const SALES_HEADERS = [
  * @param {string} accessToken
  * @param {string} folderId — Drive folder to place the sheet in
  * @param {number} year
+ * @param {string} [sheetName] Override the default sheet name (for workspace-specific sheets)
  * @returns {Promise<string>} spreadsheet ID
  */
-export async function ensureLedgerSheet(accessToken, folderId, year) {
-	const name = `FuzzyFinance Ledger ${year}`;
+export async function ensureLedgerSheet(accessToken, folderId, year, sheetName = `FuzzyFinance Ledger ${year}`) {
+	const name = sheetName;
 
 	// Search for existing spreadsheet in the folder
 	const q = encodeURIComponent(
@@ -128,10 +129,11 @@ export async function ensureMonthTab(accessToken, spreadsheetId, monthName) {
  * @param {string} accessToken
  * @param {string} folderId — Drive folder (the Sales root folder)
  * @param {number} year
+ * @param {string} [sheetName] Override the default sheet name (for workspace-specific sheets)
  * @returns {Promise<string>} spreadsheet ID
  */
-export async function ensureSalesLedgerSheet(accessToken, folderId, year) {
-	const name = `FuzzyFinance Sales Ledger ${year}`;
+export async function ensureSalesLedgerSheet(accessToken, folderId, year, sheetName = `FuzzyFinance Sales Ledger ${year}`) {
+	const name = sheetName;
 
 	const q = encodeURIComponent(
 		`name='${name}' and mimeType='application/vnd.google-apps.spreadsheet' and '${folderId}' in parents and trashed=false`

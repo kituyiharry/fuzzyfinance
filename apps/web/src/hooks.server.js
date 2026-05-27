@@ -2,8 +2,10 @@ import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
-import { runWithDb } from '$lib/server/db';
+import { runWithDb, db } from '$lib/server/db';
 import { env } from '$env/dynamic/private';
+import { schema } from '@fuzzyfinance/db';
+import { and, eq } from 'drizzle-orm';
 
 /** @type {import('@sveltejs/kit').Handle} */
 const handleBetterAuth = async ({ event, resolve }) => {
@@ -28,6 +30,23 @@ const handleBetterAuth = async ({ event, resolve }) => {
 	if (session) {
 		event.locals.session = session.session;
 		event.locals.user = session.user;
+
+		const uid = session.user.id;
+		const wid = event.cookies.get('wid');
+		let workspaceId = null;
+		if (wid) {
+			const [ws] = await db.select({ id: schema.workspace.id })
+				.from(schema.workspace)
+				.where(and(eq(schema.workspace.id, wid), eq(schema.workspace.userId, uid)));
+			if (ws) workspaceId = ws.id;
+		}
+		if (!workspaceId) {
+			const [def] = await db.select({ id: schema.workspace.id })
+				.from(schema.workspace)
+				.where(and(eq(schema.workspace.userId, uid), eq(schema.workspace.isDefault, true)));
+			if (def) workspaceId = def.id;
+		}
+		event.locals.workspaceId = workspaceId;
 	}
 
 	if (!session && event.url.pathname.startsWith('/dashboard')) {

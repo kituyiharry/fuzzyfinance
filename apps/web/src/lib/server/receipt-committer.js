@@ -52,6 +52,22 @@ export async function commitReceipt(env, receiptId) {
 		return;
 	}
 
+	// ── Resolve workspace for folder naming ───────────────────────────────
+	const [receiptWs] = receipt.workspaceId
+		? await db.select({ id: schema.workspace.id, isDefault: schema.workspace.isDefault, driveSlug: schema.workspace.driveSlug })
+			.from(schema.workspace)
+			.where(eq(schema.workspace.id, receipt.workspaceId))
+		: [null];
+	const isPersonalWs = !receiptWs || receiptWs.isDefault;
+	const receiptFolderName = isPersonalWs
+		? 'FuzzyFinance Receipts'
+		: `FuzzyFinance Receipts for ${receiptWs.driveSlug}`;
+	const wid = receipt.workspaceId ?? '';
+	/** @param {number} y */
+	const ledgerSheetName    = (y) => isPersonalWs ? `FuzzyFinance Ledger ${y}` : `FuzzyFinance Ledger for ${receiptWs?.driveSlug} ${y}`;
+	/** @param {number} y */
+	const ledgerWorkbookName = (y) => `${ledgerSheetName(y)}.xlsx`;
+
 	// ── Fetch file bytes from R2 ───────────────────────────────────────────
 	let fileBytes;
 	try {
@@ -92,8 +108,9 @@ export async function commitReceipt(env, receiptId) {
 		}
 		if (!accessToken) continue;
 
-		/** @type {{ folderId?: string }} */
+		/** @type {{ folderId?: string; workspaceFolders?: Record<string, { folderId?: string }> }} */
 		const meta = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
+		const wsCache = isPersonalWs ? meta : (meta.workspaceFolders?.[wid] ?? {});
 
 		if (provider === 'google') {
 			// Attempt sync; on a 401 from the cloud API, force-refresh the token and retry once.
@@ -106,7 +123,7 @@ export async function commitReceipt(env, receiptId) {
 					}
 					const tok = /** @type {string} */ (accessToken);
 
-					const rootFolderId = meta.folderId ?? await driveFolder(tok);
+					const rootFolderId = wsCache.folderId ?? await driveFolder(tok, receiptFolderName);
 					const uploadFolderId = await driveMonthFolder(tok, rootFolderId, year, month);
 
 					if (receipt.driveFileId && receipt.driveProvider === 'google') {
@@ -123,7 +140,7 @@ export async function commitReceipt(env, receiptId) {
 					}
 
 					if (!receipt.sheetId || receipt.sheetProvider !== 'google') {
-						const ledgerFileId = await ensureLedgerSheet(tok, rootFolderId, year);
+						const ledgerFileId = await ensureLedgerSheet(tok, rootFolderId, year, ledgerSheetName(year));
 						await ensureMonthTab(tok, ledgerFileId, monthName);
 						await patch({ sheetId: ledgerFileId, sheetProvider: 'google' });
 
@@ -134,9 +151,12 @@ export async function commitReceipt(env, receiptId) {
 						await appendReceiptRow(tok, ledgerFileId, monthName, receiptWithDriveId);
 					}
 
-					if (!meta.folderId) {
+					if (!wsCache.folderId) {
+						const newMeta = isPersonalWs
+							? { ...meta, folderId: rootFolderId }
+							: { ...meta, workspaceFolders: { ...meta.workspaceFolders, [wid]: { ...wsCache, folderId: rootFolderId } } };
 						await db.update(schema.integration)
-							.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
+							.set({ metadataJson: JSON.stringify(newMeta) })
 							.where(eq(schema.integration.id, integration.id));
 					}
 					break; // success
@@ -162,7 +182,7 @@ export async function commitReceipt(env, receiptId) {
 					}
 					const tok = /** @type {string} */ (accessToken);
 
-					const rootFolderId = meta.folderId ?? await oneDriveFolder(tok);
+					const rootFolderId = wsCache.folderId ?? await oneDriveFolder(tok, receiptFolderName);
 					const uploadFolderId = await oneDriveMonthFolder(tok, rootFolderId, year, month);
 
 					if (receipt.driveFileId && receipt.driveProvider === 'microsoft') {
@@ -179,7 +199,7 @@ export async function commitReceipt(env, receiptId) {
 					}
 
 					if (!receipt.sheetId || receipt.sheetProvider !== 'microsoft') {
-						const workbookId = await ensureLedgerWorkbook(tok, rootFolderId, year);
+						const workbookId = await ensureLedgerWorkbook(tok, rootFolderId, year, ledgerWorkbookName(year));
 						await ensureMonthWorksheet(tok, workbookId, monthName);
 						await patch({ sheetId: workbookId, sheetProvider: 'microsoft' });
 
@@ -190,9 +210,12 @@ export async function commitReceipt(env, receiptId) {
 						await appendReceiptRowExcel(tok, workbookId, monthName, receiptWithDriveId);
 					}
 
-					if (!meta.folderId) {
+					if (!wsCache.folderId) {
+						const newMeta = isPersonalWs
+							? { ...meta, folderId: rootFolderId }
+							: { ...meta, workspaceFolders: { ...meta.workspaceFolders, [wid]: { ...wsCache, folderId: rootFolderId } } };
 						await db.update(schema.integration)
-							.set({ metadataJson: JSON.stringify({ ...meta, folderId: rootFolderId }) })
+							.set({ metadataJson: JSON.stringify(newMeta) })
 							.where(eq(schema.integration.id, integration.id));
 					}
 					break; // success

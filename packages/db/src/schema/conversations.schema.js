@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { user } from "./auth.schema.js";
+import { workspace } from "./workspace.schema.js";
 
 export const conversation = sqliteTable(
   "conversation",
@@ -9,6 +10,8 @@ export const conversation = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspace.id, { onDelete: "cascade" }),
     /** Auto-generated from the first user message (first 80 chars) */
     title: text("title").notNull(),
     /** JSON: Array<{ role: 'user' | 'assistant', content: string }> */
@@ -24,6 +27,7 @@ export const conversation = sqliteTable(
   (table) => [
     index("conversation_userId_idx").on(table.userId),
     index("conversation_userId_createdAt_idx").on(table.userId, table.createdAt),
+    index("conversation_workspaceId_idx").on(table.workspaceId),
   ]
 );
 

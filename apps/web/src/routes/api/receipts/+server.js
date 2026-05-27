@@ -115,6 +115,7 @@ export async function POST({ request, locals, platform }) {
 	await db.insert(schema.receipt).values({
 		id:           receiptId,
 		userId:       locals.user.id,
+		workspaceId:  locals.workspaceId ?? null,
 		status:       'pending',
 		r2Key,
 		rawFileName:  file.name,

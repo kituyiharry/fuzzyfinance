@@ -34,7 +34,10 @@ export async function load({ locals, url, platform }) {
 	const page     = Math.max(1, Number(url.searchParams.get('page') ?? 1));
 	const offset   = (page - 1) * PAGE_SIZE;
 
-	const conditions = [eq(schema.sale.userId, uid)];
+	const conditions = [
+		eq(schema.sale.userId, uid),
+		...(locals.workspaceId ? [eq(schema.sale.workspaceId, locals.workspaceId)] : []),
+	];
 
 	if (q) {
 		let vectorIds = /** @type {string[]} */ ([]);

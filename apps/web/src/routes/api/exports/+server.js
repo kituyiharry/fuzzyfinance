@@ -35,11 +35,12 @@ export async function POST({ locals, request }) {
 
 	const uid = locals.user.id;
 
-	// Load receipts — verify all belong to this user
+	// Load receipts — verify all belong to this user and active workspace
 	const receipts = await db.select()
 		.from(schema.receipt)
 		.where(and(
 			eq(schema.receipt.userId, uid),
+			...(locals.workspaceId ? [eq(schema.receipt.workspaceId, locals.workspaceId)] : []),
 			inArray(schema.receipt.id, receiptIds)
 		));
 
@@ -111,13 +112,14 @@ export async function POST({ locals, request }) {
 	const fileName = `fuzzyfinance_export_${dateStr}_${receipts.length}receipts.csv`;
 
 	const [exported] = await db.insert(schema.receiptExport).values({
-		id: crypto.randomUUID(),
-		userId: uid,
+		id:           crypto.randomUUID(),
+		userId:       uid,
+		workspaceId:  locals.workspaceId ?? null,
 		fileName,
 		receiptCount: receipts.length,
 		rowCount,
 		csvData,
-		receiptIds: JSON.stringify(receipts.map(r => r.id)),
+		receiptIds:   JSON.stringify(receipts.map(r => r.id)),
 	}).returning({ id: schema.receiptExport.id });
 
 	return json({ id: exported.id, fileName, receiptCount: receipts.length, rowCount });
