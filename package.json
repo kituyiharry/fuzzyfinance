@@ -19,6 +19,8 @@
 		"db:studio": "npm run db:studio -w apps/web",
 		"build:types": "npm run build:types -w packages/db",
 		"auth:schema": "npm run auth:schema -w apps/web",
+		"zadeh:dev": "wrangler dev --config apps/zadeh/wrangler.toml",
+		"zadeh:deploy": "wrangler deploy --config apps/zadeh/wrangler.toml",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write ."
 	},

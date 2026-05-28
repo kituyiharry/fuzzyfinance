@@ -29,10 +29,14 @@ interface Env {
 	ASSETS: Fetcher;
 	/** Cloudflare R2 bucket — transit buffer for receipt/sale file uploads */
 	fuzzyfinance_receipts: R2Bucket;
+	/** Cloudflare R2 bucket — export artifacts (CSV files, analysis outputs) */
+	fuzzyfinance_exports: R2Bucket;
 	/** Workers AI — used for text embedding */
 	AI: Ai;
 	/** Cloudflare Vectorize — semantic search index */
 	VECTORIZE: VectorizeIndex;
+	/** Service binding to the hedaz analysis worker */
+	HEDAZ: Fetcher;
 }
 
 export {};
