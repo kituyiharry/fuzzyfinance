@@ -1,5 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { SvelteSet } from 'svelte/reactivity';
 	import Card from '$lib/components/Card.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import ReceiptStatusBadge from '$lib/components/ReceiptStatusBadge.svelte';
@@ -14,6 +15,58 @@
 		[data.filters.status, data.filters.category, data.filters.dateFrom, data.filters.dateTo,
 		 data.filters.q, data.filters.receivable].filter(Boolean).length
 	);
+
+	// ── Selection mode ────────────────────────────────────────────────────────
+	let selecting = $state(false);
+	let selectedIds = new SvelteSet();
+	let exporting = $state(false);
+	let exportError = $state('');
+	/** @type {{ id: string; fileName: string; saleCount: number; rowCount: number } | null} */
+	let exportResult = $state(null);
+
+	function toggleSelectMode() {
+		selecting = !selecting;
+		if (!selecting) {
+			selectedIds.clear();
+			exportResult = null;
+			exportError = '';
+		}
+	}
+
+	/** @param {string} id */
+	function toggleSelect(id) {
+		if (selectedIds.has(id)) selectedIds.delete(id);
+		else selectedIds.add(id);
+	}
+
+	function selectAll() {
+		for (const s of data.sales) selectedIds.add(s.id);
+	}
+
+	function deselectAll() {
+		selectedIds.clear();
+	}
+
+	async function doExport() {
+		if (selectedIds.size === 0) return;
+		exporting = true;
+		exportResult = null;
+		exportError = '';
+		try {
+			const res = await fetch('/api/sales-exports', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ saleIds: [...selectedIds] })
+			});
+			if (!res.ok) {
+				exportError = await res.text();
+				return;
+			}
+			exportResult = await res.json();
+		} finally {
+			exporting = false;
+		}
+	}
 
 	/**
 	 * @param {Record<string, string>} overrides
@@ -90,13 +143,67 @@
 				{data.filters.q ? 'CLEAR' : 'SEARCH'}
 			</button>
 		</div>
-		<a
-			href="/dashboard/sales/upload"
-			class="btn-primary text-xs font-black uppercase tracking-widest no-underline px-4 py-2 inline-flex items-center"
-		>
-			+ UPLOAD REVENUE
-		</a>
+		<div class="flex gap-2">
+			<button
+				onclick={toggleSelectMode}
+				class="border-2 px-4 py-2 font-mono text-[10px] font-black uppercase tracking-widest transition-colors {selecting ? 'border-(--color-fg) bg-(--color-fg) text-(--color-bg)' : 'border-(--color-border) text-(--color-fg) hover:border-(--color-fg)'}"
+			>
+				{selecting ? 'CANCEL SELECT' : 'SELECT'}
+			</button>
+			{#if !selecting}
+				<a
+					href="/dashboard/sales/upload"
+					class="btn-primary text-xs font-black uppercase tracking-widest no-underline px-4 py-2 inline-flex items-center"
+				>
+					+ UPLOAD REVENUE
+				</a>
+			{/if}
+		</div>
 	</div>
+
+	<!-- Selection toolbar (shown when in selection mode) -->
+	{#if selecting}
+		<div class="flex items-center justify-between gap-4 border-2 border-(--color-fg) p-3 bg-(--color-bg)">
+			<div class="flex items-center gap-3">
+				<span class="font-mono text-[10px] font-black uppercase text-(--color-fg)">
+					{selectedIds.size} SELECTED
+				</span>
+				<button onclick={selectAll} class="font-mono text-[9px] uppercase text-(--color-muted-foreground) hover:text-(--color-fg) transition-colors">
+					SELECT PAGE
+				</button>
+				{#if selectedIds.size > 0}
+					<button onclick={deselectAll} class="font-mono text-[9px] uppercase text-(--color-muted-foreground) hover:text-(--color-fg) transition-colors">
+						DESELECT ALL
+					</button>
+				{/if}
+			</div>
+			<div class="flex items-center gap-3">
+				{#if exportError}
+					<span class="font-mono text-[9px] text-(--color-danger) uppercase font-black">EXPORT FAILED: {exportError}</span>
+				{:else if exportResult}
+					<a
+						href="/api/sales-exports/{exportResult.id}/download"
+						download={exportResult.fileName}
+						class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-success) border border-(--color-success-border) px-3 py-1 hover:bg-(--color-success-muted) transition-colors no-underline"
+					>
+						DOWNLOAD ({exportResult.rowCount} ROWS) ↓
+					</a>
+					<a href="/dashboard/exports" class="font-mono text-[9px] uppercase text-(--color-muted-foreground) hover:text-(--color-fg) transition-colors no-underline">
+						VIEW ALL EXPORTS →
+					</a>
+				{/if}
+				{#if !exportResult && !exportError}
+					<button
+						onclick={doExport}
+						disabled={selectedIds.size === 0 || exporting}
+						class="border-2 border-(--color-fg) px-4 py-1.5 font-mono text-[10px] font-black uppercase tracking-widest text-(--color-fg) hover:bg-(--color-fg) hover:text-(--color-bg) transition-colors disabled:opacity-40 disabled:pointer-events-none"
+					>
+						{exporting ? 'EXPORTING...' : `EXPORT ${selectedIds.size > 0 ? `(${selectedIds.size})` : ''}`}
+					</button>
+				{/if}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Filter bar -->
 	<div class="flex flex-wrap items-end gap-2 border-2 border-(--color-border) bg-(--color-bg) p-3">
@@ -177,6 +284,16 @@
 				<table class="w-full text-left border-collapse">
 					<thead>
 						<tr class="border-b-2 border-(--color-border)">
+							{#if selecting}
+								<th class="pb-2 pr-3 w-8">
+									<input
+										type="checkbox"
+										checked={data.sales.every(s => selectedIds.has(s.id))}
+										onchange={(e) => e.currentTarget.checked ? selectAll() : deselectAll()}
+										class="cursor-pointer"
+									/>
+								</th>
+							{/if}
 							{#each ['Document', 'Date', 'Revenue', 'Category', 'Status', 'Sync', ''] as col (col)}
 								<th class="font-mono text-[9px] uppercase tracking-widest text-(--color-muted-foreground) pb-2 pr-4 font-bold">{col}</th>
 							{/each}
@@ -184,9 +301,22 @@
 					</thead>
 					<tbody>
 						{#each data.sales as s (s.id)}
+							{@const isSelected = selectedIds.has(s.id)}
 							<tr
-								class="border-b border-(--color-border) hover:bg-(--color-muted) transition-all group cursor-pointer" onclick={() => goto(resolve(`/dashboard/sales/${s.id}`))}
+								class="border-b border-(--color-border) transition-all group cursor-pointer {isSelected ? 'bg-(--nav-active-bg) text-(--nav-active-fg)' : 'hover:bg-(--color-muted)'}"
+								onclick={selecting ? () => toggleSelect(s.id) : () => goto(resolve(`/dashboard/sales/${s.id}`))}
 							>
+								{#if selecting}
+									<td class="py-3 pr-3">
+										<input
+											type="checkbox"
+											checked={isSelected}
+											onchange={() => toggleSelect(s.id)}
+											onclick={(e) => e.stopPropagation()}
+											class="cursor-pointer"
+										/>
+									</td>
+								{/if}
 								<td class="py-3 pr-4 font-bold text-xs max-w-48 truncate">
 									{s.documentTitle ?? '—'}
 								</td>
@@ -212,9 +342,11 @@
 									{/if}
 								</td>
 								<td class="py-3">
-									<span class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) opacity-0 group-hover:opacity-100 transition-opacity">
-										VIEW →
-									</span>
+									{#if !selecting}
+										<span class="font-mono text-[9px] uppercase font-black tracking-widest text-(--color-fg) opacity-0 group-hover:opacity-100 transition-opacity">
+											VIEW →
+										</span>
+									{/if}
 								</td>
 							</tr>
 						{/each}
