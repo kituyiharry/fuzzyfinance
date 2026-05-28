@@ -15,7 +15,9 @@
       "Bash(xargs cat *)",
       "Bash(flutter analyze *)",
       "Bash(npx svelte-check *)",
-      "Bash(cargo update *)"
+      "Bash(cargo update *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo test *)"
     ]
   },
   "enableAllProjectMcpServers": true,
