@@ -64,6 +64,8 @@ pub enum PrimaryCategory {
     FoodServiceAndCommercial,
     #[serde(rename = "Business Service")]
     BusinessService,
+    #[serde(rename = "Utilities")]
+    Utilities
 }
 
 impl std::str::FromStr for PrimaryCategory {
@@ -612,6 +614,18 @@ pub enum SecondaryCategory {
     TourismIndustry,
     #[serde(rename = "Transport, postal and warehousing industry")]
     TransportPostalAndWarehousingIndustry,
+
+    // Utilities
+    #[serde(rename = "Gas")]
+    Gas,
+    #[serde(rename = "Electricity and Energy")]
+    ElectricityAndEnergy,
+    #[serde(rename = "Water and Sewerage")]
+    WaterAndSewerage,
+    #[serde(rename = "Internet, Telecommunications and Cable")]
+    InternetTelecommunicationsAndCable,
+    #[serde(rename = "Waste and Recycling")]
+    WasteAndRecycling
 }
 
 impl std::str::FromStr for SecondaryCategory {
@@ -887,7 +901,12 @@ impl std::str::FromStr for SecondaryCategory {
                 => Self::TourismIndustry,
             "Transport, postal and warehousing industry"
                 => Self::TransportPostalAndWarehousingIndustry,
-            _ => Self::Unclassified,
+            "Gas" => Self::Gas,
+            "Electricity and Energy"                 => Self::ElectricityAndEnergy,
+            "Water and Sewerage"                     => Self::WaterAndSewerage,
+            "Internet, Telecommunications and Cable" => Self::InternetTelecommunicationsAndCable, 
+            "Waste and Recycling"                    => Self::WasteAndRecycling,
+            _                                        => Self::Unclassified,
         })
     }
 }
