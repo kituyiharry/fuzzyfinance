@@ -96,6 +96,7 @@ impl std::str::FromStr for PrimaryCategory {
             "Party, Celebrations & Gifts"     => Self::PartyCelebrationsAndGifts,
             "Food Service & Commercial"       => Self::FoodServiceAndCommercial,
             "Business Service"                => Self::BusinessService,
+            "Utilities"                       => Self::Utilities,
             _                                 => Self::Unclassified,
         })
     }

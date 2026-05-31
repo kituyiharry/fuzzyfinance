@@ -322,7 +322,7 @@ mod tests {
     fn receipt_negative_line_item_total_parsed() {
         let rows = parse_receipt_csv(RECEIPT_CSV);
         let r = rows.iter()
-            .find(|r| r.line_item_total.map_or(false, |t| t < 0.0))
+            .find(|r| r.line_item_total.is_some_and(|t| t < 0.0))
             .expect("should find at least one discount row");
         assert!(r.line_item_total.unwrap() < 0.0);
     }
@@ -443,7 +443,7 @@ mod tests {
         let r = rows.iter()
             .find(|r| {
                 r.sale_id == "ac927fd2-72c8-4840-8a34-c96f5bcccd22"
-                    && r.units_sold.map_or(false, |u| u > 1.0 && u < 1.2)
+                    && r.units_sold.is_some_and(|u| u > 1.0 && u < 1.2)
             })
             .expect("should find fractional units_sold row");
         assert!((r.units_sold.unwrap() - 1.1265).abs() < 0.0001);

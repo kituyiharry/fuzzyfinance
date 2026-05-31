@@ -1,3 +1,4 @@
+pub mod alluvial;
 pub mod categories;
 pub mod context;
 pub mod csv;

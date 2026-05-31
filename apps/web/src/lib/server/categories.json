@@ -323,10 +323,10 @@
       "Gas",
       "Electricity and Energy",
       "Water and Sewerage",
-      "Internet, Telecommunications and Cable", 
-      "Waste and Recycling",
+      "Internet, Telecommunications and Cable",
+      "Waste and Recycling"
     ]
-  }
+  },
   {
     "primary": "Food Service & Commercial",
     "secondary": [

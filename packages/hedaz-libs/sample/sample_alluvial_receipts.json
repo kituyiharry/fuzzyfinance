@@ -1,0 +1,2196 @@
+{
+  "nodes": [
+    {
+      "id": "merchant:Coles",
+      "label": "Coles",
+      "level": "Merchant",
+      "total_price": 554.7999999999998,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 6.61,
+          "Volume": 1.5,
+          "Count / Pack": 12.0
+        }
+      }
+    },
+    {
+      "id": "merchant:Coles Supermarkets Australia Pty Ltd",
+      "label": "Coles Supermarkets Australia Pty Ltd",
+      "level": "Merchant",
+      "total_price": 77.39,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "merchant:Domino's Pizza",
+      "label": "Domino's Pizza",
+      "level": "Merchant",
+      "total_price": 50.150000000000006,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "merchant:NANDOS",
+      "label": "NANDOS",
+      "level": "Merchant",
+      "total_price": 37.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "merchant:Woolworths",
+      "label": "Woolworths",
+      "level": "Merchant",
+      "total_price": 26.64,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "primary:Business Service",
+      "label": "Business Service",
+      "level": "PrimaryCategory",
+      "total_price": 8.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "primary:Food & Grocery",
+      "label": "Food & Grocery",
+      "level": "PrimaryCategory",
+      "total_price": 292.3,
+      "unit_totals": {
+        "by_group": {
+          "Count / Pack": 12.0,
+          "Weight": 6.61,
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "id": "primary:Food Service & Commercial",
+      "label": "Food Service & Commercial",
+      "level": "PrimaryCategory",
+      "total_price": 3.75,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "primary:Health & Beauty",
+      "label": "Health & Beauty",
+      "level": "PrimaryCategory",
+      "total_price": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "primary:Home & Living",
+      "label": "Home & Living",
+      "level": "PrimaryCategory",
+      "total_price": 2.45,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "id": "primary:Unclassified",
+      "label": "Unclassified",
+      "level": "PrimaryCategory",
+      "total_price": 435.92999999999995,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "secondary:Bakery & Bread",
+      "label": "Bakery & Bread",
+      "level": "SecondaryCategory",
+      "total_price": 44.55,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.315
+        }
+      }
+    },
+    {
+      "id": "secondary:Beverages",
+      "label": "Beverages",
+      "level": "SecondaryCategory",
+      "total_price": 33.0,
+      "unit_totals": {
+        "by_group": {
+          "Count / Pack": 12.0,
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "id": "secondary:Cleaning Supplies & Equipment",
+      "label": "Cleaning Supplies & Equipment",
+      "level": "SecondaryCategory",
+      "total_price": 1.95,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "id": "secondary:Condiments, Sauces & Spreads",
+      "label": "Condiments, Sauces & Spreads",
+      "level": "SecondaryCategory",
+      "total_price": 10.6,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.7
+        }
+      }
+    },
+    {
+      "id": "secondary:Dairy & Eggs",
+      "label": "Dairy & Eggs",
+      "level": "SecondaryCategory",
+      "total_price": 12.3,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.0
+        }
+      }
+    },
+    {
+      "id": "secondary:Fresh Produce",
+      "label": "Fresh Produce",
+      "level": "SecondaryCategory",
+      "total_price": 35.21,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 2.015
+        }
+      }
+    },
+    {
+      "id": "secondary:Meat & Seafood",
+      "label": "Meat & Seafood",
+      "level": "SecondaryCategory",
+      "total_price": 43.44,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.42
+        }
+      }
+    },
+    {
+      "id": "secondary:Pantry & Dry Goods",
+      "label": "Pantry & Dry Goods",
+      "level": "SecondaryCategory",
+      "total_price": 24.35,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.75
+        }
+      }
+    },
+    {
+      "id": "secondary:Ready Meals & Meal Kits",
+      "label": "Ready Meals & Meal Kits",
+      "level": "SecondaryCategory",
+      "total_price": 59.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "secondary:Restaurant",
+      "label": "Restaurant",
+      "level": "SecondaryCategory",
+      "total_price": 3.75,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "secondary:Shower, Bath & Soap",
+      "label": "Shower, Bath & Soap",
+      "level": "SecondaryCategory",
+      "total_price": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "secondary:Snacks & Confectionery",
+      "label": "Snacks & Confectionery",
+      "level": "SecondaryCategory",
+      "total_price": 29.45,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.41000000000000003
+        }
+      }
+    },
+    {
+      "id": "secondary:Storage & Organisation",
+      "label": "Storage & Organisation",
+      "level": "SecondaryCategory",
+      "total_price": 0.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "secondary:Transport, postal and warehousing industry",
+      "label": "Transport, postal and warehousing industry",
+      "level": "SecondaryCategory",
+      "total_price": 8.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "secondary:Unclassified",
+      "label": "Unclassified",
+      "level": "SecondaryCategory",
+      "total_price": 435.92999999999995,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:%earthwise laundry li 2litre",
+      "label": "%earthwise laundry li 2litre",
+      "level": "Product",
+      "total_price": 10.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:*%nestle medium bar ch 35gram",
+      "label": "*%nestle medium bar ch 35gram",
+      "level": "Product",
+      "total_price": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:*%nestle medium bar ch 40gram",
+      "label": "*%nestle medium bar ch 40gram",
+      "level": "Product",
+      "total_price": 6.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:1/2 chicken + classic burger + large peri peri chips",
+      "label": "1/2 chicken + classic burger + large peri peri chips",
+      "level": "Product",
+      "total_price": 37.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:100% recycle paper b 1each",
+      "label": "100% recycle paper b 1each",
+      "level": "Product",
+      "total_price": 0.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:allens pineapples 170gram",
+      "label": "allens pineapples 170gram",
+      "level": "Product",
+      "total_price": 2.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:avocado 5pk",
+      "label": "avocado 5pk",
+      "level": "Product",
+      "total_price": 7.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:bananas perkg",
+      "label": "bananas perkg",
+      "level": "Product",
+      "total_price": 7.720000000000001,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:brownes greek style 2kg",
+      "label": "brownes greek style 2kg",
+      "level": "Product",
+      "total_price": 10.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:chk saucy wings 10pk",
+      "label": "chk saucy wings 10pk",
+      "level": "Product",
+      "total_price": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles beef blade 500gram",
+      "label": "coles beef blade 500gram",
+      "level": "Product",
+      "total_price": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles beef rump perkg",
+      "label": "coles beef rump perkg",
+      "level": "Product",
+      "total_price": 25.66,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles buttermilk pan 350gram",
+      "label": "coles buttermilk pan 350gram",
+      "level": "Product",
+      "total_price": 3.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles cashews salted 200gram",
+      "label": "coles cashews salted 200gram",
+      "level": "Product",
+      "total_price": 4.35,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles dom clean wipe 10pack",
+      "label": "coles dom clean wipe 10pack",
+      "level": "Product",
+      "total_price": 1.05,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles eggs fr range 600gram",
+      "label": "coles eggs fr range 600gram",
+      "level": "Product",
+      "total_price": 6.2,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles extra virgin 1litre",
+      "label": "coles extra virgin 1litre",
+      "level": "Product",
+      "total_price": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles fullcream milk 2litre",
+      "label": "coles fullcream milk 2litre",
+      "level": "Product",
+      "total_price": 13.850000000000001,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles garbage bag ex 20pack",
+      "label": "coles garbage bag ex 20pack",
+      "level": "Product",
+      "total_price": 3.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles glass cleaner 750ml",
+      "label": "coles glass cleaner 750ml",
+      "level": "Product",
+      "total_price": 1.95,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "id": "product:coles gravy beef 800gram",
+      "label": "coles gravy beef 800gram",
+      "level": "Product",
+      "total_price": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles green chillies 50gram",
+      "label": "coles green chillies 50gram",
+      "level": "Product",
+      "total_price": 3.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles lem madei cake 315gram",
+      "label": "coles lem madei cake 315gram",
+      "level": "Product",
+      "total_price": 15.75,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.315
+        }
+      }
+    },
+    {
+      "id": "product:coles madeira cake 450gram",
+      "label": "coles madeira cake 450gram",
+      "level": "Product",
+      "total_price": 3.15,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles maple syrup 375gram",
+      "label": "coles maple syrup 375gram",
+      "level": "Product",
+      "total_price": 2.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles peach & mango 1kg",
+      "label": "coles peach & mango 1kg",
+      "level": "Product",
+      "total_price": 12.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles pork sirloin 500gram",
+      "label": "coles pork sirloin 500gram",
+      "level": "Product",
+      "total_price": 9.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles raw sugar 1kg",
+      "label": "coles raw sugar 1kg",
+      "level": "Product",
+      "total_price": 3.6,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.0
+        }
+      }
+    },
+    {
+      "id": "product:coles sponge scourer 3pack",
+      "label": "coles sponge scourer 3pack",
+      "level": "Product",
+      "total_price": 2.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles strawb yoghurt 1kg",
+      "label": "coles strawb yoghurt 1kg",
+      "level": "Product",
+      "total_price": 12.5,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.0
+        }
+      }
+    },
+    {
+      "id": "product:coles tote bag 1each",
+      "label": "coles tote bag 1each",
+      "level": "Product",
+      "total_price": 1.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles unsaltd butter 250gram",
+      "label": "coles unsaltd butter 250gram",
+      "level": "Product",
+      "total_price": 4.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coles white self rai 1kg",
+      "label": "coles white self rai 1kg",
+      "level": "Product",
+      "total_price": 2.7,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:coriander punnet 15gram",
+      "label": "coriander punnet 15gram",
+      "level": "Product",
+      "total_price": 6.6,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.015
+        }
+      }
+    },
+    {
+      "id": "product:cs jalapeno chillies 80gram",
+      "label": "cs jalapeno chillies 80gram",
+      "level": "Product",
+      "total_price": 3.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:cs lemon dish liquid 1litre",
+      "label": "cs lemon dish liquid 1litre",
+      "level": "Product",
+      "total_price": 2.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:cs steel scourers 3pack",
+      "label": "cs steel scourers 3pack",
+      "level": "Product",
+      "total_price": 1.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:delivery",
+      "label": "delivery",
+      "level": "Product",
+      "total_price": 8.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:ea crispy chips",
+      "label": "ea crispy chips",
+      "level": "Product",
+      "total_price": 6.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:garlicbutterpb",
+      "label": "garlicbutterpb",
+      "level": "Product",
+      "total_price": 0.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:greens 40% less suga 325gram",
+      "label": "greens 40% less suga 325gram",
+      "level": "Product",
+      "total_price": 4.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:greens pancake shake 375gram",
+      "label": "greens pancake shake 375gram",
+      "level": "Product",
+      "total_price": 2.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:hass avocado 1each",
+      "label": "hass avocado 1each",
+      "level": "Product",
+      "total_price": 4.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:hass avocado 2f$3.50 discount",
+      "label": "hass avocado 2f$3.50 discount",
+      "level": "Product",
+      "total_price": -0.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:hot cross appl cinn 6pack",
+      "label": "hot cross appl cinn 6pack",
+      "level": "Product",
+      "total_price": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:hot cross fruit 6pk 6pack",
+      "label": "hot cross fruit 6pk 6pack",
+      "level": "Product",
+      "total_price": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:ito en matcha green 12pack",
+      "label": "ito en matcha green 12pack",
+      "level": "Product",
+      "total_price": 17.0,
+      "unit_totals": {
+        "by_group": {
+          "Count / Pack": 12.0
+        }
+      }
+    },
+    {
+      "id": "product:kensington mangoes 1each",
+      "label": "kensington mangoes 1each",
+      "level": "Product",
+      "total_price": 11.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:kitchen paper towel 250pack",
+      "label": "kitchen paper towel 250pack",
+      "level": "Product",
+      "total_price": 4.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:kp mangoes 2 for $5 discount",
+      "label": "kp mangoes 2 for $5 discount",
+      "level": "Product",
+      "total_price": -1.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:leggos stir through 350gram",
+      "label": "leggos stir through 350gram",
+      "level": "Product",
+      "total_price": 14.899999999999999,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.7
+        }
+      }
+    },
+    {
+      "id": "product:lunch serviettes 50pack",
+      "label": "lunch serviettes 50pack",
+      "level": "Product",
+      "total_price": 1.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mandarin tangold seedless 0.784 kg",
+      "label": "mandarin tangold seedless 0.784 kg",
+      "level": "Product",
+      "total_price": 6.66,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mars nestle allens 2 for $5",
+      "label": "mars nestle allens 2 for $5",
+      "level": "Product",
+      "total_price": -2.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mars nestle skittles 2 for $5 discount",
+      "label": "mars nestle skittles 2 for $5 discount",
+      "level": "Product",
+      "total_price": -1.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:masterfoods cajun se 35gram",
+      "label": "masterfoods cajun se 35gram",
+      "level": "Product",
+      "total_price": 7.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:masterfoods cumin se 28gram",
+      "label": "masterfoods cumin se 28gram",
+      "level": "Product",
+      "total_price": 8.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mckenzie's borlotti 375gram",
+      "label": "mckenzie's borlotti 375gram",
+      "level": "Product",
+      "total_price": 9.5,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.75
+        }
+      }
+    },
+    {
+      "id": "product:mckenzies lentils 375gram",
+      "label": "mckenzies lentils 375gram",
+      "level": "Product",
+      "total_price": 2.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mcknzie bi carb soda 350gram",
+      "label": "mcknzie bi carb soda 350gram",
+      "level": "Product",
+      "total_price": 5.2,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mcloughlin irish por 420gram",
+      "label": "mcloughlin irish por 420gram",
+      "level": "Product",
+      "total_price": 28.0,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.42
+        }
+      }
+    },
+    {
+      "id": "product:mias naked white sandwich 650g",
+      "label": "mias naked white sandwich 650g",
+      "level": "Product",
+      "total_price": 4.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:milo choc malt powde 1kg",
+      "label": "milo choc malt powde 1kg",
+      "level": "Product",
+      "total_price": 17.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:mini deep spcypepypa (spcypepypaneer+p) no fresh tom",
+      "label": "mini deep spcypepypa (spcypepypaneer+p) no fresh tom",
+      "level": "Product",
+      "total_price": 7.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:moro extra virgin 1litre",
+      "label": "moro extra virgin 1litre",
+      "level": "Product",
+      "total_price": 16.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:navel oranges perkg",
+      "label": "navel oranges perkg",
+      "level": "Product",
+      "total_price": 9.41,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:nestle medium bar ch 40gram",
+      "label": "nestle medium bar ch 40gram",
+      "level": "Product",
+      "total_price": 54.0,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.16
+        }
+      }
+    },
+    {
+      "id": "product:pikster interdental 10pack",
+      "label": "pikster interdental 10pack",
+      "level": "Product",
+      "total_price": 7.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:r cold vanilla shake (vanilla shake) whipped cream",
+      "label": "r cold vanilla shake (vanilla shake) whipped cream",
+      "level": "Product",
+      "total_price": 8.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:rasp van celb cake 1200gram",
+      "label": "rasp van celb cake 1200gram",
+      "level": "Product",
+      "total_price": 30.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:red onions 1kg",
+      "label": "red onions 1kg",
+      "level": "Product",
+      "total_price": 8.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:red washed potatoes 2kg",
+      "label": "red washed potatoes 2kg",
+      "level": "Product",
+      "total_price": 37.5,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 2.0
+        }
+      }
+    },
+    {
+      "id": "product:remedy kombucha 750ml",
+      "label": "remedy kombucha 750ml",
+      "level": "Product",
+      "total_price": 7.5,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "id": "product:ribena blackcurrant 1litre",
+      "label": "ribena blackcurrant 1litre",
+      "level": "Product",
+      "total_price": 7.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:sensodyne complete 100gram",
+      "label": "sensodyne complete 100gram",
+      "level": "Product",
+      "total_price": 12.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:snacking carrots 250gram",
+      "label": "snacking carrots 250gram",
+      "level": "Product",
+      "total_price": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:sorbent flushable wipe intimate 40pk",
+      "label": "sorbent flushable wipe intimate 40pk",
+      "level": "Product",
+      "total_price": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:sunrice jasmine rice 2kg",
+      "label": "sunrice jasmine rice 2kg",
+      "level": "Product",
+      "total_price": 8.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:surcharge",
+      "label": "surcharge",
+      "level": "Product",
+      "total_price": 3.75,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:topless pineapple 1each",
+      "label": "topless pineapple 1each",
+      "level": "Product",
+      "total_price": 13.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:traditional fruit 6pack",
+      "label": "traditional fruit 6pack",
+      "level": "Product",
+      "total_price": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:tt the one glutn fre 550gram",
+      "label": "tt the one glutn fre 550gram",
+      "level": "Product",
+      "total_price": 7.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:wards baking powder 125gram",
+      "label": "wards baking powder 125gram",
+      "level": "Product",
+      "total_price": 2.85,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:wet ones wipes 15pack",
+      "label": "wet ones wipes 15pack",
+      "level": "Product",
+      "total_price": 2.2,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:white wings shaker:o 350gram",
+      "label": "white wings shaker:o 350gram",
+      "level": "Product",
+      "total_price": 2.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:whittakers block cho 250gram",
+      "label": "whittakers block cho 250gram",
+      "level": "Product",
+      "total_price": 9.0,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.25
+        }
+      }
+    },
+    {
+      "id": "product:whole wheat biscuits 430gram",
+      "label": "whole wheat biscuits 430gram",
+      "level": "Product",
+      "total_price": 7.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:woolworths paper bag",
+      "label": "woolworths paper bag",
+      "level": "Product",
+      "total_price": 0.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:ww original pancake mixer 350g",
+      "label": "ww original pancake mixer 350g",
+      "level": "Product",
+      "total_price": 1.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "id": "product:ww pork rashers medium",
+      "label": "ww pork rashers medium",
+      "level": "Product",
+      "total_price": 10.78,
+      "unit_totals": {
+        "by_group": {}
+      }
+    }
+  ],
+  "links": [
+    {
+      "source": "merchant:Coles",
+      "target": "primary:Food & Grocery",
+      "value": 194.06,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 6.61,
+          "Count / Pack": 12.0,
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "source": "merchant:Coles",
+      "target": "primary:Home & Living",
+      "value": 2.2,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "source": "merchant:Coles",
+      "target": "primary:Unclassified",
+      "value": 358.53999999999996,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Coles Supermarkets Australia Pty Ltd",
+      "target": "primary:Unclassified",
+      "value": 77.39,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Domino's Pizza",
+      "target": "primary:Business Service",
+      "value": 8.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Domino's Pizza",
+      "target": "primary:Food & Grocery",
+      "value": 37.45,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Domino's Pizza",
+      "target": "primary:Food Service & Commercial",
+      "value": 3.75,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:NANDOS",
+      "target": "primary:Food & Grocery",
+      "value": 37.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Woolworths",
+      "target": "primary:Food & Grocery",
+      "value": 23.39,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Woolworths",
+      "target": "primary:Health & Beauty",
+      "value": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "merchant:Woolworths",
+      "target": "primary:Home & Living",
+      "value": 0.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "primary:Business Service",
+      "target": "secondary:Transport, postal and warehousing industry",
+      "value": 8.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Bakery & Bread",
+      "value": 44.55,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.315
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Beverages",
+      "value": 33.0,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75,
+          "Count / Pack": 12.0
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Condiments, Sauces & Spreads",
+      "value": 10.6,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.7
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Dairy & Eggs",
+      "value": 12.3,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.0
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Fresh Produce",
+      "value": 35.21,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 2.015
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Meat & Seafood",
+      "value": 43.44,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.42
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Pantry & Dry Goods",
+      "value": 24.35,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.75
+        }
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Ready Meals & Meal Kits",
+      "value": 59.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "primary:Food & Grocery",
+      "target": "secondary:Snacks & Confectionery",
+      "value": 29.45,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.41000000000000003
+        }
+      }
+    },
+    {
+      "source": "primary:Food Service & Commercial",
+      "target": "secondary:Restaurant",
+      "value": 3.75,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "primary:Health & Beauty",
+      "target": "secondary:Shower, Bath & Soap",
+      "value": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "primary:Home & Living",
+      "target": "secondary:Cleaning Supplies & Equipment",
+      "value": 1.95,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "source": "primary:Home & Living",
+      "target": "secondary:Storage & Organisation",
+      "value": 0.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "primary:Unclassified",
+      "target": "secondary:Unclassified",
+      "value": 435.92999999999995,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Bakery & Bread",
+      "target": "product:coles buttermilk pan 350gram",
+      "value": 3.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Bakery & Bread",
+      "target": "product:coles lem madei cake 315gram",
+      "value": 3.15,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.315
+        }
+      }
+    },
+    {
+      "source": "secondary:Bakery & Bread",
+      "target": "product:hot cross fruit 6pk 6pack",
+      "value": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Bakery & Bread",
+      "target": "product:mias naked white sandwich 650g",
+      "value": 4.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Bakery & Bread",
+      "target": "product:rasp van celb cake 1200gram",
+      "value": 30.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Beverages",
+      "target": "product:ito en matcha green 12pack",
+      "value": 17.0,
+      "unit_totals": {
+        "by_group": {
+          "Count / Pack": 12.0
+        }
+      }
+    },
+    {
+      "source": "secondary:Beverages",
+      "target": "product:r cold vanilla shake (vanilla shake) whipped cream",
+      "value": 8.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Beverages",
+      "target": "product:remedy kombucha 750ml",
+      "value": 7.5,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "source": "secondary:Cleaning Supplies & Equipment",
+      "target": "product:coles glass cleaner 750ml",
+      "value": 1.95,
+      "unit_totals": {
+        "by_group": {
+          "Volume": 0.75
+        }
+      }
+    },
+    {
+      "source": "secondary:Condiments, Sauces & Spreads",
+      "target": "product:garlicbutterpb",
+      "value": 0.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Condiments, Sauces & Spreads",
+      "target": "product:leggos stir through 350gram",
+      "value": 10.6,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.7
+        }
+      }
+    },
+    {
+      "source": "secondary:Dairy & Eggs",
+      "target": "product:coles fullcream milk 2litre",
+      "value": 3.55,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Dairy & Eggs",
+      "target": "product:coles strawb yoghurt 1kg",
+      "value": 4.25,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.0
+        }
+      }
+    },
+    {
+      "source": "secondary:Dairy & Eggs",
+      "target": "product:coles unsaltd butter 250gram",
+      "value": 4.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:allens pineapples 170gram",
+      "value": 2.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:coles peach & mango 1kg",
+      "value": 4.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:coriander punnet 15gram",
+      "value": 3.3,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.015
+        }
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:mandarin tangold seedless 0.784 kg",
+      "value": 6.66,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:red onions 1kg",
+      "value": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:red washed potatoes 2kg",
+      "value": 8.5,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 2.0
+        }
+      }
+    },
+    {
+      "source": "secondary:Fresh Produce",
+      "target": "product:topless pineapple 1each",
+      "value": 6.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Meat & Seafood",
+      "target": "product:coles beef rump perkg",
+      "value": 25.66,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Meat & Seafood",
+      "target": "product:mcloughlin irish por 420gram",
+      "value": 7.0,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.42
+        }
+      }
+    },
+    {
+      "source": "secondary:Meat & Seafood",
+      "target": "product:ww pork rashers medium",
+      "value": 10.78,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Pantry & Dry Goods",
+      "target": "product:coles raw sugar 1kg",
+      "value": 1.8,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 1.0
+        }
+      }
+    },
+    {
+      "source": "secondary:Pantry & Dry Goods",
+      "target": "product:mckenzie's borlotti 375gram",
+      "value": 4.6,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.75
+        }
+      }
+    },
+    {
+      "source": "secondary:Pantry & Dry Goods",
+      "target": "product:moro extra virgin 1litre",
+      "value": 16.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Pantry & Dry Goods",
+      "target": "product:ww original pancake mixer 350g",
+      "value": 1.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Ready Meals & Meal Kits",
+      "target": "product:1/2 chicken + classic burger + large peri peri chips",
+      "value": 37.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Ready Meals & Meal Kits",
+      "target": "product:chk saucy wings 10pk",
+      "value": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Ready Meals & Meal Kits",
+      "target": "product:mini deep spcypepypa (spcypepypaneer+p) no fresh tom",
+      "value": 7.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Restaurant",
+      "target": "product:surcharge",
+      "value": 3.75,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Shower, Bath & Soap",
+      "target": "product:sorbent flushable wipe intimate 40pk",
+      "value": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Snacks & Confectionery",
+      "target": "product:ea crispy chips",
+      "value": 6.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Snacks & Confectionery",
+      "target": "product:mars nestle skittles 2 for $5 discount",
+      "value": -1.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Snacks & Confectionery",
+      "target": "product:nestle medium bar ch 40gram",
+      "value": 15.0,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.16
+        }
+      }
+    },
+    {
+      "source": "secondary:Snacks & Confectionery",
+      "target": "product:whittakers block cho 250gram",
+      "value": 9.0,
+      "unit_totals": {
+        "by_group": {
+          "Weight": 0.25
+        }
+      }
+    },
+    {
+      "source": "secondary:Storage & Organisation",
+      "target": "product:100% recycle paper b 1each",
+      "value": 0.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Storage & Organisation",
+      "target": "product:woolworths paper bag",
+      "value": 0.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Transport, postal and warehousing industry",
+      "target": "product:delivery",
+      "value": 8.95,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:%earthwise laundry li 2litre",
+      "value": 10.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:*%nestle medium bar ch 35gram",
+      "value": 3.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:*%nestle medium bar ch 40gram",
+      "value": 6.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:100% recycle paper b 1each",
+      "value": 0.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:avocado 5pk",
+      "value": 7.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:bananas perkg",
+      "value": 7.720000000000001,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:brownes greek style 2kg",
+      "value": 10.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles beef blade 500gram",
+      "value": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles cashews salted 200gram",
+      "value": 4.35,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles dom clean wipe 10pack",
+      "value": 1.05,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles eggs fr range 600gram",
+      "value": 6.2,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles extra virgin 1litre",
+      "value": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles fullcream milk 2litre",
+      "value": 10.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles garbage bag ex 20pack",
+      "value": 3.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles gravy beef 800gram",
+      "value": 15.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles green chillies 50gram",
+      "value": 3.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles lem madei cake 315gram",
+      "value": 12.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles madeira cake 450gram",
+      "value": 3.15,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles maple syrup 375gram",
+      "value": 2.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles peach & mango 1kg",
+      "value": 8.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles pork sirloin 500gram",
+      "value": 9.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles raw sugar 1kg",
+      "value": 1.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles sponge scourer 3pack",
+      "value": 2.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles strawb yoghurt 1kg",
+      "value": 8.25,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles tote bag 1each",
+      "value": 1.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coles white self rai 1kg",
+      "value": 2.7,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:coriander punnet 15gram",
+      "value": 3.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:cs jalapeno chillies 80gram",
+      "value": 3.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:cs lemon dish liquid 1litre",
+      "value": 2.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:cs steel scourers 3pack",
+      "value": 1.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:greens 40% less suga 325gram",
+      "value": 4.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:greens pancake shake 375gram",
+      "value": 2.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:hass avocado 1each",
+      "value": 4.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:hass avocado 2f$3.50 discount",
+      "value": -0.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:hot cross appl cinn 6pack",
+      "value": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:kensington mangoes 1each",
+      "value": 11.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:kitchen paper towel 250pack",
+      "value": 4.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:kp mangoes 2 for $5 discount",
+      "value": -1.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:leggos stir through 350gram",
+      "value": 4.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:lunch serviettes 50pack",
+      "value": 1.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:mars nestle allens 2 for $5",
+      "value": -2.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:masterfoods cajun se 35gram",
+      "value": 7.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:masterfoods cumin se 28gram",
+      "value": 8.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:mckenzie's borlotti 375gram",
+      "value": 4.9,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:mckenzies lentils 375gram",
+      "value": 2.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:mcknzie bi carb soda 350gram",
+      "value": 5.2,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:mcloughlin irish por 420gram",
+      "value": 21.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:milo choc malt powde 1kg",
+      "value": 17.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:navel oranges perkg",
+      "value": 9.41,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:nestle medium bar ch 40gram",
+      "value": 39.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:pikster interdental 10pack",
+      "value": 7.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:red onions 1kg",
+      "value": 5.1,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:red washed potatoes 2kg",
+      "value": 29.0,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:ribena blackcurrant 1litre",
+      "value": 7.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:sensodyne complete 100gram",
+      "value": 12.3,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:snacking carrots 250gram",
+      "value": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:sunrice jasmine rice 2kg",
+      "value": 8.6,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:topless pineapple 1each",
+      "value": 6.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:traditional fruit 6pack",
+      "value": 3.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:tt the one glutn fre 550gram",
+      "value": 7.4,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:wards baking powder 125gram",
+      "value": 2.85,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:wet ones wipes 15pack",
+      "value": 2.2,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:white wings shaker:o 350gram",
+      "value": 2.8,
+      "unit_totals": {
+        "by_group": {}
+      }
+    },
+    {
+      "source": "secondary:Unclassified",
+      "target": "product:whole wheat biscuits 430gram",
+      "value": 7.5,
+      "unit_totals": {
+        "by_group": {}
+      }
+    }
+  ]
+}

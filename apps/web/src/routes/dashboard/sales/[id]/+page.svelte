@@ -43,13 +43,15 @@
 		r?.(false);
 	}
 
-	let retrying   = $state(false);
-	let deleting   = $state(false);
-	let editing    = $state(false);
-	let saving     = $state(false);
-	let committing = $state(false);
-	let aborting   = $state(false);
-	let saveError  = $state('');
+	let retrying       = $state(false);
+	let deleting       = $state(false);
+	let editing        = $state(false);
+	let saving         = $state(false);
+	let committing     = $state(false);
+	let aborting       = $state(false);
+	let saveError      = $state('');
+	let reclassifying  = $state(false);
+	let reclassifyMsg  = $state('');
 
 	let openingNote        = $state('');
 	let updateNote         = $state('');
@@ -150,6 +152,20 @@
 			const res = await fetch(`/api/sales/${sale.id}/retry-sync`, { method: 'POST' });
 			if (res.ok) await invalidateAll();
 		} finally { retrying = false; }
+	}
+
+	async function reclassify() {
+		reclassifying = true;
+		reclassifyMsg = '';
+		try {
+			const res = await fetch(`/api/sales/${sale.id}/reclassify`, { method: 'POST' });
+			if (!res.ok) { reclassifyMsg = await res.text(); return; }
+			const result = await res.json();
+			reclassifyMsg = `Reclassified ${result.updated} item${result.updated === 1 ? '' : 's'}`;
+			await invalidateAll();
+		} catch (e) {
+			reclassifyMsg = e instanceof Error ? e.message : 'Reclassify failed';
+		} finally { reclassifying = false; }
 	}
 
 	async function deleteSale() {
@@ -679,6 +695,21 @@
 			</Card>
 		{:else if lineItems.length > 0}
 			<Card title="Line Items ({lineItems.length})">
+				<!-- Reclassify action -->
+				<div class="flex items-center justify-end gap-3 mb-2">
+					{#if reclassifyMsg}
+						<span class="font-mono text-[10px] text-(--color-muted-foreground)">{reclassifyMsg}</span>
+					{/if}
+					<button
+						onclick={reclassify}
+						disabled={reclassifying}
+						class="border-2 border-(--color-border) px-3 py-1 font-mono text-[10px] uppercase tracking-widest hover:bg-(--color-fg) hover:text-(--color-bg) transition-colors disabled:opacity-50 disabled:cursor-wait"
+						title="Send line items to Gemini for re-categorisation"
+					>
+						{reclassifying ? 'RECLASSIFYING…' : 'RECLASSIFY ↻'}
+					</button>
+				</div>
+
 				<!-- Column legend -->
 				<div class="grid grid-cols-[1fr_4rem_4rem_4rem_4rem_5rem_5rem] gap-x-3 border-b-2 border-(--color-border) pb-1.5 mb-1">
 					{#each ['Description', 'Type', 'Units', 'Buy', 'Sell', 'Margin', 'Total'] as col (col)}

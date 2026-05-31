@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The measurement group a unit belongs to.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UnitGroup {
     #[serde(rename = "Weight")]
     Weight,
