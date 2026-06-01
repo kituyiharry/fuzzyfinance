@@ -45,6 +45,7 @@ checksum = "c673075a2e0e5f4a1dde27ce9dee1ea4558c7ffe648f576438a20ca1d2acc4b0"
 dependencies = [
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
 ]
 
@@ -143,6 +144,7 @@ dependencies = [
 name = "hedaz-libs"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "serde",
  "serde_json",
 ]

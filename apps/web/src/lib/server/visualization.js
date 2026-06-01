@@ -1,9 +1,11 @@
 /**
- * Semver of the Rust alluvial aggregation logic. Must stay in lockstep with
+ * Semver of the Rust analyser output format. Must stay in lockstep with
  * `ANALYZER_VERSION` in apps/zadeh/src/lib.rs. Bumping invalidates cached
  * visualization rows — the next request for an export regenerates the JSON.
+ *
+ * v2: bundle format — R2 object now contains both `alluvial` and `trendline`.
  */
-export const VIZ_ANALYZER_VERSION = '1.0.0';
+export const VIZ_ANALYZER_VERSION = '2.0.0';
 
 /**
  * R2 object key for a generated visualization.

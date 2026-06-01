@@ -47,7 +47,12 @@ export async function load({ params, locals, platform }) {
 
 	const object = await platform.env.fuzzyfinance_exports.get(row.r2Key);
 	if (!object) error(404, 'Visualization JSON missing from R2');
-	const alluvial = await object.json();
+	const bundle = await object.json();
 
-	return { alluvial, exportMeta, viz: { id: row.id, nodeCount: row.nodeCount, linkCount: row.linkCount, generatedAt: row.generatedAt } };
+	return {
+		alluvial:  bundle.alluvial  ?? bundle, // bundle on v2; raw alluvial on legacy v1
+		trendline: bundle.trendline ?? null,
+		exportMeta,
+		viz: { id: row.id, nodeCount: row.nodeCount, linkCount: row.linkCount, generatedAt: row.generatedAt },
+	};
 }

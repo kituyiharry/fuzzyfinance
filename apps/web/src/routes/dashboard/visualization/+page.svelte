@@ -26,6 +26,24 @@
 </svelte:head>
 
 <div class="flex flex-col gap-6 max-w-5xl mx-auto">
+	<!-- Live analysis CTA -->
+	<a
+		href="/dashboard/visualization/live"
+		class="block border-2 border-(--color-border) p-4 hover:bg-(--color-fg) hover:text-(--color-bg) transition-colors group"
+	>
+		<div class="flex items-center justify-between gap-4">
+			<div>
+				<div class="font-mono text-xs font-black uppercase tracking-widest">
+					Live Analysis <span class="ml-2 text-(--color-accent) group-hover:text-(--color-bg)">▸</span>
+				</div>
+				<div class="font-mono text-[10px] text-(--color-muted-foreground) group-hover:text-(--color-bg) mt-1">
+					Pick any date range or financial-year preset · query straight from line items · no export saved
+				</div>
+			</div>
+			<span class="font-mono text-[9px] uppercase tracking-widest">→ Open</span>
+		</div>
+	</a>
+
 	<Card title="Receipt Export Visualizations ({filtered.length})">
 		{#if data.exports.length === 0}
 			<EmptyState

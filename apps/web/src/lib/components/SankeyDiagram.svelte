@@ -488,7 +488,7 @@
 		<svg
 			viewBox="0 0 {width} {height}"
 			preserveAspectRatio="xMidYMid meet"
-			class="w-full max-w-[1600px] h-auto font-mono text-[11px]"
+			class="w-full max-w-400 h-auto font-mono text-[11px]"
 		>
 			<g>
 				{#each layout.links as l, i (i)}
