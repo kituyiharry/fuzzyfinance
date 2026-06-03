@@ -96,8 +96,9 @@
 	const NAV = [
 		{ href: '/dashboard',                   label: 'Overview',       /** @param {string} p */ match: (p) => p === '/dashboard' },
 		{ href: '/dashboard/receipts',          label: 'Expenses',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
-		{ href: '/dashboard/sales',             label: 'Revenue',          /** @param {string} p */ match: (p) => p.startsWith('/dashboard/sales') },
+		{ href: '/dashboard/sales',             label: 'Revenue',        /** @param {string} p */ match: (p) => p.startsWith('/dashboard/sales') },
 		{ href: '/dashboard/exports',           label: 'Exports',        /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
+		{ href: '/dashboard/visualization',     label: 'Visualization',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/visualization') },
 		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
 		{ href: '/dashboard/announcements',     label: 'Announcements',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/announcements') },
 		{ href: '/dashboard/settings',          label: 'Settings',       /** @param {string} p */ match: (p) => p === '/dashboard/settings' },
@@ -109,6 +110,7 @@
 		'/dashboard/receipts':          { title: 'Expenses',       sub: 'Manage and review expense documents' },
 		'/dashboard/sales':             { title: 'Revenue',        sub: 'Track revenue documents' },
 		'/dashboard/exports':           { title: 'Exports',        sub: 'Download CSV reports' },
+		'/dashboard/visualization':     { title: 'Visualization',  sub: 'Sankey view of receipt exports' },
 		'/dashboard/integrations':      { title: 'Integrations',   sub: 'Cloud workspace connections' },
 		'/dashboard/announcements':     { title: 'Announcements',  sub: 'Platform updates and notices' },
 		'/dashboard/settings':          { title: 'Settings',       sub: 'Account and preferences' },
@@ -166,8 +168,7 @@
 					onclick={toggleProfileMenu}
 					class="w-full flex items-center gap-2.5 px-3 py-2.5 border-0 bg-transparent hover:bg-(--color-muted) transition-all text-left"
 					aria-expanded={isProfileMenuOpen}
-					aria-haspopup="true"
-				>
+					aria-haspopup="true">
 					<img
 						src={$page.data.user?.image ?? ''}
 						alt="Profile"

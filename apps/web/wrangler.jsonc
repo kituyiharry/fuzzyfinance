@@ -68,6 +68,20 @@
 			"binding": "fuzzyfinance_receipts",
 			//"preview_bucket_name": "fuzzyfinance-receipts-preview"
 			"preview_bucket_name": "fuzzyfinance-receipts"
+		},
+		// Export artifacts — CSV files and analysis outputs written/read by hedaz
+		// Create with: wrangler r2 bucket create fuzzyfinance-exports
+		{
+			"bucket_name": "fuzzyfinance-exports",
+			"binding": "fuzzyfinance_exports",
+			"preview_bucket_name": "fuzzyfinance-exports-dev"
+		}
+	],
+	// Service bindings — internal Worker-to-Worker calls (not exposed publicly)
+	"services": [
+		{
+			"binding": "HEDAZ",
+			"service": "hedaz"
 		}
 	],
 	// Workers AI — used for text embedding (bge-base-en-v1.5, 768 dims)

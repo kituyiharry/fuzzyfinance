@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "apps/zadeh",
+    "packages/hedaz-libs",
+]
+resolver = "2"

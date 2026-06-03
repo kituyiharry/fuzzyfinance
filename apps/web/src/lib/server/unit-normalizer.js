@@ -1,3 +1,5 @@
+// NOTE: Changing any of these requires that updates be made to the Unit types
+// in hedaz-libs as well to prevent misclassification during analysis
 /**
  * Canonical unit type -> aliases (all lowercase).
  * Lookup is case-insensitive: normalizeUnitType('KG') === 'kg'.

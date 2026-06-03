@@ -1,0 +1,21 @@
+name = "hedaz"
+main = "build/worker/shim.mjs"
+compatibility_date = "2026-04-01"
+
+[build]
+command = "worker-build --release"
+
+# Raw uploaded receipt/sale files — existing transit buffer
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "fuzzyfinance-receipts"
+preview_bucket_name = "fuzzyfinance-receipts"
+
+# Export artifacts — CSV files and future analysis outputs
+[[r2_buckets]]
+binding = "EXPORTS"
+bucket_name = "fuzzyfinance-exports"
+preview_bucket_name = "fuzzyfinance-exports-dev"
+
+[observability]
+enabled = true

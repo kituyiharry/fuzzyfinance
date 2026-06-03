@@ -3,22 +3,25 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
-    "main": "./src/index.js",
-    "exports": {
-        ".": {
-            "types":   "./types/index.d.ts",
-            "default": "./src/index.js"
-        }
-    },
+	"main": "./src/index.js",
+	"exports": {
+		".": {
+			"types": "./types/index.d.ts",
+			"default": "./src/index.js"
+		}
+	},
 	"scripts": {
 		"build:types": "tsc"
 	},
 	"dependencies": {
+		"@better-auth/cli": "0.0.1",
+		"@sveltejs/adapter-cloudflare": "0.0.1",
+		"@sveltejs/kit": "0.0.30"
 	},
 	"devDependencies": {
 		"@libsql/client": "^0.17.0",
+		"drizzle-kit": "^0.18.1",
 		"drizzle-orm": "^0.45.1",
-		"drizzle-kit": "^0.31.8",
 		"typescript": "^5.9.3"
 	}
 }

@@ -199,6 +199,125 @@ export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [
 	return parsed;
 }
 
+// ── Reclassification (text-only) ───────────────────────────────────────────────
+//
+// Used by the "Reclassify" button on receipt/sale detail pages to re-categorise
+// existing line items (typically older records added before the line-item
+// taxonomy existed). No image bytes — just text descriptions + light context.
+
+const CLASSIFY_SCHEMA = {
+	type: SchemaType.OBJECT,
+	properties: {
+		classifications: {
+			type: SchemaType.ARRAY,
+			items: {
+				type: SchemaType.OBJECT,
+				properties: {
+					index: { type: SchemaType.INTEGER, description: 'Zero-based index of the corresponding input line item.' },
+					primaryCategory: {
+						type: SchemaType.STRING,
+						enum: [..._PRIMARY_NAMES, 'Other'],
+						description: 'Primary category. Must be one of the defined values or "Other".'
+					},
+					secondaryCategory: {
+						type: SchemaType.STRING,
+						description: 'Secondary category within the chosen primary. Empty string if primaryCategory is "Other".'
+					},
+					unitSize: {
+						type: SchemaType.STRING,
+						description: 'Numeric size or quantity measurement of a single unit of this product as a decimal string, e.g. "0.784" for 0.784 kg, "2" for a 2-litre bottle, "40" for a 40-pack. Empty string if the description does not include a measurement.'
+					},
+					unitType: {
+						type: SchemaType.STRING,
+						description: 'Unit label for the size measurement, e.g. "kg", "g", "L", "ml", "oz", "lb", "pk", "ct", "m". Empty string if unitSize is empty.'
+					}
+				},
+				required: ['index', 'primaryCategory', 'secondaryCategory', 'unitSize', 'unitType']
+			}
+		}
+	},
+	required: ['classifications']
+};
+
+const CLASSIFY_PROMPT_HEAD = `You are a line-item enrichment assistant. You will receive a numbered list of line-item descriptions from a single document (receipt or sale). For each item, return TWO things:
+
+1. Classification — pick the most specific primaryCategory and a secondaryCategory from the taxonomy below. Use "Other" for primaryCategory only if no category fits, and leave secondaryCategory empty in that case.
+2. Unit measurement — if the description includes a size or quantity (e.g. "FullCream Milk 2L" → unitSize "2", unitType "L"; "Tangold Seedless 0.784 kg" → unitSize "0.784", unitType "kg"; "Flushable Wipe 40pk" → unitSize "40", unitType "pk"), extract it. If no measurement is present in the description, return empty strings for both unitSize and unitType.
+
+Return ONLY the classifications array in the schema; include every input index exactly once.`;
+
+/**
+ * @typedef {{ description: string; unitSize?: string; unitType?: string; type?: string }} ClassifyItem
+ * @typedef {{ index: number; primaryCategory: string; secondaryCategory: string; unitSize: string; unitType: string }} Classification
+ */
+
+/**
+ * Re-classify a list of line items into primaryCategory / secondaryCategory.
+ *
+ * @param {ClassifyItem[]} items
+ * @param {{ documentCategory?: string; accessToken?: string | null }} [opts]
+ * @returns {Promise<Classification[]>}
+ */
+export async function classifyLineItems(items, opts = {}) {
+	if (!items.length) return [];
+
+	// We deliberately send only the description (and sale type) — not any
+	// existing unitSize/unitType — so the model re-derives units fresh from
+	// the description text instead of echoing back whatever is in the DB.
+	const numbered = items.map((li, i) => {
+		const type = li.type ? ` [${li.type}]` : '';
+		return `${i}. ${li.description ?? '(no description)'}${type}`;
+	}).join('\n');
+
+	const docContext = opts.documentCategory
+		? `\n\nDocument-level category for context: "${opts.documentCategory}".`
+		: '';
+
+	const fullPrompt = `${CLASSIFY_PROMPT_HEAD}${docContext}\n\nCategory taxonomy:\n${_CATEGORY_HIERARCHY}\n\nItems to classify:\n${numbered}`;
+
+	const generationConfig = {
+		responseMimeType: 'application/json',
+		responseSchema: CLASSIFY_SCHEMA
+	};
+
+	let text;
+	try {
+		if (opts.accessToken) {
+			text = await generateWithOAuth({
+				accessToken: opts.accessToken,
+				model: 'gemini-3-flash-preview',
+				parts: [{ text: fullPrompt }],
+				generationConfig,
+				timeoutMs: GEMINI_TIMEOUT_MS
+			});
+		} else {
+			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+			const result = await _withTimeout(
+				genAI.models.generateContent({
+					model: 'gemini-3-flash-preview',
+					contents: [fullPrompt],
+					config: generationConfig
+				}),
+				GEMINI_TIMEOUT_MS
+			);
+			text = result.text;
+		}
+	} catch (/** @type {any} */ err) {
+		const msg = String(err?.message ?? err);
+		if (err?.status === 429 || /429|rate.?limit|quota|resource.?exhausted/i.test(msg)) {
+			const rateLimitErr = new Error('Gemini API rate limit reached. Please wait a moment and try again.');
+			// @ts-ignore
+			rateLimitErr.code = 'RATE_LIMITED';
+			throw rateLimitErr;
+		}
+		throw err;
+	}
+
+	/** @type {{ classifications?: Classification[] }} */
+	const parsed = text ? JSON.parse(text) : {};
+	return Array.isArray(parsed.classifications) ? parsed.classifications : [];
+}
+
 /**
  * Races a promise against a timeout. Rejects with code='TIMED_OUT' if exceeded.
  * @template T
