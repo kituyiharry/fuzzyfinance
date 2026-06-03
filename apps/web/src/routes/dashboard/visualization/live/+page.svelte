@@ -4,8 +4,9 @@
 	import Card from '$lib/components/Card.svelte';
 	import SankeyDiagram from '$lib/components/SankeyDiagram.svelte';
 	import TrendlineChart from '$lib/components/TrendlineChart.svelte';
+	import TreemapDiagram from '$lib/components/TreemapDiagram.svelte';
 
-	/** @type {'sankey' | 'trendlines'} */
+	/** @type {'sankey' | 'trendlines' | 'treemap'} */
 	let activeTab = $state('sankey');
 
 	/** @type {{ data: import('./$types').PageData }} */
@@ -178,6 +179,7 @@
 				{#each /** @type {const} */ ([
 					{ id: 'sankey',     label: 'Sankey' },
 					{ id: 'trendlines', label: 'Trendlines' },
+					{ id: 'treemap',    label: 'Treemap' },
 				]) as tab (tab.id)}
 					<button
 						onclick={() => (activeTab = tab.id)}
@@ -196,6 +198,8 @@
 						No trendline data for this range.
 					</p>
 				{/if}
+			{:else if activeTab === 'treemap'}
+				<TreemapDiagram data={data.alluvial} />
 			{/if}
 		</Card>
 	{/if}

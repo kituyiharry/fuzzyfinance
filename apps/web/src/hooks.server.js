@@ -15,6 +15,20 @@ const handleBetterAuth = async ({ event, resolve }) => {
         throw "UNDEFINED KEYS in ENV";
     }
 
+    if (event.url.pathname === '/api/auth/callback/apple') {
+        const cookieHeader = event.request.headers.get('cookie') ?? '';
+        console.log(['[apple-cb]', {
+            clientId: env.APPLE_CLIENT_ID, 
+            teamId: env.APPLE_TEAM_ID,
+            keyId: env.APPLE_KEY_ID, 
+            hasKey: Boolean(env.APPLE_CERTIFICATE),
+            method: event.request.method,
+            hasStateCookie: cookieHeader.includes('state'),  // or whatever name better-auth uses
+            cookieNames: cookieHeader.split(';').map(c => c.split('=')[0].trim()),
+        }]);
+    }
+
+
 	// Route better-auth paths directly, bypassing svelteKitHandler's origin check
 	// which fails when mobile clients use a different host than env.ORIGIN.
 	// /api/auth/passkey/* are SvelteKit routes, not better-auth endpoints.
@@ -23,6 +37,39 @@ const handleBetterAuth = async ({ event, resolve }) => {
 		!event.url.pathname.startsWith('/api/auth/passkey/')
 	) {
 		return auth.handler(event.request);
+	}
+
+	// ── External API (Bearer-only) ──────────────────────────────────────
+	// /api/v1/* is authenticated by OAuth access token, not by cookie
+	// session. Look up the token in oauth_access_token, validate it's not
+	// expired, populate locals.user + locals.tokenScopes. No cookie fallback
+	// — Bearer is mandatory for these paths.
+	if (event.url.pathname.startsWith('/api/v1/')) {
+		const authz = event.request.headers.get('authorization');
+		if (authz?.startsWith('Bearer ')) {
+			const token = authz.slice(7).trim();
+			const [tokenRow] = await db
+				.select({
+					userId:    schema.oauthAccessToken.userId,
+					scopes:    schema.oauthAccessToken.scopes,
+					expiresAt: schema.oauthAccessToken.accessTokenExpiresAt,
+				})
+				.from(schema.oauthAccessToken)
+				.where(eq(schema.oauthAccessToken.accessToken, token));
+			if (tokenRow && tokenRow.userId && tokenRow.expiresAt && new Date(tokenRow.expiresAt) > new Date()) {
+				const [u] = await db
+					.select()
+					.from(schema.user)
+					.where(eq(schema.user.id, tokenRow.userId));
+				if (u) {
+					event.locals.user = u;
+					event.locals.tokenScopes = new Set(
+						String(tokenRow.scopes ?? '').split(/[\s,]+/).filter(Boolean),
+					);
+				}
+			}
+		}
+		return resolve(event);
 	}
 
 	const session = await auth.api.getSession({ headers: event.request.headers });

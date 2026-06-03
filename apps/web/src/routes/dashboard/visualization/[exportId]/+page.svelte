@@ -2,11 +2,12 @@
 	import Card from '$lib/components/Card.svelte';
 	import SankeyDiagram from '$lib/components/SankeyDiagram.svelte';
 	import TrendlineChart from '$lib/components/TrendlineChart.svelte';
+	import TreemapDiagram from '$lib/components/TreemapDiagram.svelte';
 
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
 
-	/** @type {'sankey' | 'trendlines'} */
+	/** @type {'sankey' | 'trendlines' | 'treemap'} */
 	let activeTab = $state('sankey');
 
 	/** @param {Date | null | undefined} d */
@@ -40,6 +41,7 @@
 			{#each /** @type {const} */ ([
 				{ id: 'sankey',     label: 'Sankey' },
 				{ id: 'trendlines', label: 'Trendlines' },
+				{ id: 'treemap',    label: 'Treemap' },
 			]) as tab (tab.id)}
 				<button
 					onclick={() => (activeTab = tab.id)}
@@ -63,6 +65,14 @@
 				</p>
 			{:else}
 				<TrendlineChart data={data.trendline} />
+			{/if}
+		{:else if activeTab === 'treemap'}
+			{#if data.alluvial.nodes.length === 0}
+				<p class="font-mono text-[11px] text-(--color-muted-foreground) py-8 text-center">
+					No line items with price + category data to build a treemap.
+				</p>
+			{:else}
+				<TreemapDiagram data={data.alluvial} />
 			{/if}
 		{/if}
 	</Card>

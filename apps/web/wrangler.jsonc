@@ -30,7 +30,7 @@
 	"vars": {
 		"ORIGIN": "https://fuzzies.app",
 		"MICROSOFT_CLIENT_ID": "",
-		"MICROSOFT_CLIENT_SECRET": "",
+		"MICROSOFT_CLIENT_SECRET": ""
 	},
 	// Cron Trigger — daily R2 cleanup at 03:00 UTC
 	// Deletes R2 objects for synced docs (7d TTL) and abandoned uploads (30d TTL)

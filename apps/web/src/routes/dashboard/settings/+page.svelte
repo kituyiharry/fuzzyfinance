@@ -55,6 +55,19 @@
 </svelte:head>
 
 <div class="max-w-4xl mx-auto flex flex-col gap-8">
+	<a
+		href="/dashboard/settings/developer"
+		class="border-2 border-(--color-border) p-4 hover:bg-(--color-fg) hover:text-(--color-bg) transition-colors group flex items-center justify-between"
+	>
+		<div>
+			<div class="font-mono text-xs font-black uppercase tracking-widest">Developer →</div>
+			<div class="font-mono text-[10px] text-(--color-muted-foreground) group-hover:text-(--color-bg) mt-1">
+				Connected apps (ChatGPT, mobile), OAuth scopes, API reference
+			</div>
+		</div>
+		<span class="font-mono text-[9px] uppercase tracking-widest">Open</span>
+	</a>
+
 	<Card title="Personnel Configuration">
 		<div class="flex flex-col gap-6">
 			<div>

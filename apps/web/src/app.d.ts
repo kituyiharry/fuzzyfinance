@@ -15,6 +15,8 @@ declare global {
 			user?: User;
 			session?: Session;
 			workspaceId?: string | null;
+			/** Set on /api/v1/* requests by the Bearer-token middleware. */
+			tokenScopes?: Set<string>;
 		}
 
 		// interface Error {}

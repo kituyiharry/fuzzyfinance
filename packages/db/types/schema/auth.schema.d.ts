@@ -646,13 +646,13 @@ export const verification: import("drizzle-orm/sqlite-core").SQLiteTableWithColu
     };
     dialect: "sqlite";
 }>;
-export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
-    name: "passkey";
+export const oauthApplication: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
+    name: "oauth_application";
     schema: undefined;
     columns: {
         id: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "id";
-            tableName: "passkey";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
@@ -671,7 +671,7 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }>;
         name: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "name";
-            tableName: "passkey";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
@@ -688,14 +688,14 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
-        publicKey: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "public_key";
-            tableName: "passkey";
+        icon: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "icon";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
             driverParam: string;
-            notNull: true;
+            notNull: false;
             hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
@@ -707,14 +707,14 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
-        userId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "user_id";
-            tableName: "passkey";
+        metadata: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "metadata";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
             driverParam: string;
-            notNull: true;
+            notNull: false;
             hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
@@ -726,14 +726,14 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
-        webauthnUserID: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "webauthn_user_id";
-            tableName: "passkey";
+        clientId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "client_id";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
             driverParam: string;
-            notNull: true;
+            notNull: false;
             hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
@@ -745,31 +745,14 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
-        counter: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "counter";
-            tableName: "passkey";
-            dataType: "number";
-            columnType: "SQLiteInteger";
-            data: number;
-            driverParam: number;
-            notNull: true;
-            hasDefault: false;
-            isPrimaryKey: false;
-            isAutoincrement: false;
-            hasRuntimeDefault: false;
-            enumValues: undefined;
-            baseColumn: never;
-            identity: undefined;
-            generated: undefined;
-        }, {}, {}>;
-        deviceType: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "device_type";
-            tableName: "passkey";
+        clientSecret: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "client_secret";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
             driverParam: string;
-            notNull: true;
+            notNull: false;
             hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
@@ -781,15 +764,53 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
-        backedUp: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "backed_up";
-            tableName: "passkey";
+        redirectUrls: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "redirect_urls";
+            tableName: "oauth_application";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        type: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "type";
+            tableName: "oauth_application";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        disabled: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "disabled";
+            tableName: "oauth_application";
             dataType: "boolean";
             columnType: "SQLiteBoolean";
             data: boolean;
             driverParam: number;
-            notNull: true;
-            hasDefault: false;
+            notNull: false;
+            hasDefault: true;
             isPrimaryKey: false;
             isAutoincrement: false;
             hasRuntimeDefault: false;
@@ -798,9 +819,9 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-        transports: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "transports";
-            tableName: "passkey";
+        userId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "user_id";
+            tableName: "oauth_application";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
@@ -819,13 +840,13 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }>;
         createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "created_at";
-            tableName: "passkey";
+            tableName: "oauth_application";
             dataType: "date";
             columnType: "SQLiteTimestamp";
             data: Date;
             driverParam: number;
             notNull: false;
-            hasDefault: true;
+            hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
             hasRuntimeDefault: false;
@@ -834,9 +855,52 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
-        aaguid: import("drizzle-orm/sqlite-core").SQLiteColumn<{
-            name: "aaguid";
-            tableName: "passkey";
+        updatedAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "updated_at";
+            tableName: "oauth_application";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    };
+    dialect: "sqlite";
+}>;
+export const oauthAccessToken: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
+    name: "oauth_access_token";
+    schema: undefined;
+    columns: {
+        id: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "id";
+            tableName: "oauth_access_token";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        accessToken: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "access_token";
+            tableName: "oauth_access_token";
             dataType: "string";
             columnType: "SQLiteText";
             data: string;
@@ -853,19 +917,310 @@ export const passkey: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
+        refreshToken: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "refresh_token";
+            tableName: "oauth_access_token";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        accessTokenExpiresAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "access_token_expires_at";
+            tableName: "oauth_access_token";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        refreshTokenExpiresAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "refresh_token_expires_at";
+            tableName: "oauth_access_token";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        clientId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "client_id";
+            tableName: "oauth_access_token";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        userId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "user_id";
+            tableName: "oauth_access_token";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        scopes: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "scopes";
+            tableName: "oauth_access_token";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "created_at";
+            tableName: "oauth_access_token";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        updatedAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "updated_at";
+            tableName: "oauth_access_token";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
     };
     dialect: "sqlite";
 }>;
-export const passkeyRelations: import("drizzle-orm").Relations<"passkey", {
-    user: import("drizzle-orm").One<"user", true>;
+export const oauthConsent: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
+    name: "oauth_consent";
+    schema: undefined;
+    columns: {
+        id: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "id";
+            tableName: "oauth_consent";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        clientId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "client_id";
+            tableName: "oauth_consent";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        userId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "user_id";
+            tableName: "oauth_consent";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        scopes: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "scopes";
+            tableName: "oauth_consent";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "created_at";
+            tableName: "oauth_consent";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        updatedAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "updated_at";
+            tableName: "oauth_consent";
+            dataType: "date";
+            columnType: "SQLiteTimestamp";
+            data: Date;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        consentGiven: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "consent_given";
+            tableName: "oauth_consent";
+            dataType: "boolean";
+            columnType: "SQLiteBoolean";
+            data: boolean;
+            driverParam: number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    };
+    dialect: "sqlite";
 }>;
 export const userRelations: import("drizzle-orm").Relations<"user", {
     sessions: import("drizzle-orm").Many<"session">;
     accounts: import("drizzle-orm").Many<"account">;
+    oauthApplications: import("drizzle-orm").Many<"oauth_application">;
+    oauthAccessTokens: import("drizzle-orm").Many<"oauth_access_token">;
+    oauthConsents: import("drizzle-orm").Many<"oauth_consent">;
 }>;
 export const sessionRelations: import("drizzle-orm").Relations<"session", {
     user: import("drizzle-orm").One<"user", true>;
 }>;
 export const accountRelations: import("drizzle-orm").Relations<"account", {
     user: import("drizzle-orm").One<"user", true>;
+}>;
+export const oauthApplicationRelations: import("drizzle-orm").Relations<"oauth_application", {
+    user: import("drizzle-orm").One<"user", false>;
+    oauthAccessTokens: import("drizzle-orm").Many<"oauth_access_token">;
+    oauthConsents: import("drizzle-orm").Many<"oauth_consent">;
+}>;
+export const oauthAccessTokenRelations: import("drizzle-orm").Relations<"oauth_access_token", {
+    oauthApplication: import("drizzle-orm").One<"oauth_application", false>;
+    user: import("drizzle-orm").One<"user", false>;
+}>;
+export const oauthConsentRelations: import("drizzle-orm").Relations<"oauth_consent", {
+    oauthApplication: import("drizzle-orm").One<"oauth_application", false>;
+    user: import("drizzle-orm").One<"user", false>;
 }>;
