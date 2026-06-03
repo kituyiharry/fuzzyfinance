@@ -1,5 +1,7 @@
 node_modules
 
+.wrangler-shared
+
 # Output
 .output
 .vercel
