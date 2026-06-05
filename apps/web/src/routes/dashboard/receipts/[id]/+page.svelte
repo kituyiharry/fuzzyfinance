@@ -414,6 +414,18 @@
 		</div>
 	{/if}
 
+	{#if receipt.status === 'staged' && receipt.currency && data.baselineCurrency && receipt.currency.toUpperCase() !== data.baselineCurrency.toUpperCase()}
+		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-(--color-warning-border) shrink-0"></span>
+				<span class="font-mono text-[10px] font-black uppercase tracking-widest text-(--color-warning)">CURRENCY MISMATCH · {receipt.currency.toUpperCase()} ≠ {data.baselineCurrency}</span>
+			</div>
+			<p class="font-mono text-[10px] text-(--color-muted-foreground) pl-4">
+				This expense is in {receipt.currency.toUpperCase()}, but your workspace baseline is {data.baselineCurrency}. Convert the amounts to {data.baselineCurrency} before committing if you want it to roll into your visualizations and reports. You can still commit as-is — automated conversion is on the roadmap.
+			</p>
+		</div>
+	{/if}
+
 	{#if receipt.errorMessage?.startsWith('AUTH_REQUIRED:')}
 		<div class="border-2 border-(--color-warning-border) bg-(--color-warning-muted) p-4 flex flex-col gap-2">
 			<div class="flex items-center gap-2">

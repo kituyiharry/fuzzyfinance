@@ -49,10 +49,20 @@ export async function load({ params, locals, platform }) {
 	if (!object) error(404, 'Visualization JSON missing from R2');
 	const bundle = await object.json();
 
+	let baselineCurrency = 'AUD';
+	if (locals.workspaceId) {
+		const [ws] = await db
+			.select({ preferredCurrency: schema.workspace.preferredCurrency })
+			.from(schema.workspace)
+			.where(eq(schema.workspace.id, locals.workspaceId));
+		if (ws?.preferredCurrency) baselineCurrency = ws.preferredCurrency;
+	}
+
 	return {
 		alluvial:  bundle.alluvial  ?? bundle, // bundle on v2; raw alluvial on legacy v1
 		trendline: bundle.trendline ?? null,
 		exportMeta,
 		viz: { id: row.id, nodeCount: row.nodeCount, linkCount: row.linkCount, generatedAt: row.generatedAt },
+		baselineCurrency,
 	};
 }

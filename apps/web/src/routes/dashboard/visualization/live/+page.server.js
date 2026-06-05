@@ -24,12 +24,21 @@ function parseDate(s) {
 export async function load({ url, locals, platform }) {
 	if (!locals.user) redirect(302, '/');
 
+	let baselineCurrency = 'AUD';
+	if (locals.workspaceId) {
+		const [ws] = await db
+			.select({ preferredCurrency: schema.workspace.preferredCurrency })
+			.from(schema.workspace)
+			.where(eq(schema.workspace.id, locals.workspaceId));
+		if (ws?.preferredCurrency) baselineCurrency = ws.preferredCurrency;
+	}
+
 	const startStr = url.searchParams.get('start');
 	const endStr   = url.searchParams.get('end');
 
 	// Render picker-only view when no range is set.
 	if (!startStr || !endStr) {
-		return { range: null, alluvial: null, meta: null, errorMessage: null };
+		return { range: null, alluvial: null, meta: null, baselineCurrency, errorMessage: null };
 	}
 
 	const start = parseDate(startStr);
@@ -39,6 +48,7 @@ export async function load({ url, locals, platform }) {
 			range: { start: startStr, end: endStr },
 			alluvial: null,
 			meta: null,
+			baselineCurrency,
 			errorMessage: 'Invalid date range — end must be on or after start.',
 		};
 	}
@@ -51,7 +61,7 @@ export async function load({ url, locals, platform }) {
 		? [eq(schema.receipt.workspaceId, locals.workspaceId)]
 		: [];
 
-	const receipts = await db
+	const allReceipts = await db
 		.select()
 		.from(schema.receipt)
 		.where(and(
@@ -61,12 +71,18 @@ export async function load({ url, locals, platform }) {
 			...wsFilter,
 		));
 
+	const receipts = allReceipts.filter((r) => (r.currency ?? baselineCurrency).toUpperCase() === baselineCurrency.toUpperCase());
+	const excludedCount = allReceipts.length - receipts.length;
+
 	if (receipts.length === 0) {
 		return {
 			range: { start: startStr, end: endStr },
 			alluvial: null,
-			meta: { receiptCount: 0, rowCount: 0 },
-			errorMessage: 'No receipts in this date range.',
+			meta: { receiptCount: 0, rowCount: 0, excludedCount },
+			baselineCurrency,
+			errorMessage: excludedCount > 0
+				? `No receipts in ${baselineCurrency} for this range (${excludedCount} excluded for currency mismatch).`
+				: 'No receipts in this date range.',
 		};
 	}
 
@@ -83,7 +99,7 @@ export async function load({ url, locals, platform }) {
 			new Request('http://hedaz/analyse/export-inline', {
 				method:  'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ csv_text: csv, default_currency: 'AUD' }),
+				body: JSON.stringify({ csv_text: csv, default_currency: baselineCurrency }),
 			})
 		);
 		if (!hedazResponse.ok) {
@@ -92,7 +108,8 @@ export async function load({ url, locals, platform }) {
 				range: { start: startStr, end: endStr },
 				alluvial: null,
 				trendline: null,
-				meta: { receiptCount: receipts.length, rowCount },
+				meta: { receiptCount: receipts.length, rowCount, excludedCount },
+				baselineCurrency,
 				errorMessage: `Analysis failed: ${detail}`,
 			};
 		}
@@ -102,7 +119,8 @@ export async function load({ url, locals, platform }) {
 			range: { start: startStr, end: endStr },
 			alluvial: null,
 			trendline: null,
-			meta: { receiptCount: receipts.length, rowCount },
+			meta: { receiptCount: receipts.length, rowCount, excludedCount },
+			baselineCurrency,
 			errorMessage: `Analysis failed: ${e?.message ?? 'unknown error'}`,
 		};
 	}
@@ -111,7 +129,8 @@ export async function load({ url, locals, platform }) {
 		range: { start: startStr, end: endStr },
 		alluvial:  bundle.alluvial  ?? null,
 		trendline: bundle.trendline ?? null,
-		meta: { receiptCount: receipts.length, rowCount },
+		meta: { receiptCount: receipts.length, rowCount, excludedCount },
+		baselineCurrency,
 		errorMessage: null,
 	};
 }

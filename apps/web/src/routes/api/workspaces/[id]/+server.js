@@ -8,8 +8,9 @@ export async function PATCH({ params, request, locals }) {
     if (!locals.user) error(401, 'Unauthorized');
 
     const body = await request.json();
-    const name      = body?.name      !== undefined ? String(body.name      ?? '').trim() : undefined;
-    const driveSlug = body?.driveSlug !== undefined ? String(body.driveSlug ?? '').trim() : undefined;
+    const name              = body?.name              !== undefined ? String(body.name              ?? '').trim() : undefined;
+    const driveSlug         = body?.driveSlug         !== undefined ? String(body.driveSlug         ?? '').trim() : undefined;
+    const preferredCurrency = body?.preferredCurrency !== undefined ? String(body.preferredCurrency ?? '').trim().toUpperCase() : undefined;
 
     if (name !== undefined) {
         if (!name) error(400, 'name is required');
@@ -18,6 +19,9 @@ export async function PATCH({ params, request, locals }) {
     if (driveSlug !== undefined) {
         if (!driveSlug) error(400, 'Folder slug cannot be empty');
         if (driveSlug.length > 50) error(400, 'Folder slug must be 50 characters or fewer');
+    }
+    if (preferredCurrency !== undefined) {
+        if (!/^[A-Z]{3}$/.test(preferredCurrency)) error(400, 'preferredCurrency must be a 3-letter ISO-4217 code');
     }
 
     const [ws] = await db.select({ id: schema.workspace.id, isDefault: schema.workspace.isDefault, driveSlug: schema.workspace.driveSlug })
@@ -29,8 +33,9 @@ export async function PATCH({ params, request, locals }) {
 
     /** @type {Partial<typeof schema.workspace.$inferInsert>} */
     const updateData = { updatedAt: new Date() };
-    if (name !== undefined)      updateData.name      = name;
-    if (driveSlug !== undefined) updateData.driveSlug = driveSlug;
+    if (name !== undefined)              updateData.name              = name;
+    if (driveSlug !== undefined)         updateData.driveSlug         = driveSlug;
+    if (preferredCurrency !== undefined) updateData.preferredCurrency = preferredCurrency;
 
     await db.update(schema.workspace)
         .set(updateData)

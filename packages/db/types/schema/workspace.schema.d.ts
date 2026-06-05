@@ -95,6 +95,25 @@ export const workspace: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns
         }, {}, {
             length: number;
         }>;
+        preferredCurrency: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "preferred_currency";
+            tableName: "workspace";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "created_at";
             tableName: "workspace";

@@ -111,6 +111,16 @@
 			Pull receipts within a date range and visualise them on-the-fly. Not saved — refresh re-runs the analysis.
 		</p>
 
+		{#if data.baselineCurrency}
+			<div class="border-2 border-(--color-border) bg-(--color-bg) p-3 mb-3 flex items-start gap-3">
+				<span class="font-mono text-[9px] font-black uppercase tracking-widest text-(--color-fg) shrink-0 mt-0.5">{data.baselineCurrency} ONLY</span>
+				<p class="font-mono text-[10px] text-(--color-muted-foreground) leading-relaxed">
+					Only receipts in your baseline currency ({data.baselineCurrency}) are included in this analysis. Convert other-currency receipts to {data.baselineCurrency} to roll them in. Change the baseline in
+					<a href="/dashboard/settings" class="underline decoration-dotted hover:decoration-solid text-(--color-fg)">Settings</a>.
+				</p>
+			</div>
+		{/if}
+
 		<!-- Date inputs + generate -->
 		<div class="flex flex-wrap items-end gap-3 mb-4">
 			<div class="flex flex-col gap-1">
@@ -172,6 +182,9 @@
 		<Card title="Analysis: {data.range.start} → {data.range.end}">
 			<p class="font-mono text-[10px] text-(--color-muted-foreground) mb-3">
 				{data.meta?.receiptCount} receipts · {data.meta?.rowCount} line items · {data.alluvial.nodes.length} nodes · {data.alluvial.links.length} links
+				{#if data.meta?.excludedCount && data.meta.excludedCount > 0}
+					<span class="text-(--color-warning) ml-2">· {data.meta.excludedCount} excluded (currency ≠ {data.baselineCurrency})</span>
+				{/if}
 			</p>
 
 			<!-- Tab bar -->

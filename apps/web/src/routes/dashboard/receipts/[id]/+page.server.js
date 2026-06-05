@@ -14,6 +14,15 @@ export async function load({ params, locals }) {
 		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));
 	if (!receipt) error(404, 'Receipt not found');
 
+	let baselineCurrency = 'AUD';
+	const wsId = receipt.workspaceId ?? locals.workspaceId ?? null;
+	if (wsId) {
+		const [ws] = await db.select({ preferredCurrency: schema.workspace.preferredCurrency })
+			.from(schema.workspace)
+			.where(eq(schema.workspace.id, wsId));
+		if (ws?.preferredCurrency) baselineCurrency = ws.preferredCurrency;
+	}
+
 	const lineItems = await db.select().from(schema.receiptLineItem)
 		.where(eq(schema.receiptLineItem.receiptId, receipt.id));
 	lineItems.sort((a, b) => a.sortOrder - b.sortOrder);
@@ -29,5 +38,5 @@ export async function load({ params, locals }) {
 		payable = { ...payableRow, updates };
 	}
 
-	return { receipt, lineItems, payable, categories, unitTypes: UNIT_TYPES };
+	return { receipt, lineItems, payable, categories, unitTypes: UNIT_TYPES, baselineCurrency };
 }

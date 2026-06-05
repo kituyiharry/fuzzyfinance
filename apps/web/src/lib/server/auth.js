@@ -6,27 +6,24 @@ import { env } from '$env/dynamic/private';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 
-import { importPKCS8, SignJWT } from "jose";
+// import { importPKCS8, SignJWT } from "jose";
 
 // See: https://developer.apple.com/documentation/accountorganizationaldatasharing/creating-a-client-secret
 //      https://better-auth.com/docs/authentication/apple#generate-apple-client-secret-jwt
 //
 // Generate the client secret JWT required for 'Sign in with Apple'.
-async function generateAppleClientSecret(clientId, teamId, keyId, privateKey) {
-    // console.log([
-    //     clientId, teamId, keyId, privateKey,
-    // ]);
-    const key = await importPKCS8(privateKey, "ES256");
-    const now = Math.floor(Date.now() / 1000);
-    return new SignJWT({})
-        .setProtectedHeader({ alg: "ES256", kid: keyId })
-        .setIssuer(teamId)
-        .setSubject(clientId)
-        .setAudience("https://appleid.apple.com")
-        .setIssuedAt(now)
-        .setExpirationTime(now + 180 * 24 * 60 * 60)
-        .sign(key);
-}
+// async function generateAppleClientSecret(clientId, teamId, keyId, privateKey) {
+//     const key = await importPKCS8(privateKey, "ES256");
+//     const now = Math.floor(Date.now() / 1000);
+//     return new SignJWT({})
+//         .setProtectedHeader({ alg: "ES256", kid: keyId })
+//         .setIssuer(teamId)
+//         .setSubject(clientId)
+//         .setAudience("https://appleid.apple.com")
+//         .setIssuedAt(now)
+//         .setExpirationTime(now + 180 * 24 * 60 * 60)
+//         .sign(key);
+// }
 
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,

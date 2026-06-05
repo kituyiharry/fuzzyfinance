@@ -3,8 +3,13 @@
 	import { themeStore } from '$lib/theme.svelte.js';
     import { page } from '$app/stores';
 
-	/** @type {Array<{id: string, name: string, isDefault: boolean, driveSlug: string|null}>} */
+	/** @type {Array<{id: string, name: string, isDefault: boolean, driveSlug: string|null, preferredCurrency: string}>} */
 	const nonPersonalWorkspaces = $derived(($page.data.workspaces ?? []).filter(/** @param {any} w */ w => !w.isDefault));
+
+	/** @type {Array<{id: string, name: string, isDefault: boolean, preferredCurrency: string}>} */
+	const allWorkspaces = $derived($page.data.workspaces ?? []);
+
+	const COMMON_CURRENCIES = ['AUD', 'USD', 'EUR', 'GBP', 'NZD', 'CAD', 'JPY', 'CHF', 'SGD', 'HKD', 'INR'];
 
 	/** @type {Record<string, string>} */
 	let slugValues = $state(
@@ -15,12 +20,27 @@
 		)
 	);
 
+	/** @type {Record<string, string>} */
+	let currencyValues = $state(
+		Object.fromEntries(
+			($page.data.workspaces ?? [])
+				.map(/** @param {any} w */ w => [w.id, (w.preferredCurrency ?? 'AUD').toUpperCase()])
+		)
+	);
+
 	/** @type {Record<string, boolean>} */
 	let saving = $state({});
 	/** @type {Record<string, string|null>} */
 	let saveError = $state({});
 	/** @type {Record<string, boolean>} */
 	let saveSuccess = $state({});
+
+	/** @type {Record<string, boolean>} */
+	let savingCurrency = $state({});
+	/** @type {Record<string, string|null>} */
+	let currencyError = $state({});
+	/** @type {Record<string, boolean>} */
+	let currencySaved = $state({});
 
 	/** @param {string} id */
 	async function saveSlug(id) {
@@ -46,6 +66,36 @@
 			saveError[id] = String(err);
 		} finally {
 			saving[id] = false;
+		}
+	}
+
+	/** @param {string} id */
+	async function saveCurrency(id) {
+		const code = (currencyValues[id] ?? '').trim().toUpperCase();
+		if (!/^[A-Z]{3}$/.test(code)) {
+			currencyError[id] = 'Currency must be a 3-letter ISO-4217 code';
+			return;
+		}
+		savingCurrency[id] = true;
+		currencyError[id] = null;
+		currencySaved[id] = false;
+		try {
+			const res = await fetch(`/api/workspaces/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ preferredCurrency: code }),
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => null);
+				currencyError[id] = data?.message ?? `Error ${res.status}`;
+			} else {
+				currencySaved[id] = true;
+				setTimeout(() => { currencySaved[id] = false; }, 2000);
+			}
+		} catch (err) {
+			currencyError[id] = String(err);
+		} finally {
+			savingCurrency[id] = false;
 		}
 	}
 </script>
@@ -151,6 +201,60 @@
 					</div>
 				</div>
 			</div>
+		</div>
+	</Card>
+
+	<Card title="Baseline Currency">
+		<div class="flex flex-col gap-6">
+			<p class="text-[10px] font-mono text-(--color-muted-foreground) uppercase tracking-wide">
+				Visualizations and analysis only include receipts and revenue documents matching the workspace's baseline currency. Other-currency documents must be converted before they show up in your reports — automation is on the roadmap via integrations.
+			</p>
+			{#each allWorkspaces as ws (ws.id)}
+				<div class="flex flex-col gap-3">
+					<h3 class="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+						{ws.name}
+						{#if ws.isDefault}
+							<span class="font-mono text-[9px] text-(--color-muted-foreground)">· DEFAULT</span>
+						{/if}
+					</h3>
+					<div class="flex flex-col gap-2">
+						<label for="ccy-{ws.id}" class="text-[10px] font-mono text-(--color-muted-foreground) uppercase tracking-widest">
+							Currency (ISO-4217)
+						</label>
+						<div class="flex gap-2">
+							<input
+								id="ccy-{ws.id}"
+								type="text"
+								list="ccy-options-{ws.id}"
+								bind:value={currencyValues[ws.id]}
+								maxlength="3"
+								class="w-32 font-mono text-xs p-2 border border-(--color-border) bg-(--color-bg) text-(--color-fg) focus:outline-none focus:border-(--color-fg) uppercase"
+							/>
+							<datalist id="ccy-options-{ws.id}">
+								{#each COMMON_CURRENCIES as c (c)}
+									<option value={c}></option>
+								{/each}
+							</datalist>
+							<button
+								onclick={() => saveCurrency(ws.id)}
+								disabled={savingCurrency[ws.id] || !(currencyValues[ws.id] ?? '').trim()}
+								class="px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-(--color-fg) bg-(--color-fg) text-(--color-bg) hover:bg-(--color-bg) hover:text-(--color-fg) transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+							>
+								{#if savingCurrency[ws.id]}
+									Saving...
+								{:else if currencySaved[ws.id]}
+									Saved
+								{:else}
+									Save
+								{/if}
+							</button>
+						</div>
+						{#if currencyError[ws.id]}
+							<p class="text-[10px] font-mono text-(--color-danger)">{currencyError[ws.id]}</p>
+						{/if}
+					</div>
+				</div>
+			{/each}
 		</div>
 	</Card>
 

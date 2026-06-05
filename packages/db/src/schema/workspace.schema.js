@@ -9,6 +9,9 @@ export const workspace = sqliteTable('workspace', {
     isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
     /** Folder name suffix for Drive sync, e.g. "Claude" → "FuzzyFinance Receipts for Claude". NULL for the default/personal workspace. */
     driveSlug: text('drive_slug'),
+    /** ISO-4217 baseline currency for analysis. Receipts/sales in other currencies
+     *  are excluded from visualizations until per-currency conversion is integrated. */
+    preferredCurrency: text('preferred_currency').notNull().default('AUD'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
         .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' })

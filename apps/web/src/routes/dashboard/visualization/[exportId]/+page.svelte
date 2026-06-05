@@ -36,6 +36,16 @@
 			{data.exportMeta.receiptCount} receipts · {data.exportMeta.rowCount} line items · created {fmtDateTime(data.exportMeta.createdAt)}
 		</div>
 
+		{#if data.baselineCurrency}
+			<div class="border-2 border-(--color-border) bg-(--color-bg) p-3 mb-4 flex items-start gap-3">
+				<span class="font-mono text-[9px] font-black uppercase tracking-widest text-(--color-fg) shrink-0 mt-0.5">{data.baselineCurrency} ONLY</span>
+				<p class="font-mono text-[10px] text-(--color-muted-foreground) leading-relaxed">
+					Analysis assumes a single baseline currency ({data.baselineCurrency}). Receipts in other currencies skew totals unless converted. Adjust the baseline in
+					<a href="/dashboard/settings" class="underline decoration-dotted hover:decoration-solid text-(--color-fg)">Settings</a>.
+				</p>
+			</div>
+		{/if}
+
 		<!-- Tab bar -->
 		<div class="flex border-b-2 border-(--color-border) mb-4">
 			{#each /** @type {const} */ ([
