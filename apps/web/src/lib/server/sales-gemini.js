@@ -209,7 +209,8 @@ export async function extractSaleData(fileBytes, mimeType, accessToken = null) {
 			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 			const result = await _withTimeout(
 				genAI.models.generateContent({
-					model: 'gemini-3-flash-preview',
+					// model: 'gemini-3-flash-preview',
+		            model: 'gemini-3.5-flash',
 					contents: [
 						SYSTEM_PROMPT,
 						{ inlineData: { mimeType, data: base64 } }
