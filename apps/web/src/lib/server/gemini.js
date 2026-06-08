@@ -150,7 +150,8 @@ export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [
 		if (accessToken) {
 			text = await generateWithOAuth({
 				accessToken,
-				model: 'gemini-3-flash-preview',
+				//model: 'gemini-3-flash-preview',
+				model: 'gemini-3.5-flash',
 				parts: [
 					{ text: SYSTEM_PROMPT + preAuthNote },
 					{ inlineData: { mimeType, data: base64 } }
@@ -162,7 +163,8 @@ export async function extractReceiptData(fileBytes, mimeType, preAuthSignals = [
 			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 			const result = await _withTimeout(
 				genAI.models.generateContent({
-					model: 'gemini-3-flash-preview',
+					//model: 'gemini-3-flash-preview',
+				    model: 'gemini-3.5-flash',
 					contents: [
 						SYSTEM_PROMPT + preAuthNote,
 						{ inlineData: { mimeType, data: base64 } }
@@ -285,7 +287,8 @@ export async function classifyLineItems(items, opts = {}) {
 		if (opts.accessToken) {
 			text = await generateWithOAuth({
 				accessToken: opts.accessToken,
-				model: 'gemini-3-flash-preview',
+				//model: 'gemini-3-flash-preview',
+				model: 'gemini-3.5-flash',
 				parts: [{ text: fullPrompt }],
 				generationConfig,
 				timeoutMs: GEMINI_TIMEOUT_MS
@@ -294,7 +297,8 @@ export async function classifyLineItems(items, opts = {}) {
 			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 			const result = await _withTimeout(
 				genAI.models.generateContent({
-					model: 'gemini-3-flash-preview',
+					//model: 'gemini-3-flash-preview',
+				    model: 'gemini-3.5-flash',
 					contents: [fullPrompt],
 					config: generationConfig
 				}),

@@ -163,7 +163,8 @@ export async function POST({ request, locals, platform }) {
 		} else {
 			const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 			const result = await genAI.models.generateContent({
-				model: 'gemini-3-flash-preview',
+				//model: 'gemini-3-flash-preview',
+		        model: 'gemini-3.5-flash',
 				contents: [fullPrompt]
 			});
 			answer = result.text?.trim() ?? '';
