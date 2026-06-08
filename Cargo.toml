@@ -2,6 +2,10 @@
 members = [
     "apps/zadeh",
     "packages/hedaz-libs",
-    "packages/ishango",
 ]
 resolver = "2"
+
+# `packages/ishango` is a self-contained Rust workspace (its own
+# `[workspace]` block in its `Cargo.toml`, its own `rust-toolchain.toml`)
+# staged for relocation out of this monorepo. The directory still lives
+# here for now; it just builds independently.
