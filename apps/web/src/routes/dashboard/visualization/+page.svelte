@@ -48,9 +48,9 @@
 		{#if data.exports.length === 0}
 			<EmptyState
 				message="No receipt exports to visualize"
-				submessage="Generate an export from the Expenses page first, then return here to view its Sankey diagram."
-				ctaLabel="Go to Expenses"
-				ctaHref="/dashboard/receipts"
+				submessage="Connect an accounting tool to pull in expense data, then return here to view its Sankey diagram."
+				ctaLabel="Manage Integrations"
+				ctaHref="/dashboard/integrations"
 			/>
 		{:else}
 			<div class="flex gap-2 mb-4">

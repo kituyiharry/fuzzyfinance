@@ -7,14 +7,6 @@
 	/** @type {{children: import('svelte').Snippet, data: import('./$types').LayoutData}} */
 	let { children, data } = $props();
 
-	/** @type {string[]} */
-	let dismissedBanners = $state([]);
-
-	/** @param {string} id */
-	const dismissBanner = (id) => { dismissedBanners = [...dismissedBanners, id]; };
-
-	const visibleBanners = $derived((data.banners ?? []).filter((b) => !dismissedBanners.includes(b.id)));
-
 	let isProfileMenuOpen = $state(false);
 	let sidebarOpen = $state(false);
 
@@ -95,24 +87,16 @@
 
 	const NAV = [
 		{ href: '/dashboard',                   label: 'Overview',       /** @param {string} p */ match: (p) => p === '/dashboard' },
-		{ href: '/dashboard/receipts',          label: 'Expenses',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/receipts') },
-		{ href: '/dashboard/sales',             label: 'Revenue',        /** @param {string} p */ match: (p) => p.startsWith('/dashboard/sales') },
-		{ href: '/dashboard/exports',           label: 'Exports',        /** @param {string} p */ match: (p) => p === '/dashboard/exports' },
 		{ href: '/dashboard/visualization',     label: 'Visualization',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/visualization') },
-		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p === '/dashboard/integrations' },
-		{ href: '/dashboard/announcements',     label: 'Announcements',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/announcements') },
-		{ href: '/dashboard/settings',          label: 'Settings',       /** @param {string} p */ match: (p) => p === '/dashboard/settings' },
+		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p.startsWith('/dashboard/integrations') },
+		{ href: '/dashboard/settings',          label: 'Settings',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/settings') },
 	];
 
 	/** @type {Record<string, { title: string; sub: string }>} */
 	const PAGE_TITLES = {
 		'/dashboard':                   { title: 'Overview',       sub: 'Financial control centre' },
-		'/dashboard/receipts':          { title: 'Expenses',       sub: 'Manage and review expense documents' },
-		'/dashboard/sales':             { title: 'Revenue',        sub: 'Track revenue documents' },
-		'/dashboard/exports':           { title: 'Exports',        sub: 'Download CSV reports' },
 		'/dashboard/visualization':     { title: 'Visualization',  sub: 'Sankey view of receipt exports' },
 		'/dashboard/integrations':      { title: 'Integrations',   sub: 'Cloud workspace connections' },
-		'/dashboard/announcements':     { title: 'Announcements',  sub: 'Platform updates and notices' },
 		'/dashboard/settings':          { title: 'Settings',       sub: 'Account and preferences' },
 	};
 
@@ -152,9 +136,6 @@
 							aria-current={active ? 'page' : undefined}>
 							<span class="w-1.5 h-1.5 shrink-0 {active ? 'bg-(--nav-active-fg)' : 'border border-(--color-border-subtle)'}"></span>
 							{item.label}
-							{#if item.href === '/dashboard/announcements' && visibleBanners.length > 0}
-								<span class="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse"></span>
-							{/if}
 						</a>
 					</li>
 				{/each}
@@ -337,36 +318,6 @@
 				{/if}
 			</div>
 		</header>
-
-		{#if visibleBanners.length > 0}
-			<div class="shrink-0 flex flex-col">
-				{#each visibleBanners as banner (banner.id)}
-					{@const isWarning = banner.type === 'warning' || banner.type === 'maintenance'}
-					<div class="flex items-start gap-3 px-8 py-3 border-b-2 border-(--color-border)
-						{isWarning ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-(--color-muted)'}">
-						<span class="font-mono text-[9px] font-black uppercase tracking-widest shrink-0 mt-0.5
-							{isWarning ? 'text-amber-700 dark:text-amber-400' : 'text-(--color-muted-foreground)'}">
-							{banner.type}
-						</span>
-						<div class="flex-1 min-w-0">
-							<span class="font-mono text-[10px] font-black uppercase tracking-wide text-(--color-fg)">
-								{banner.title}
-							</span>
-							{#if banner.body}
-								<span class="font-mono text-[10px] text-(--color-muted-foreground) ml-2">
-									{banner.body}
-								</span>
-							{/if}
-						</div>
-						<button
-							onclick={() => dismissBanner(banner.id)}
-							class="shrink-0 font-mono text-[10px] text-(--color-muted-foreground) hover:text-(--color-fg) border-0 bg-transparent leading-none transition-colors"
-							aria-label="Dismiss"
-						>✕</button>
-					</div>
-				{/each}
-			</div>
-		{/if}
 
 		<div class="flex-1 p-8">
 			{@render children()}

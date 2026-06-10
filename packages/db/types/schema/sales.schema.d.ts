@@ -528,6 +528,44 @@ export const sale: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<{
         }, {}, {
             length: number;
         }>;
+        externalSource: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "external_source";
+            tableName: "sale";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
+        externalAccountId: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "external_account_id";
+            tableName: "sale";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "created_at";
             tableName: "sale";

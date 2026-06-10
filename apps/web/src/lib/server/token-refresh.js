@@ -46,7 +46,7 @@ export async function getGeminiAccessToken(userId) {
  * user as a re-authorisation prompt.
  *
  * @param {string} userId
- * @param {'google' | 'microsoft'} provider
+ * @param {'google' | 'microsoft' | 'xero'} provider
  * @param {{ forceRefresh?: boolean }} [opts]
  * @returns {Promise<string | null>} A valid access token, or null if no integration exists
  */
@@ -64,7 +64,7 @@ export async function getValidAccessToken(userId, provider, opts = {}) {
 
 /**
  * @param {typeof schema.integration.$inferSelect} integration
- * @param {'google' | 'microsoft'} provider
+ * @param {'google' | 'microsoft' | 'xero'} provider
  * @param {boolean} forceRefresh
  * @returns {Promise<string>}
  */
@@ -81,9 +81,10 @@ async function _ensureFresh(integration, provider, forceRefresh) {
 		throw new Error(`AUTH_REQUIRED: No refresh token stored for ${provider} integration — please reconnect.`);
 	}
 
-	const tokens = await (provider === 'google'
-		? _refreshGoogle(integration.refreshToken)
-		: _refreshMicrosoft(integration.refreshToken));
+	let tokens;
+	if (provider === 'google')         tokens = await _refreshGoogle(integration.refreshToken);
+	else if (provider === 'microsoft') tokens = await _refreshMicrosoft(integration.refreshToken);
+	else                               tokens = await _refreshXero(integration.refreshToken);
 
 	const tokenExpiresAt = tokens.expires_in
 		? new Date(Date.now() + tokens.expires_in * 1000)
@@ -93,6 +94,9 @@ async function _ensureFresh(integration, provider, forceRefresh) {
 		.update(schema.integration)
 		.set({
 			accessToken: tokens.access_token,
+			// Xero rotates the refresh token on every refresh — the old one is
+			// immediately invalidated, so we MUST persist the new one. Google and
+			// Microsoft re-issue lazily; keep the existing one when absent.
 			refreshToken: tokens.refresh_token ?? integration.refreshToken,
 			tokenExpiresAt
 		})
@@ -190,4 +194,57 @@ async function _refreshMicrosoft(refreshToken) {
 	}
 
 	throw new Error('Microsoft token refresh failed');
+}
+
+/**
+ * Refresh a Xero access token.
+ *
+ * Xero is a *public* OAuth 2.0 + PKCE app — no client_secret. The token
+ * endpoint accepts the client_id alone and rotates the refresh token on
+ * every call: the response includes a new `refresh_token` and the one we
+ * just sent is **immediately invalidated**. `_ensureFresh` persists the
+ * rotation; this function must never be called outside that wrapper or the
+ * integration will be silently broken on the next refresh attempt.
+ *
+ * Reference: https://developer.xero.com/documentation/guides/oauth2/auth-flow#refreshing-access-and-refresh-tokens
+ *
+ * @param {string} refreshToken
+ * @returns {Promise<{ access_token: string, refresh_token?: string, expires_in?: number }>}
+ */
+async function _refreshXero(refreshToken) {
+	const body = new URLSearchParams({
+		grant_type:    'refresh_token',
+		client_id:     env.XERO_CLIENT_ID ?? '',
+		refresh_token: refreshToken
+	});
+
+	for (let attempt = 0; attempt < 2; attempt++) {
+		let res;
+		try {
+			res = await fetch('https://identity.xero.com/connect/token', {
+				method:  'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body
+			});
+		} catch (networkErr) {
+			if (attempt === 0) continue;
+			throw new Error(`Xero token refresh failed (network): ${networkErr}`);
+		}
+
+		if (res.ok) return res.json();
+
+		const responseBody = await res.text();
+		const isAuthError =
+			responseBody.includes('"invalid_grant"') ||
+			responseBody.includes('"invalid_client"');
+
+		if (isAuthError) {
+			throw new Error(`AUTH_REQUIRED: Xero token refresh failed — refresh token expired (60-day limit) or access was revoked. Please reconnect your Xero account.`);
+		}
+
+		if (attempt === 0) continue;
+		throw new Error(`Xero token refresh failed (${res.status}): ${responseBody}`);
+	}
+
+	throw new Error('Xero token refresh failed');
 }

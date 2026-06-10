@@ -83,6 +83,13 @@ export const receipt = sqliteTable(
     // JSON string[] of specific signals, e.g. '["AI generator signature in metadata"]'
     authenticitySignals: text("authenticity_signals"),
 
+    // External integration provenance (Xero, QuickBooks, MYOB, …). NULL for
+    // legacy / manual-upload rows. `externalAccountId` carries the upstream
+    // entity's stable id (e.g. Xero InvoiceID GUID); pair with
+    // `externalSource` + `userId` to upsert idempotently on resync.
+    externalSource:    text("external_source"),
+    externalAccountId: text("external_account_id"),
+
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
@@ -99,6 +106,7 @@ export const receipt = sqliteTable(
     index("receipt_userId_fileHash_idx").on(table.userId, table.fileHash),
     index("receipt_userId_receiptNumber_idx").on(table.userId, table.receiptNumber),
     index("receipt_workspaceId_idx").on(table.workspaceId),
+    index("receipt_userId_externalSource_externalAccountId_idx").on(table.userId, table.externalSource, table.externalAccountId),
   ]
 );
 

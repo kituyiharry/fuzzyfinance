@@ -58,6 +58,13 @@ export const sale = sqliteTable(
     correctedFields: text("corrected_fields"),
     errorMessage:    text("error_message"),
 
+    // ── External integration provenance ─────────────────────────────────
+    // NULL on legacy / manual-upload rows. `externalAccountId` carries the
+    // upstream entity's stable id (e.g. Xero InvoiceID GUID); pair with
+    // `externalSource` + `userId` to upsert idempotently on resync.
+    externalSource:    text("external_source"),
+    externalAccountId: text("external_account_id"),
+
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
@@ -72,6 +79,7 @@ export const sale = sqliteTable(
     index("sale_userId_saleDate_idx").on(table.userId, table.saleDate),
     index("sale_userId_fileHash_idx").on(table.userId, table.fileHash),
     index("sale_workspaceId_idx").on(table.workspaceId),
+    index("sale_userId_externalSource_externalAccountId_idx").on(table.userId, table.externalSource, table.externalAccountId),
   ]
 );
 

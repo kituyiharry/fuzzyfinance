@@ -26,6 +26,33 @@
 	/** @type {Record<string, boolean>} */
 	let connecting = $state({});
 
+	/** @type {Record<string, boolean>} */
+	let syncing = $state({});
+
+	/** @type {Record<string, string | null>} */
+	let syncError = $state({});
+
+	const xero = $derived(data.integrations.xero ?? null);
+
+	/** @param {string} provider */
+	async function syncNow(provider) {
+		syncing[provider] = true;
+		syncError[provider] = null;
+		try {
+			const res = await fetch(`/api/integrations/${provider}/sync`, { method: 'POST' });
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				syncError[provider] = body?.message ?? `Sync failed (${res.status})`;
+			} else {
+				await goto(resolve('/dashboard/integrations'), { invalidateAll: true });
+			}
+		} catch (/** @type {any} */ err) {
+			syncError[provider] = String(err?.message ?? err);
+		} finally {
+			syncing[provider] = false;
+		}
+	}
+
 	/**
 	 * @param {string} provider
 	 */
@@ -98,7 +125,7 @@
 
 <div class="max-w-4xl mx-auto flex flex-col gap-8">
 	{#if flash}
-		{@const label = flash === 'google' ? 'Google Workspace' : 'Microsoft 365'}
+		{@const label = flash === 'google' ? 'Google Workspace' : flash === 'xero' ? 'Xero' : 'Microsoft 365'}
 		<div
 			class="border-2 border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) p-4 font-mono text-xs font-bold uppercase tracking-widest flex items-center gap-3"
 		>
@@ -107,7 +134,120 @@
 		</div>
 	{/if}
 
-	<Card title="External Integration Channels">
+	<Card title="Accounting Platforms">
+		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-6">
+			CONNECT YOUR EXISTING ACCOUNTING TOOL TO PULL INVOICES + BILLS DIRECTLY.
+			FUZZYFINANCE LAYERS FINE-GRAINED CLASSIFICATION + FUZZY RECIPES ON TOP OF
+			YOUR LEDGER — IT NEVER REPLACES IT.
+		</p>
+
+		<div class="border-2 {xero ? 'border-(--color-fg)' : 'border-(--color-border)'} p-6 flex flex-col gap-4 transition-all">
+			<div class="flex items-start justify-between gap-4">
+				<div class="flex items-center gap-4">
+					<div class="w-10 h-10 border-2 border-(--color-border) bg-(--color-bg) flex items-center justify-center font-black text-sm shrink-0">X</div>
+					<div>
+						<h3 class="font-black uppercase tracking-tight text-sm text-(--color-fg)">Xero</h3>
+						<p class="text-[10px] font-mono text-(--color-muted-foreground) mt-0.5">
+							Read-only: Invoices (revenue), Bills (expenses), Chart of Accounts. AU / NZ / UK.
+						</p>
+					</div>
+				</div>
+				<div class="shrink-0">
+					{#if xero}
+						<span class="inline-block px-2 py-1 border border-(--color-fg) bg-(--nav-active-bg) text-(--nav-active-fg) text-[9px] font-black uppercase tracking-widest">CONNECTED</span>
+					{:else}
+						<span class="inline-block px-2 py-1 border border-(--color-border) text-(--color-muted-foreground) text-[9px] font-black uppercase tracking-widest">NOT LINKED</span>
+					{/if}
+				</div>
+			</div>
+
+			<ul class="flex flex-col gap-1">
+				<li class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)">
+					<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
+					Pull ACCREC invoices → revenue documents
+				</li>
+				<li class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)">
+					<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
+					Pull ACCPAY bills → expense documents
+				</li>
+				<li class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)">
+					<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
+					Account codes + tracking categories carried into line items
+				</li>
+				<li class="flex items-center gap-2 text-[10px] font-mono text-(--color-muted-foreground)">
+					<span class="w-1.5 h-1.5 border border-(--color-border) shrink-0"></span>
+					Multi-org: all your authorised Xero tenants sync in one pass
+				</li>
+			</ul>
+
+			{#if xero}
+				<div class="border-t border-(--color-border) pt-4 flex flex-col gap-2">
+					{#if xero.accountEmail}
+						<div class="flex gap-2 items-baseline font-mono text-[10px]">
+							<span class="text-(--color-muted-foreground) uppercase">ACCOUNT:</span>
+							<span class="font-bold text-(--color-fg)">{xero.accountEmail}</span>
+						</div>
+					{/if}
+					{#if xero.tenants && xero.tenants.length > 0}
+						<div class="flex flex-col gap-1">
+							<span class="font-mono text-[10px] uppercase text-(--color-muted-foreground)">CONNECTED TENANTS:</span>
+							<ul class="flex flex-col gap-0.5 pl-2">
+								{#each xero.tenants as t (t.tenantId)}
+									<li class="font-mono text-[10px] text-(--color-fg) flex items-center gap-2">
+										<span class="text-(--color-success)">+</span>
+										{t.tenantName}{t.tenantType ? ` · ${t.tenantType}` : ''}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if xero.lastSyncedAt}
+						<div class="flex gap-2 items-baseline font-mono text-[10px]">
+							<span class="text-(--color-muted-foreground) uppercase">LAST SYNC:</span>
+							<span class="font-bold text-(--color-fg)">{new Date(xero.lastSyncedAt).toLocaleString()}</span>
+						</div>
+					{/if}
+					{#if xero.lastSummary}
+						<div class="flex gap-2 items-baseline font-mono text-[10px]">
+							<span class="text-(--color-muted-foreground) uppercase">LAST RESULT:</span>
+							<span class="font-bold text-(--color-fg)">
+								{xero.lastSummary.invoicesCreated ?? 0} created · {xero.lastSummary.invoicesUpdated ?? 0} updated · {xero.lastSummary.skipped ?? 0} skipped
+							</span>
+						</div>
+					{/if}
+					{#if xero.tokenExpiresAt}
+						<div class="flex gap-2 items-baseline font-mono text-[10px]">
+							<span class="text-(--color-muted-foreground) uppercase">TOKEN EXPIRES:</span>
+							<span class="font-bold text-(--color-fg)">{new Date(xero.tokenExpiresAt).toLocaleString()}</span>
+						</div>
+					{/if}
+					{#if syncError.xero}
+						<div class="font-mono text-[10px] text-(--color-danger) uppercase mt-2">SYNC ERROR: {syncError.xero}</div>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="flex gap-3 pt-2 flex-wrap">
+				{#if xero}
+					<Button variant="primary"   onclick={() => syncNow('xero')}      class="text-xs font-black uppercase tracking-widest">
+						{syncing.xero ? 'SYNCING...' : 'SYNC NOW'}
+					</Button>
+					<Button variant="secondary" onclick={() => connect('xero')}       class="text-xs font-black uppercase tracking-widest">
+						{connecting.xero ? 'REDIRECTING...' : 'RE-AUTHORIZE'}
+					</Button>
+					<Button variant="danger"    onclick={() => disconnect('xero')}    class="text-xs font-black uppercase tracking-widest">
+						{disconnecting.xero ? 'REVOKING...' : 'REVOKE ACCESS'}
+					</Button>
+				{:else}
+					<Button variant="primary" onclick={() => connect('xero')} class="text-xs font-black uppercase tracking-widest">
+						{connecting.xero ? 'REDIRECTING...' : 'AUTHORIZE XERO'}
+					</Button>
+				{/if}
+			</div>
+		</div>
+	</Card>
+
+	<Card title="Cloud Storage">
 		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-6">
 			AUTHORIZE ACCESS TO CLOUD WORKSPACE PROVIDERS. CREDENTIALS ARE STORED SERVER-SIDE AND USED
 			EXCLUSIVELY FOR RECEIPT ARCHIVAL AND LEDGER OPERATIONS.
