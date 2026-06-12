@@ -217,6 +217,11 @@ async function _refreshXero(refreshToken) {
 		client_id:     env.XERO_CLIENT_ID ?? '',
 		refresh_token: refreshToken
 	});
+	// Web Apps (confidential) require the client secret on refresh too.
+	// Mobile/desktop public apps don't have one — omit the field then.
+	if (env.XERO_CLIENT_SECRET) {
+		body.set('client_secret', env.XERO_CLIENT_SECRET);
+	}
 
 	for (let attempt = 0; attempt < 2; attempt++) {
 		let res;

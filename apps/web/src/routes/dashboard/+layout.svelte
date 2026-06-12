@@ -87,6 +87,7 @@
 
 	const NAV = [
 		{ href: '/dashboard',                   label: 'Overview',       /** @param {string} p */ match: (p) => p === '/dashboard' },
+		{ href: '/dashboard/refinement',        label: 'Refinement',     /** @param {string} p */ match: (p) => p.startsWith('/dashboard/refinement') },
 		{ href: '/dashboard/visualization',     label: 'Visualization',  /** @param {string} p */ match: (p) => p.startsWith('/dashboard/visualization') },
 		{ href: '/dashboard/integrations',      label: 'Integrations',   /** @param {string} p */ match: (p) => p.startsWith('/dashboard/integrations') },
 		{ href: '/dashboard/settings',          label: 'Settings',       /** @param {string} p */ match: (p) => p.startsWith('/dashboard/settings') },
@@ -95,6 +96,7 @@
 	/** @type {Record<string, { title: string; sub: string }>} */
 	const PAGE_TITLES = {
 		'/dashboard':                   { title: 'Overview',       sub: 'Financial control centre' },
+		'/dashboard/refinement':        { title: 'Refinement',     sub: 'Edit categories + decompose synced documents' },
 		'/dashboard/visualization':     { title: 'Visualization',  sub: 'Sankey view of receipt exports' },
 		'/dashboard/integrations':      { title: 'Integrations',   sub: 'Cloud workspace connections' },
 		'/dashboard/settings':          { title: 'Settings',       sub: 'Account and preferences' },

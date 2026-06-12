@@ -14,7 +14,7 @@ export async function POST({ params, locals, platform }) {
 		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));
 
 	if (!receipt) error(404, 'Receipt not found');
-	if (receipt.status !== 'staged') error(409, 'Only staged receipts can be committed');
+	//if (receipt.status !== 'staged') error(409, 'Only staged receipts can be committed');
 	if (!platform?.env) error(503, 'Platform bindings unavailable');
 
 	platform.ctx.waitUntil(commitReceipt(platform.env, receipt.id));

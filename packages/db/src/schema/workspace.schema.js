@@ -12,6 +12,10 @@ export const workspace = sqliteTable('workspace', {
     /** ISO-4217 baseline currency for analysis. Receipts/sales in other currencies
      *  are excluded from visualizations until per-currency conversion is integrated. */
     preferredCurrency: text('preferred_currency').notNull().default('AUD'),
+    /** User-defined categories that augment the built-in catalogue in
+     *  apps/web/src/lib/server/categories.json. Shape:
+     *  { primary: string[], secondary: Record<string, string[]> } */
+    customCategoriesJson: text('custom_categories_json'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
         .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' })

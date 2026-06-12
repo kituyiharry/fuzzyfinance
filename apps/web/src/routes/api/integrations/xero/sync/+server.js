@@ -7,11 +7,11 @@ import { syncUserXero } from '$lib/server/xero-sync';
  *
  * @type {import('./$types').RequestHandler}
  */
-export async function POST({ locals }) {
+export async function POST({ locals, platform }) {
 	if (!locals.user) error(401, 'Unauthorized');
 
 	try {
-		const summary = await syncUserXero(locals.user.id);
+		const summary = await syncUserXero(locals.user.id, platform?.env);
 		return json({ ok: true, summary });
 	} catch (/** @type {any} */ e) {
 		const message = String(e?.message ?? e);

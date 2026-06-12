@@ -9,21 +9,30 @@ import { makeCodeVerifier, makeCodeChallenge } from '$lib/server/xero-pkce';
  *
  * - openid / profile / email — identity
  * - offline_access            — to receive a refresh token
- * - accounting.transactions.read — Invoices, BankTransactions, CreditNotes
+ * - accounting.invoices.read     — Invoices (ACCREC = revenue, ACCPAY = expense)
  * - accounting.contacts.read     — merchant / customer names
  * - accounting.settings.read     — Accounts (chart of accounts), TrackingCategories
- * - accounting.reports.read      — useful for future fuzzy-recipe inference
+ *
+ * Notes on scopes that look adjacent but were *not* picked:
+ *   - `accounting.transactions.read` does NOT exist on Xero (and never has
+ *     under that exact name) — invoice / bill data is split per-resource.
+ *     Don't reintroduce it.
+ *   - `accounting.banktransactions.read` will be added in Phase 1.5 when
+ *     we sync bank-side cash flow alongside invoices.
+ *   - `accounting.reports.*.read` — Xero exposes per-report sub-scopes
+ *     (e.g. `accounting.reports.profitandloss.read`). Add the specific
+ *     ones we need when Phase 5 (fuzzy optimisations) lands.
  */
 const XERO_SCOPES = [
 	'openid',
 	'profile',
 	'email',
 	'offline_access',
-	'accounting.transactions.read',
+	'accounting.invoices.read',
 	'accounting.contacts.read',
-	'accounting.settings.read',
-	'accounting.reports.read'
+	'accounting.settings.read'
 ];
+
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, cookies }) {

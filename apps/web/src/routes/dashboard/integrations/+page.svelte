@@ -32,6 +32,32 @@
 	/** @type {Record<string, string | null>} */
 	let syncError = $state({});
 
+	let resettingSync = $state(false);
+	/** @type {string | null} */
+	let resetMessage = $state(null);
+
+	async function resetXeroSync() {
+		if (!confirm('Reset Xero sync history? The next sync will re-pull every invoice from the start of the active financial year. Existing rows are upserted in place — no data is deleted.')) return;
+		resettingSync = true;
+		resetMessage = null;
+		try {
+			const res = await fetch('/api/integrations/xero/reset-sync', { method: 'POST' });
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				resetMessage = body?.message ?? `Reset failed (${res.status})`;
+			} else {
+				resetMessage = body?.previousLastSyncedAt
+					? `Cleared last-sync watermark (was ${new Date(body.previousLastSyncedAt).toLocaleString()}).`
+					: 'Cleared sync history.';
+				await goto(resolve('/dashboard/integrations'), { invalidateAll: true });
+			}
+		} catch (/** @type {any} */ err) {
+			resetMessage = String(err?.message ?? err);
+		} finally {
+			resettingSync = false;
+		}
+	}
+
 	const xero = $derived(data.integrations.xero ?? null);
 
 	/** @param {string} provider */
@@ -224,6 +250,9 @@
 					{#if syncError.xero}
 						<div class="font-mono text-[10px] text-(--color-danger) uppercase mt-2">SYNC ERROR: {syncError.xero}</div>
 					{/if}
+					{#if resetMessage}
+						<div class="font-mono text-[10px] text-(--color-muted-foreground) uppercase mt-2">{resetMessage}</div>
+					{/if}
 				</div>
 			{/if}
 
@@ -231,6 +260,9 @@
 				{#if xero}
 					<Button variant="primary"   onclick={() => syncNow('xero')}      class="text-xs font-black uppercase tracking-widest">
 						{syncing.xero ? 'SYNCING...' : 'SYNC NOW'}
+					</Button>
+					<Button variant="secondary" onclick={resetXeroSync}              class="text-xs font-black uppercase tracking-widest">
+						{resettingSync ? 'RESETTING...' : 'RESET SYNC HISTORY'}
 					</Button>
 					<Button variant="secondary" onclick={() => connect('xero')}       class="text-xs font-black uppercase tracking-widest">
 						{connecting.xero ? 'REDIRECTING...' : 'RE-AUTHORIZE'}

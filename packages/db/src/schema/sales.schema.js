@@ -111,6 +111,14 @@ export const saleLineItem = sqliteTable(
     primaryCategory:  text("primary_category"),
     secondaryCategory: text("secondary_category"),
     sortOrder:        integer("sort_order").notNull().default(0),
+    /** 'standard' (default, editable amount) | 'tax' (synthesised from
+     *  Xero TotalTax, category-editable but amount-locked) */
+    kind:             text("kind").notNull().default("standard"),
+    /** True when the categories on this line were filled by the kNN
+     *  suggestor (not the user). Cleared the moment the user edits
+     *  either category — that line then feeds the training index on the
+     *  next save. */
+    aiSuggested:      integer("ai_suggested", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [
     index("sale_line_item_saleId_idx").on(table.saleId),

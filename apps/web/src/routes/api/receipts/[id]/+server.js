@@ -3,13 +3,48 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and } from 'drizzle-orm';
 import { deleteReceiptVector } from '$lib/server/vectorize';
-import { logger } from '$lib/server/logger';
-import { batchInsert } from '$lib/server/db/batch-insert';
-import { normalizeUnitType } from '$lib/server/unit-normalizer';
+import { isExternallySourced } from '$lib/server/refinement';
 
-const LOG = '[receipts/PATCH]';
+/**
+ * Receipt resource endpoint.
+ *
+ *   GET     — full row + sorted line items.
+ *   PATCH   — TRUE partial update. Only fields explicitly present in the
+ *             request body are updated. Missing fields are left untouched
+ *             (no silent null-out, which was a destructive footgun in the
+ *             previous implementation that wiped name/date/amounts when
+ *             callers sent { category } only).
+ *   DELETE  — row + R2 object + Vectorize entry.
+ *
+ * Line items are NEVER touched by this endpoint. They have their own
+ * endpoint at `./line-items` with its own balance + tax-lock semantics.
+ *
+ * Externally-sourced rows (Xero / QB / MYOB / FreshBooks) lock the
+ * upstream-canonical header fields — caller gets a 409 if they try to
+ * patch one of those. Categorisation + free-form metadata stay editable.
+ */
 
-const TEXT_FIELDS = ['merchantName', 'total', 'subtotal', 'tax', 'tip', 'currency', 'paymentMethod', 'receiptNumber', 'invoiceNumber', 'category', 'notes'];
+/** Fields the user may freely edit on any receipt, regardless of source. */
+const FREE_FIELDS = new Set([
+	'category',
+	'notes',
+	'merchantName',
+	'paymentMethod',
+	'receiptNumber',
+	'invoiceNumber',
+	'tags'
+]);
+
+/** Fields that hold upstream-canonical data on synced rows — patchable
+ *  only when the row is locally-sourced. */
+const LOCKED_WHEN_EXTERNAL = new Set([
+	'total',
+	'subtotal',
+	'tax',
+	'tip',
+	'currency',
+	'receiptDate'
+]);
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, locals }) {
@@ -33,6 +68,64 @@ export async function GET({ params, locals }) {
 }
 
 /** @type {import('./$types').RequestHandler} */
+export async function PATCH({ params, locals, request }) {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const [receipt] = await db
+		.select()
+		.from(schema.receipt)
+		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));
+	if (!receipt) error(404, 'Receipt not found');
+
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		error(400, 'Body must be a JSON object');
+	}
+
+	const external = isExternallySourced(receipt.externalSource);
+
+	/** @type {Record<string, unknown>} */
+	const patch = {};
+
+	for (const [key, value] of Object.entries(body)) {
+		if (FREE_FIELDS.has(key)) {
+			if (key === 'tags') {
+				patch.tags = JSON.stringify(Array.isArray(value) ? value : []);
+			} else {
+				// `null` clears, string sets, blank-string normalises to null.
+				patch[key] = value === '' ? null : value;
+			}
+			continue;
+		}
+
+		if (LOCKED_WHEN_EXTERNAL.has(key)) {
+			if (external) {
+				error(409, `Field "${key}" is locked on rows synced from ${receipt.externalSource}`);
+			}
+			if (key === 'receiptDate') {
+				const d = value ? new Date(/** @type {any} */ (value)) : null;
+				patch.receiptDate = d && !isNaN(d.getTime()) ? d : null;
+			} else {
+				patch[key] = value === '' ? null : value;
+			}
+			continue;
+		}
+
+		// Unknown key — reject loudly. Better than silent acceptance with
+		// the risk of typos shadowing real fields.
+		error(400, `Field "${key}" is not editable via PATCH`);
+	}
+
+	if (Object.keys(patch).length === 0) {
+		return json({ ok: true, updated: 0 });
+	}
+
+	await db.update(schema.receipt).set(patch).where(eq(schema.receipt.id, params.id));
+
+	return json({ ok: true, updated: Object.keys(patch).length, fields: Object.keys(patch) });
+}
+
+/** @type {import('./$types').RequestHandler} */
 export async function DELETE({ params, locals, platform }) {
 	if (!locals.user) error(401, 'Unauthorized');
 
@@ -43,21 +136,19 @@ export async function DELETE({ params, locals, platform }) {
 
 	if (!receipt) error(404, 'Receipt not found');
 
-	// Delete from R2 if still present
 	if (receipt.r2Key && platform?.env?.fuzzyfinance_receipts) {
 		try {
 			await platform.env.fuzzyfinance_receipts.delete(receipt.r2Key);
 		} catch {
-			// Non-fatal
+			// Non-fatal — orphaned R2 object is acceptable.
 		}
 	}
 
-	// Delete vector if indexed
 	if (receipt.vectorId && platform?.env?.VECTORIZE) {
 		try {
 			await deleteReceiptVector(platform.env, receipt.id);
 		} catch {
-			// Non-fatal
+			// Non-fatal.
 		}
 	}
 
@@ -65,114 +156,5 @@ export async function DELETE({ params, locals, platform }) {
 		.delete(schema.receipt)
 		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));
 
-	return json({ success: true });
-}
-
-/** @type {import('./$types').RequestHandler} */
-export async function PATCH({ params, locals, request }) {
-	if (!locals.user) error(401, 'Unauthorized');
-
-	const [receipt] = await db
-		.select()
-		.from(schema.receipt)
-		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));
-
-	if (!receipt) error(404, 'Receipt not found');
-	if (receipt.status !== 'staged') error(409, 'Only staged receipts can be edited');
-
-	const body = await request.json();
-	const { merchantName, receiptDate, total, subtotal, tax, tip, currency, paymentMethod, receiptNumber, invoiceNumber, category, notes, lineItems = [], tags = [] } = body;
-
-	// ── Compute corrected fields vs AI snapshot ─────────────────────────
-	const correctedFields = [];
-
-	if (receipt.aiExtractedJson) {
-		const ai = JSON.parse(receipt.aiExtractedJson);
-
-		for (const field of TEXT_FIELDS) {
-			const incoming = body[field] ?? '';
-			const original = ai[field] ?? '';
-			if (String(incoming).trim() !== String(original).trim()) {
-				correctedFields.push(field);
-			}
-		}
-
-		// Compare receiptDate as YYYY-MM-DD strings
-		const incomingDate = receiptDate ?? '';
-		const originalDate = ai.receiptDate ? String(ai.receiptDate).slice(0, 10) : '';
-		if (incomingDate !== originalDate) correctedFields.push('receiptDate');
-
-		// Compare line items by JSON structure (strip DB-only fields like id, sortOrder)
-		/** @param {{ description?: string; qty?: string; unitPrice?: string; total?: string; unitSize?: string; unitType?: string; primaryCategory?: string; secondaryCategory?: string }} li */
-		const normaliseItem = (li) => ({
-			description:       li.description       || null,
-			qty:               li.qty               || null,
-			unitPrice:         li.unitPrice         || null,
-			total:             li.total             || null,
-			unitSize:          li.unitSize          || null,
-			unitType:          li.unitType          || null,
-			primaryCategory:   li.primaryCategory   || null,
-			secondaryCategory: li.secondaryCategory || null
-		});
-		const incomingItems = (lineItems ?? []).map(normaliseItem);
-		const originalItems = (ai.lineItems ?? []).map(normaliseItem);
-		if (JSON.stringify(incomingItems) !== JSON.stringify(originalItems)) {
-			correctedFields.push('lineItems');
-		}
-
-		// Compare tags (order-insensitive)
-		const incomingTagsSorted = [...(tags ?? [])].sort().join(',');
-		const originalTagsSorted = [...(ai.tags ?? [])].sort().join(',');
-		if (incomingTagsSorted !== originalTagsSorted) correctedFields.push('tags');
-	}
-
-	// ── Upsert line items ────────────────────────────────────────────────
-	logger.info(LOG, 'deleting_existing_line_items', { receiptId: params.id });
-	await db.delete(schema.receiptLineItem).where(eq(schema.receiptLineItem.receiptId, params.id));
-
-	if (lineItems.length) {
-		const items = lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
-			id:                crypto.randomUUID(),
-			receiptId:         params.id,
-			description:       li.description       || null,
-			qty:               li.qty               || null,
-			unitPrice:         li.unitPrice         || null,
-			total:             li.total             || null,
-			unitSize:          li.unitSize                   || null,
-			unitType:          normalizeUnitType(li.unitType) || null,
-			primaryCategory:   li.primaryCategory            || null,
-			secondaryCategory: li.secondaryCategory          || null,
-			sortOrder:         i
-		}));
-		logger.info(LOG, 'inserting_line_items', { receiptId: params.id, count: items.length });
-		try {
-			await batchInsert(db, schema.receiptLineItem, items);
-		} catch (err) {
-			logger.error(LOG, 'line_items_insert_failed', { receiptId: params.id, count: items.length, err: String(err) });
-			error(500, 'Failed to save line items');
-		}
-	}
-
-	// ── Patch receipt row ────────────────────────────────────────────────
-	const parsedDate = receiptDate ? new Date(receiptDate) : null;
-
-	await db.update(schema.receipt).set({
-		merchantName:   merchantName   || null,
-		receiptDate:    parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null,
-		total:          total          || null,
-		subtotal:       subtotal       || null,
-		tax:            tax            || null,
-		tip:            tip            || null,
-		currency:       currency       || null,
-		paymentMethod:  paymentMethod  || null,
-		receiptNumber:  receiptNumber  || null,
-		invoiceNumber:  invoiceNumber  || null,
-		category:       category       || null,
-		notes:          notes          || null,
-		tags:           JSON.stringify(Array.isArray(tags) ? tags : []),
-		lineItemsJson:  JSON.stringify(lineItems),
-		correctedFields: JSON.stringify(correctedFields)
-	}).where(eq(schema.receipt.id, params.id));
-
-	return json({ success: true, correctedFields });
+	return json({ ok: true });
 }

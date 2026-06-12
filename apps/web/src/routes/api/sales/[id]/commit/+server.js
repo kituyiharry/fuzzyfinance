@@ -14,7 +14,7 @@ export async function POST({ params, locals, platform }) {
 		.where(and(eq(schema.sale.id, params.id), eq(schema.sale.userId, locals.user.id)));
 
 	if (!sale) error(404, 'Sale not found');
-	if (sale.status !== 'staged') error(409, 'Only staged sales can be committed');
+	//if (sale.status !== 'staged') error(409, 'Only staged sales can be committed');
 	if (!platform?.env) error(503, 'Platform bindings unavailable');
 
 	platform.ctx.waitUntil(commitSale(platform.env, sale.id));

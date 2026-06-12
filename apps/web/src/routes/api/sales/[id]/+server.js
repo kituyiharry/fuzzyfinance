@@ -3,13 +3,38 @@ import { db } from '$lib/server/db';
 import { schema } from '@fuzzyfinance/db';
 import { eq, and } from 'drizzle-orm';
 import { deleteSaleVector } from '$lib/server/vectorize';
-import { logger } from '$lib/server/logger';
-import { batchInsert } from '$lib/server/db/batch-insert';
-import { normalizeUnitType } from '$lib/server/unit-normalizer';
+import { isExternallySourced } from '$lib/server/refinement';
 
-const LOG = '[sales/PATCH]';
+/**
+ * Sale resource endpoint — mirror of /api/receipts/[id]/+server.js.
+ *
+ *   GET     — full row + sorted line items.
+ *   PATCH   — TRUE partial update. Only fields present in the body are
+ *             modified; everything else is left untouched.
+ *   DELETE  — row + R2 + Vectorize.
+ *
+ * Line items are owned by `./line-items` and never modified from here.
+ *
+ * Externally-sourced rows lock the upstream-canonical header amounts
+ * and date; the rest stays editable.
+ */
 
-const TEXT_FIELDS = ['documentTitle', 'totalRevenue', 'totalCost', 'totalMargin', 'currency', 'category', 'notes'];
+/** Fields the user may freely edit on any sale, regardless of source. */
+const FREE_FIELDS = new Set([
+	'category',
+	'notes',
+	'documentTitle',
+	'tags'
+]);
+
+/** Fields that hold upstream-canonical data on synced rows. */
+const LOCKED_WHEN_EXTERNAL = new Set([
+	'totalRevenue',
+	'totalCost',
+	'totalMargin',
+	'currency',
+	'saleDate'
+]);
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, locals }) {
@@ -33,6 +58,61 @@ export async function GET({ params, locals }) {
 }
 
 /** @type {import('./$types').RequestHandler} */
+export async function PATCH({ params, locals, request }) {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const [sale] = await db
+		.select()
+		.from(schema.sale)
+		.where(and(eq(schema.sale.id, params.id), eq(schema.sale.userId, locals.user.id)));
+	if (!sale) error(404, 'Sale not found');
+
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		error(400, 'Body must be a JSON object');
+	}
+
+	const external = isExternallySourced(sale.externalSource);
+
+	/** @type {Record<string, unknown>} */
+	const patch = {};
+
+	for (const [key, value] of Object.entries(body)) {
+		if (FREE_FIELDS.has(key)) {
+			if (key === 'tags') {
+				patch.tags = JSON.stringify(Array.isArray(value) ? value : []);
+			} else {
+				patch[key] = value === '' ? null : value;
+			}
+			continue;
+		}
+
+		if (LOCKED_WHEN_EXTERNAL.has(key)) {
+			if (external) {
+				error(409, `Field "${key}" is locked on rows synced from ${sale.externalSource}`);
+			}
+			if (key === 'saleDate') {
+				const d = value ? new Date(/** @type {any} */ (value)) : null;
+				patch.saleDate = d && !isNaN(d.getTime()) ? d : null;
+			} else {
+				patch[key] = value === '' ? null : value;
+			}
+			continue;
+		}
+
+		error(400, `Field "${key}" is not editable via PATCH`);
+	}
+
+	if (Object.keys(patch).length === 0) {
+		return json({ ok: true, updated: 0 });
+	}
+
+	await db.update(schema.sale).set(patch).where(eq(schema.sale.id, params.id));
+
+	return json({ ok: true, updated: Object.keys(patch).length, fields: Object.keys(patch) });
+}
+
+/** @type {import('./$types').RequestHandler} */
 export async function DELETE({ params, locals, platform }) {
 	if (!locals.user) error(401, 'Unauthorized');
 
@@ -43,21 +123,19 @@ export async function DELETE({ params, locals, platform }) {
 
 	if (!sale) error(404, 'Sale not found');
 
-	// Delete from R2 if still present
 	if (sale.r2Key && platform?.env?.fuzzyfinance_receipts) {
 		try {
 			await platform.env.fuzzyfinance_receipts.delete(sale.r2Key);
 		} catch {
-			// Non-fatal
+			// Non-fatal.
 		}
 	}
 
-	// Delete vector if indexed
 	if (sale.vectorId && platform?.env?.VECTORIZE) {
 		try {
 			await deleteSaleVector(platform.env, sale.id);
 		} catch {
-			// Non-fatal
+			// Non-fatal.
 		}
 	}
 
@@ -65,113 +143,5 @@ export async function DELETE({ params, locals, platform }) {
 		.delete(schema.sale)
 		.where(and(eq(schema.sale.id, params.id), eq(schema.sale.userId, locals.user.id)));
 
-	return json({ success: true });
-}
-
-/** @type {import('./$types').RequestHandler} */
-export async function PATCH({ params, locals, request }) {
-	if (!locals.user) error(401, 'Unauthorized');
-
-	const [sale] = await db
-		.select()
-		.from(schema.sale)
-		.where(and(eq(schema.sale.id, params.id), eq(schema.sale.userId, locals.user.id)));
-
-	if (!sale) error(404, 'Sale not found');
-	if (sale.status !== 'staged') error(409, 'Only staged sales can be edited');
-
-	const body = await request.json();
-	const { documentTitle, saleDate, totalRevenue, totalCost, totalMargin, currency, category, notes, lineItems = [], tags = [] } = body;
-
-	// ── Compute corrected fields vs AI snapshot ─────────────────────────
-	const correctedFields = [];
-
-	if (sale.aiExtractedJson) {
-		const ai = JSON.parse(sale.aiExtractedJson);
-
-		for (const field of TEXT_FIELDS) {
-			const incoming = body[field] ?? '';
-			const original = ai[field] ?? '';
-			if (String(incoming).trim() !== String(original).trim()) {
-				correctedFields.push(field);
-			}
-		}
-
-		const incomingDate = saleDate ?? '';
-		const originalDate = ai.date ? String(ai.date).slice(0, 10) : '';
-		if (incomingDate !== originalDate) correctedFields.push('saleDate');
-
-		/** @param {any} li */
-		const normaliseItem = (li) => ({
-			description:      li.description      || null,
-			type:             li.type             || null,
-			unitsSold:        li.unitsSold        || null,
-			buyPrice:         li.buyPrice         || null,
-			sellPrice:        li.sellPrice        || null,
-			total:            li.total            || null,
-			unitSize:         li.unitSize         || null,
-			unitType:         li.unitType         || null,
-			primaryCategory:  li.primaryCategory  || null,
-			secondaryCategory: li.secondaryCategory || null
-		});
-		const incomingItems = (lineItems ?? []).map(normaliseItem);
-		const originalItems = (ai.lineItems ?? []).map(normaliseItem);
-		if (JSON.stringify(incomingItems) !== JSON.stringify(originalItems)) {
-			correctedFields.push('lineItems');
-		}
-
-		const incomingTagsSorted = [...(tags ?? [])].sort().join(',');
-		const originalTagsSorted = [...(ai.tags ?? [])].sort().join(',');
-		if (incomingTagsSorted !== originalTagsSorted) correctedFields.push('tags');
-	}
-
-	// ── Upsert line items ────────────────────────────────────────────────
-	logger.info(LOG, 'deleting_existing_line_items', { saleId: params.id });
-	await db.delete(schema.saleLineItem).where(eq(schema.saleLineItem.saleId, params.id));
-
-	if (lineItems.length) {
-		const items = lineItems.map((/** @type {any} */ li, /** @type {number} */ i) => ({
-			id:                crypto.randomUUID(),
-			saleId:            params.id,
-			description:       li.description       || null,
-			type:              li.type              || null,
-			unitsSold:         li.unitsSold         || null,
-			buyPrice:          li.buyPrice          || null,
-			sellPrice:         li.sellPrice         || null,
-			margin:            li.margin            || null,
-			total:             li.total             || null,
-			totalCost:         li.totalCost         || null,
-			unitSize:          li.unitSize                   || null,
-			unitType:          normalizeUnitType(li.unitType) || null,
-			primaryCategory:   li.primaryCategory            || null,
-			secondaryCategory: li.secondaryCategory          || null,
-			sortOrder:         i
-		}));
-		logger.info(LOG, 'inserting_line_items', { saleId: params.id, count: items.length });
-		try {
-			await batchInsert(db, schema.saleLineItem, items);
-		} catch (err) {
-			logger.error(LOG, 'line_items_insert_failed', { saleId: params.id, count: items.length, err: String(err) });
-			error(500, 'Failed to save line items');
-		}
-	}
-
-	// ── Patch sale row ────────────────────────────────────────────────
-	const parsedDate = saleDate ? new Date(saleDate) : null;
-
-	await db.update(schema.sale).set({
-		documentTitle:   documentTitle  || null,
-		saleDate:        parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null,
-		totalRevenue:    totalRevenue   || null,
-		totalCost:       totalCost      || null,
-		totalMargin:     totalMargin    || null,
-		currency:        currency       || null,
-		category:        category       || null,
-		notes:           notes          || null,
-		tags:            JSON.stringify(Array.isArray(tags) ? tags : []),
-		lineItemsJson:   JSON.stringify(lineItems),
-		correctedFields: JSON.stringify(correctedFields)
-	}).where(eq(schema.sale.id, params.id));
-
-	return json({ success: true, correctedFields });
+	return json({ ok: true });
 }

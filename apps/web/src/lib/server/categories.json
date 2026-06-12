@@ -357,5 +357,88 @@
        "Tourism industry",
        "Transport, postal and warehousing industry"
     ]
+  },
+  {
+      "primary": "Expenses",
+      "secondary": [
+            "Purchases",
+            "Cost of Goods Sold",
+            "Advertising",
+            "Bank Fees",
+            "Cleaning",
+            "Consulting & Accounting",
+            "Depreciation",
+            "Entertainment",
+            "Freight & Courier",
+            "General Expenses",
+            "Insurance",
+            "Interest Expense",
+            "Legal expenses",
+            "Light, Power, Heating",
+            "Motor Vehicle Expenses",
+            "Office Expenses",
+            "Printing & Stationery",
+            "Rent",
+            "Wages and Salaries",
+            "Superannuation",
+            "Commission",
+            "Subscriptions",
+            "Telephone & Internet",
+            "Travel - National",
+            "Travel - International",
+            "Realised Currency Gains",
+            "Income Tax Expense"
+      ]
+  },
+  {
+      "primary": "Assets",
+      "secondary": [
+          "Office Equipment",
+          "Less Accumulated Depreciation on Office Equipment",
+          "Computer Equipment",
+          "Less Accumulated Depreciation on Computer Equipment"
+      ]
+  },
+  {
+      "primary": "Liabilities",
+      "secondary": [
+          "Wages Payable - Payroll",
+          "Accrued Liabilities",
+          "GST",
+          "PAYG Withholdings Payable",
+          "Superannuation Payable",
+          "Income Tax Payable",
+          "Revenue Received in Advance",
+          "Historical Adjustment",
+          "Suspense",
+          "Clearing Account",
+          "Rounding",
+          "Owner A Drawings",
+          "Owner A Funds Introduced"
+      ]
+  },
+  {
+      "primary": "Equity",
+      "secondary": [
+          "Retained Earnings",
+          "Owner A Share Capital"
+      ]
+  },
+  {
+      "primary": "Revenue",
+      "secondary": [
+          "Sales",
+          "Other Revenue",
+          "Interest Income"
+      ]
+  },
+  {
+    "primary": "Tax",
+    "secondary": [
+        "GST",
+        "BAS",
+        "VAT",
+        "Income Tax Expense"
+    ]
   }
 ]

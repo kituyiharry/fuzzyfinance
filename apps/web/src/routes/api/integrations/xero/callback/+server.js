@@ -23,23 +23,34 @@ export async function GET({ locals, cookies, url }) {
 		error(400, 'Missing PKCE verifier — restart the Xero authorization flow');
 	}
 
-	// ── 1. Exchange code for tokens (PKCE, no client_secret) ───────────────
+	// ── 1. Exchange code for tokens ───────────────────────────────────────
+	// Xero supports two app types:
+	//   • Web App (confidential) — needs client_secret, PKCE optional
+	//   • Mobile/desktop app (public) — needs PKCE, no client_secret
+	// We send both when available: PKCE always (cookie was set by authorize),
+	// client_secret when XERO_CLIENT_SECRET is configured. Xero accepts that
+	// combination cleanly and it covers either registration type.
+	const tokenParams = new URLSearchParams({
+		grant_type:    'authorization_code',
+		client_id:     env.XERO_CLIENT_ID ?? '',
+		code,
+		redirect_uri:  `${env.ORIGIN}/api/integrations/xero/callback`,
+		code_verifier: codeVerifier
+	});
+	if (env.XERO_CLIENT_SECRET) {
+		tokenParams.set('client_secret', env.XERO_CLIENT_SECRET);
+	}
+
 	const tokenRes = await fetch('https://identity.xero.com/connect/token', {
 		method:  'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type:    'authorization_code',
-			client_id:     env.XERO_CLIENT_ID ?? '',
-			code,
-			redirect_uri:  `${env.ORIGIN}/api/integrations/xero/callback`,
-			code_verifier: codeVerifier
-		})
+		body:    tokenParams
 	});
 
 	if (!tokenRes.ok) {
 		const body = await tokenRes.text();
-		console.error('[xero/callback] token exchange failed:', body);
-		error(502, 'Failed to exchange Xero authorization code for tokens');
+		console.error('[xero/callback] token exchange failed:', tokenRes.status, body);
+		error(502, `Failed to exchange Xero authorization code for tokens (${tokenRes.status}). Check worker logs for the Xero error body.`);
 	}
 
 	/** @type {{ access_token: string, refresh_token?: string, expires_in?: number, scope?: string, id_token?: string, token_type?: string }} */
