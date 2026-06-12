@@ -133,6 +133,25 @@ export const workspace: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns
         }, {}, {
             length: number;
         }>;
+        autofixState: import("drizzle-orm/sqlite-core").SQLiteColumn<{
+            name: "autofix_state";
+            tableName: "workspace";
+            dataType: "string";
+            columnType: "SQLiteText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            length: number;
+        }>;
         createdAt: import("drizzle-orm/sqlite-core").SQLiteColumn<{
             name: "created_at";
             tableName: "workspace";

@@ -1,12 +1,15 @@
 import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 
+// Scope set was trimmed when the pivot removed Drive/Sheets sync. The
+// Google integration now serves a single purpose: granting Gemini access
+// for line-item classification. Users who prefer a per-workspace API key
+// can skip OAuth entirely.
 const GOOGLE_SCOPES = [
 	'openid',
 	'email',
-	'https://www.googleapis.com/auth/drive.file',
-	'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/generative-language.retriever'
+	'profile',
+	'https://www.googleapis.com/auth/generative-language.retriever'
 ];
 
 /** @type {import('./$types').RequestHandler} */

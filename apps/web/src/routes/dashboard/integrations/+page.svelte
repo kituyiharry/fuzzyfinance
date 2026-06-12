@@ -36,6 +36,38 @@
 	/** @type {string | null} */
 	let resetMessage = $state(null);
 
+	/** Tracks an in-flight mapping change per tenantId. */
+	/** @type {Record<string, boolean>} */
+	let savingTenant = $state({});
+
+	/**
+	 * Persist a tenant's workspace assignment. Empty string in the
+	 * select means "use default" → null on the server.
+	 * @param {string} tenantId
+	 * @param {Event & { currentTarget: HTMLSelectElement }} e
+	 */
+	async function setTenantWorkspace(tenantId, e) {
+		const raw = e.currentTarget.value;
+		const workspaceId = raw === '' ? null : raw;
+		savingTenant[tenantId] = true;
+		try {
+			const res = await fetch(`/api/integrations/xero/tenants/${encodeURIComponent(tenantId)}/workspace`, {
+				method:  'POST',
+				headers: { 'content-type': 'application/json' },
+				body:    JSON.stringify({ workspaceId })
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				syncError.xero = body?.message ?? `Mapping failed (${res.status})`;
+				await goto(resolve('/dashboard/integrations'), { invalidateAll: true });
+				return;
+			}
+			await goto(resolve('/dashboard/integrations'), { invalidateAll: true });
+		} finally {
+			savingTenant[tenantId] = false;
+		}
+	}
+
 	async function resetXeroSync() {
 		if (!confirm('Reset Xero sync history? The next sync will re-pull every invoice from the start of the active financial year. Existing rows are upserted in place — no data is deleted.')) return;
 		resettingSync = true;
@@ -109,9 +141,9 @@
 	function scopeLabel(scope) {
 		/** @type {Record<string, string | null>} */
 		const labels = {
-			'https://www.googleapis.com/auth/drive.file': 'Google Drive (file access)',
-			'https://www.googleapis.com/auth/spreadsheets': 'Google Sheets (read/write)',
-			'Files.ReadWrite': 'OneDrive / SharePoint (read/write)',
+			'https://www.googleapis.com/auth/generative-language.retriever': 'Google Gemini API access',
+			'https://www.googleapis.com/auth/drive.file': 'Google Drive (legacy — no longer requested)',
+			'https://www.googleapis.com/auth/spreadsheets': 'Google Sheets (legacy — no longer requested)',
 			offline_access: 'Offline access (refresh tokens)',
 			openid: null,
 			email: null,
@@ -123,21 +155,20 @@
 	const PROVIDERS = [
 		{
 			id: 'google',
-			name: 'Google Workspace',
-			description: 'Connect Google Drive for receipt storage and Google Sheets for ledger sync.',
+			name: 'Google · Gemini',
+			description: 'Authorise Gemini for the category classifier (fallback when embeddings can\'t confidently classify a line item).',
 			capabilities: [
-				'Expense document upload to Google Drive',
-				'Spreadsheet creation & update via Sheets API'
+				'Line-item category inference for synced expenses + revenue',
+				'No Drive or Sheets access requested — Gemini scope only'
 			],
 			badge: 'G'
 		},
 		{
 			id: 'microsoft',
 			name: 'Microsoft 365',
-			description: 'Connect OneDrive for receipt storage and Excel Online for spreadsheet automation.',
+			description: 'Reserved for a future Azure-hosted Gemini equivalent.',
 			capabilities: [
-				'Expense document upload to OneDrive',
-				'Workbook creation & update via Excel Graph API'
+				'Not active in this pivot'
 			],
 			badge: 'M',
 			comingSoon: true
@@ -215,16 +246,37 @@
 						</div>
 					{/if}
 					{#if xero.tenants && xero.tenants.length > 0}
-						<div class="flex flex-col gap-1">
-							<span class="font-mono text-[10px] uppercase text-(--color-muted-foreground)">CONNECTED TENANTS:</span>
-							<ul class="flex flex-col gap-0.5 pl-2">
-								{#each xero.tenants as t (t.tenantId)}
-									<li class="font-mono text-[10px] text-(--color-fg) flex items-center gap-2">
-										<span class="text-(--color-success)">+</span>
-										{t.tenantName}{t.tenantType ? ` · ${t.tenantType}` : ''}
-									</li>
-								{/each}
-							</ul>
+						{@const defaultWs = data.workspaces.find((w) => w.isDefault)}
+						<div class="flex flex-col gap-2">
+							<span class="font-mono text-[10px] uppercase text-(--color-muted-foreground)">TENANTS → WORKSPACES:</span>
+							<table class="font-mono text-[10px]">
+								<tbody>
+									{#each xero.tenants as t (t.tenantId)}
+										<tr class="border-b border-(--color-border)/40">
+											<td class="py-1 pr-3 text-(--color-fg)">
+												<span class="text-(--color-success) mr-1">+</span>
+												{t.tenantName}{t.tenantType ? ` · ${t.tenantType}` : ''}
+											</td>
+											<td class="py-1 text-right">
+												<select
+													value={t.workspaceId ?? ''}
+													onchange={(e) => setTenantWorkspace(t.tenantId, /** @type {Event & { currentTarget: HTMLSelectElement }} */ (e))}
+													disabled={!!savingTenant[t.tenantId]}
+													class="font-mono text-[10px] px-2 py-1 border border-(--color-border) bg-(--color-bg) text-(--color-fg)"
+												>
+													<option value="">Default{defaultWs ? ` (${defaultWs.name})` : ''}</option>
+													{#each data.workspaces as ws (ws.id)}
+														<option value={ws.id}>{ws.name}{ws.isDefault ? ' ★' : ''}</option>
+													{/each}
+												</select>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+							<p class="font-mono text-[10px] text-(--color-muted-foreground)">
+								Re-syncing after a change moves existing rows to the newly-mapped workspace.
+							</p>
 						</div>
 					{/if}
 					{#if xero.lastSyncedAt}
@@ -279,10 +331,11 @@
 		</div>
 	</Card>
 
-	<Card title="Cloud Storage">
+	<Card title="AI Classifier Credentials">
 		<p class="text-xs font-mono italic text-(--color-muted-foreground) mb-6">
-			AUTHORIZE ACCESS TO CLOUD WORKSPACE PROVIDERS. CREDENTIALS ARE STORED SERVER-SIDE AND USED
-			EXCLUSIVELY FOR RECEIPT ARCHIVAL AND LEDGER OPERATIONS.
+			SECOND-PRIORITY CATEGORY CLASSIFIER. EMBEDDINGS TRY FIRST; UNCATEGORISED LINES FALL
+			THROUGH TO GEMINI USING EITHER A GOOGLE OAUTH GRANT BELOW OR THE DEPLOYMENT-SCOPED
+			GEMINI_API_KEY WORKER SECRET. API KEYS ARE NEVER STORED IN THE DATABASE.
 		</p>
 
 		<div class="flex flex-col gap-6">

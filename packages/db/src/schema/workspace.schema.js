@@ -16,6 +16,8 @@ export const workspace = sqliteTable('workspace', {
      *  apps/web/src/lib/server/categories.json. Shape:
      *  { primary: string[], secondary: Record<string, string[]> } */
     customCategoriesJson: text('custom_categories_json'),
+    /** AutoFix job-coordination blob. See migration 0019 for shape. */
+    autofixState: text('autofix_state'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
         .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' })

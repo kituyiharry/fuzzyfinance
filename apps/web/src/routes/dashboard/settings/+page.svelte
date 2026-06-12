@@ -42,6 +42,7 @@
 	/** @type {Record<string, boolean>} */
 	let currencySaved = $state({});
 
+
 	/** @param {string} id */
 	async function saveSlug(id) {
 		const slug = (slugValues[id] ?? '').trim();

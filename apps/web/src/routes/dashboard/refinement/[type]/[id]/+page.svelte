@@ -112,6 +112,73 @@
 		} finally { saving = false; }
 	}
 
+	// ── autofill (embedding-based suggestions) ──────────────────────────
+	let autofilling    = $state(false);
+	let autofillNote   = $state('');
+
+	/** Replace each existing primary/secondary on `kind='standard'` lines
+	 *  with a kNN suggestion if Vectorize returns a confident one. Tax
+	 *  lines and rows that already have BOTH categories are left alone. */
+	async function autofillCategories() {
+		autofillNote = '';
+		if (!data.workspaceId) { autofillNote = 'No workspace context — switch to a workspace first.'; return; }
+
+		/** @type {Array<{ idx: number, description: string|null }>} */
+		const targets = [];
+		for (let i = 0; i < lines.length; i++) {
+			const li = lines[i];
+			if (li.kind !== 'standard') continue;
+			if (li.primaryCategory && li.secondaryCategory) continue;
+			targets.push({ idx: i, description: li.description });
+		}
+		if (targets.length === 0) {
+			autofillNote = 'All standard line items are already categorised.';
+			return;
+		}
+
+		autofilling = true;
+		try {
+			const merchant = data.type === 'receipt' ? data.row.merchantName : data.row.documentTitle;
+			const res = await fetch(`/api/workspaces/${data.workspaceId}/embeddings/suggest`, {
+				method:  'POST',
+				headers: { 'content-type': 'application/json' },
+				body:    JSON.stringify({ merchant, lines: targets.map((t) => ({ description: t.description })) })
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				autofillNote = body?.message ?? `Autofill failed (${res.status})`;
+				return;
+			}
+			/** @type {{ suggestions: Array<{ primary: string, secondary: string, score?: number, source: 'embeddings' | 'gemini' } | null> }} */
+			const { suggestions } = await res.json();
+
+			let filledEmb = 0;
+			let filledGem = 0;
+			for (let i = 0; i < targets.length; i++) {
+				const s = suggestions[i];
+				if (!s) continue;
+				const li = lines[targets[i].idx];
+				if (!li.primaryCategory)   li.primaryCategory   = s.primary;
+				if (!li.secondaryCategory) li.secondaryCategory = s.secondary;
+				li.aiSuggested = true;
+				if (s.source === 'gemini') filledGem++; else filledEmb++;
+			}
+			const filled = filledEmb + filledGem;
+			if (filled > 0) {
+				const parts = [];
+				if (filledEmb > 0) parts.push(`${filledEmb} via embeddings`);
+				if (filledGem > 0) parts.push(`${filledGem} via Gemini`);
+				autofillNote = `Suggested ${filled} of ${targets.length} line(s) (${parts.join(', ')}). Confirm or edit, then save.`;
+			} else {
+				autofillNote = `No confident match for ${targets.length} line(s). Set GEMINI_API_KEY in Worker secrets or fill manually — saves train the embeddings index for next time.`;
+			}
+		} catch (/** @type {any} */ err) {
+			autofillNote = String(err?.message ?? err);
+		} finally {
+			autofilling = false;
+		}
+	}
+
 	// ── add-category form ───────────────────────────────────────────────
 	let showCatForm   = $state(false);
 	let newPrimary    = $state('');
@@ -189,6 +256,13 @@
 								<select bind:value={li.primaryCategory} onchange={() => clearAiFlag(i)}
 									class="flex-1 font-mono text-[10px] px-2 py-1 border border-(--color-border) {li.aiSuggested ? 'bg-(--color-accent-soft) border-(--color-accent)' : 'bg-(--color-bg)'}">
 									<option value={null}>— none —</option>
+									<!-- Render the stored value as a "legacy" option when it isn't
+									     in the current taxonomy. Without this the <select> can't
+									     bind to it and silently shows blank, leaving the user
+									     thinking the category disappeared. -->
+									{#if li.primaryCategory && !categories.find((c) => c.primary === li.primaryCategory)}
+										<option value={li.primaryCategory}>{li.primaryCategory} (legacy)</option>
+									{/if}
 									{#each categories as c (c.primary)}
 										<option value={c.primary}>{c.primary}{c.custom ? ' *' : ''}</option>
 									{/each}
@@ -202,6 +276,9 @@
 							<select bind:value={li.secondaryCategory} onchange={() => clearAiFlag(i)}
 								class="w-full font-mono text-[10px] px-2 py-1 border border-(--color-border) {li.aiSuggested ? 'bg-(--color-accent-soft) border-(--color-accent)' : 'bg-(--color-bg)'}">
 								<option value={null}>— none —</option>
+								{#if li.secondaryCategory && !secondariesFor(li.primaryCategory ?? '').includes(li.secondaryCategory)}
+									<option value={li.secondaryCategory}>{li.secondaryCategory} (legacy)</option>
+								{/if}
 								{#each secondariesFor(li.primaryCategory ?? '') as s (s)}
 									<option value={s}>{s}</option>
 								{/each}
@@ -235,8 +312,14 @@
 			</tfoot>
 		</table>
 
-		<div class="flex gap-2 mt-3">
+		<div class="flex gap-2 mt-3 flex-wrap items-center">
 			<Button variant="secondary" onclick={addLine} class="text-xs font-black uppercase tracking-widest">+ ADD LINE</Button>
+			<Button variant="secondary" onclick={autofillCategories} disabled={autofilling} class="text-xs font-black uppercase tracking-widest">
+				{autofilling ? 'AUTOFILLING…' : '✨ AUTOFILL CATEGORIES'}
+			</Button>
+			{#if autofillNote}
+				<span class="font-mono text-[10px] text-(--color-muted-foreground) uppercase tracking-widest">{autofillNote}</span>
+			{/if}
 		</div>
 	</Card>
 

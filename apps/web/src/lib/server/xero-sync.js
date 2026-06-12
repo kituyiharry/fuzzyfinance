@@ -40,6 +40,8 @@ import { schema } from '@fuzzyfinance/db';
 import { and, eq } from 'drizzle-orm';
 import { getValidAccessToken } from '$lib/server/token-refresh';
 import { suggestCategoriesForLines } from '$lib/server/vectorize';
+import { classifyLineItemsViaGemini } from '$lib/server/gemini-classify';
+import { classifyPendingForUser } from '$lib/server/post-sync-classify';
 
 const XERO_API = 'https://api.xero.com/api.xro/2.0';
 
@@ -86,8 +88,15 @@ export async function syncUserXero(userId, env) {
 	}
 
 	const metadata = integration.metadataJson ? JSON.parse(integration.metadataJson) : {};
-	/** @type {Array<{ tenantId: string, tenantName: string }>} */
+	/** @type {Array<{ tenantId: string, tenantName: string, workspaceId?: string | null }>} */
 	const tenants = metadata.xeroTenants ?? [];
+
+	// User's default workspace — fallback for any tenant without an
+	// explicit mapping. Looked up once and reused across tenants.
+	const [defaultWs] = await db.select()
+		.from(schema.workspace)
+		.where(and(eq(schema.workspace.userId, userId), eq(schema.workspace.isDefault, true)));
+	const defaultWorkspaceId = defaultWs?.id ?? null;
 
 	const summary = { tenants: tenants.length, invoicesCreated: 0, invoicesUpdated: 0, skipped: 0, errors: /** @type {string[]} */ ([]) };
 
@@ -117,11 +126,16 @@ export async function syncUserXero(userId, env) {
 
 	for (const tenant of tenants) {
 		try {
-			const accrec = await syncTenant(userId, accessToken, tenant, 'ACCREC', { sinceISO, fyStart, env });
+			// Per-tenant workspace mapping. Stored in
+			// `metadata.xeroTenants[i].workspaceId` and editable from the
+			// Integrations page. Tenants without an explicit mapping fall
+			// back to the user's default workspace.
+			const workspaceId = tenant.workspaceId ?? defaultWorkspaceId;
+			const accrec = await syncTenant(userId, accessToken, tenant, 'ACCREC', { sinceISO, fyStart, env, workspaceId });
 			summary.invoicesCreated += accrec.created;
 			summary.invoicesUpdated += accrec.updated;
 			summary.skipped         += accrec.skipped;
-			const accpay = await syncTenant(userId, accessToken, tenant, 'ACCPAY', { sinceISO, fyStart, env });
+			const accpay = await syncTenant(userId, accessToken, tenant, 'ACCPAY', { sinceISO, fyStart, env, workspaceId });
 			summary.invoicesCreated += accpay.created;
 			summary.invoicesUpdated += accpay.updated;
 			summary.skipped         += accpay.skipped;
@@ -140,6 +154,20 @@ export async function syncUserXero(userId, env) {
 			.where(eq(schema.integration.id, integration.id));
 	}
 
+	// Single post-sync classification pass — deduplicated across the entire
+	// fetched set so we don't blow the Cloudflare Workers subrequest budget
+	// (1000 per invocation). Failure here doesn't unwind the sync; the rows
+	// are already on disk and a manual classify-pending POST can catch up.
+	if (env?.AI && env?.VECTORIZE) {
+		try {
+			const classifySummary = await classifyPendingForUser(userId, env);
+			// @ts-ignore — surfaced for the integration card's lastSummary panel.
+			summary.classified = classifySummary;
+		} catch (/** @type {any} */ err) {
+			console.warn('[xero-sync] post-sync classification skipped:', err?.message ?? err);
+		}
+	}
+
 	return summary;
 }
 
@@ -156,11 +184,11 @@ export async function syncUserXero(userId, env) {
  * @param {string} accessToken
  * @param {{ tenantId: string, tenantName?: string }} tenant
  * @param {'ACCREC' | 'ACCPAY'} invoiceType
- * @param {{ sinceISO: string | null, fyStart: Date | null, env?: App.Platform['env'] }} opts
+ * @param {{ sinceISO: string | null, fyStart: Date | null, env?: App.Platform['env'], workspaceId?: string | null }} opts
  * @returns {Promise<{ created: number, updated: number, skipped: number }>}
  */
 export async function syncTenant(userId, accessToken, tenant, invoiceType, opts) {
-	const { sinceISO, fyStart, env } = opts;
+	const { sinceISO, fyStart, env, workspaceId = null } = opts;
 	const externalSource = invoiceType === 'ACCREC' ? 'xero-invoice-accrec' : 'xero-invoice-accpay';
 	const result = { created: 0, updated: 0, skipped: 0 };
 
@@ -205,7 +233,7 @@ export async function syncTenant(userId, accessToken, tenant, invoiceType, opts)
 		if (invoices.length === 0) break;
 
 		for (const inv of invoices) {
-			const outcome = await _upsertInvoice(userId, externalSource, inv, env);
+			const outcome = await _upsertInvoice(userId, externalSource, inv, env, workspaceId);
 			if      (outcome === 'created') result.created++;
 			else if (outcome === 'updated') result.updated++;
 			else                            result.skipped++;
@@ -229,10 +257,11 @@ export async function syncTenant(userId, accessToken, tenant, invoiceType, opts)
  * @param {string} userId
  * @param {'xero-invoice-accrec' | 'xero-invoice-accpay'} externalSource
  * @param {any} inv
- * @param {App.Platform['env']} [env]
+ * @param {App.Platform['env']} [_env]   Reserved — classification is deferred to the post-loop pass.
+ * @param {string | null} [workspaceId]
  * @returns {Promise<'created' | 'updated' | 'skipped'>}
  */
-async function _upsertInvoice(userId, externalSource, inv, env) {
+async function _upsertInvoice(userId, externalSource, inv, _env, workspaceId = null) {
 	const invoiceId = inv.InvoiceID;
 	if (!invoiceId) return 'skipped';
 
@@ -246,9 +275,9 @@ async function _upsertInvoice(userId, externalSource, inv, env) {
 	const status = /** @type {'complete'} */ ('complete');
 
 	if (externalSource === 'xero-invoice-accrec') {
-		return _upsertSale(userId, invoiceId, status, inv, env);
+		return _upsertSale(userId, invoiceId, status, inv, workspaceId);
 	}
-	return _upsertReceipt(userId, invoiceId, status, inv, env);
+	return _upsertReceipt(userId, invoiceId, status, inv, workspaceId);
 }
 
 /**
@@ -256,40 +285,72 @@ async function _upsertInvoice(userId, externalSource, inv, env) {
  * @param {string} invoiceId
  * @param {'staged' | 'complete'} status
  * @param {any} inv
- * @param {App.Platform['env']} [env]
+ * @param {string | null} [workspaceId]
  * @returns {Promise<'created' | 'updated'>}
  */
-async function _upsertSale(userId, invoiceId, status, inv, env) {
+async function _upsertSale(userId, invoiceId, status, inv, workspaceId = null) {
 	const externalSource = 'xero-invoice-accrec';
 
 	const documentTitle = inv?.Contact?.Name ?? inv?.InvoiceNumber ?? null;
 	const saleDate      = _parseXeroDate(inv?.Date);
 	const totalRevenue  = _resolveTotal(inv);
 	const currency      = inv?.CurrencyCode ?? null;
+	const reference     = typeof inv?.Reference === 'string' ? inv.Reference : null;
+	const invoiceNumber = typeof inv?.InvoiceNumber === 'string' ? inv.InvoiceNumber : null;
+	// Xero authors invoices as either tax-Inclusive or tax-Exclusive (or NoTax).
+	// We canonicalise on write — see `_normalizeLineAmounts`.
+	const lineAmountTypes = typeof inv?.LineAmountTypes === 'string' ? inv.LineAmountTypes : null;
+	// Subtotal Xero gives us, or total - tax, or the full total when there's no tax.
+	const fallbackSubtotal = _resolveFallbackSubtotal(_resolveSubtotal(inv), totalRevenue, _resolveTax(inv));
+	const fallbackDescription = _buildFallbackDescription(documentTitle, reference);
 
 	const existing = await _findExistingSale(userId, externalSource, invoiceId);
 
+	// Per-invoice path deliberately runs WITHOUT env so the inline kNN call
+	// in `_applyCategorySuggestions` short-circuits. A single deduplicated
+	// classification pass runs once at the end of `syncUserXero` — that's
+	// how we stay inside the 1000-subrequest budget on large syncs.
+	const insertCtx = {
+		env:                /** @type {App.Platform['env'] | undefined} */ (undefined),
+		userId,
+		workspaceId,
+		merchant:           documentTitle,
+		fallbackDescription,
+		fallbackSubtotal,
+		invoiceNumber,
+		lineAmountTypes
+	};
+
 	if (existing) {
+		// Re-mapping a tenant to a new workspace should move existing rows.
 		await db.update(schema.sale)
-			.set({ status, documentTitle, saleDate, totalRevenue, currency })
+			.set({ status, documentTitle, saleDate, totalRevenue, currency, workspaceId })
 			.where(eq(schema.sale.id, existing.id));
 		// Replace line items wholesale — simpler than diffing, fine at our scale.
 		await db.delete(schema.saleLineItem).where(eq(schema.saleLineItem.saleId, existing.id));
-		await _insertSaleLineItems(existing.id, inv?.LineItems ?? [], inv?.TotalTax, {
-			env, userId, workspaceId: existing.workspaceId, merchant: documentTitle
+		const headerCategory = await _insertSaleLineItems(existing.id, inv?.LineItems ?? [], inv?.TotalTax, {
+			...insertCtx, currentHeaderCategory: existing.category ?? null
 		});
+		if (headerCategory) {
+			await db.update(schema.sale).set({ category: headerCategory })
+				.where(eq(schema.sale.id, existing.id));
+		}
 		return 'updated';
 	}
 
 	const id = crypto.randomUUID();
 	await db.insert(schema.sale).values({
-		id, userId, workspaceId: null, status,
+		id, userId, workspaceId, status,
 		documentTitle, saleDate, totalRevenue, currency,
 		externalSource, externalAccountId: invoiceId
 	});
-	await _insertSaleLineItems(id, inv?.LineItems ?? [], inv?.TotalTax, {
-		env, userId, workspaceId: null, merchant: documentTitle
+	const headerCategory = await _insertSaleLineItems(id, inv?.LineItems ?? [], inv?.TotalTax, {
+		...insertCtx, currentHeaderCategory: null
 	});
+	if (headerCategory) {
+		await db.update(schema.sale).set({ category: headerCategory })
+			.where(eq(schema.sale.id, id));
+	}
 	return 'created';
 }
 
@@ -298,10 +359,10 @@ async function _upsertSale(userId, invoiceId, status, inv, env) {
  * @param {string} invoiceId
  * @param {'staged' | 'complete'} status
  * @param {any} inv
- * @param {App.Platform['env']} [env]
+ * @param {string | null} [workspaceId]
  * @returns {Promise<'created' | 'updated'>}
  */
-async function _upsertReceipt(userId, invoiceId, status, inv, env) {
+async function _upsertReceipt(userId, invoiceId, status, inv, workspaceId = null) {
 	const externalSource = 'xero-invoice-accpay';
 
 	const merchantName  = inv?.Contact?.Name ?? null;
@@ -311,65 +372,126 @@ async function _upsertReceipt(userId, invoiceId, status, inv, env) {
 	const tax           = _resolveTax(inv);
 	const currency      = inv?.CurrencyCode ?? null;
 	const invoiceNumber = inv?.InvoiceNumber ?? null;
+	const reference     = typeof inv?.Reference === 'string' ? inv.Reference : null;
+	const lineAmountTypes     = typeof inv?.LineAmountTypes === 'string' ? inv.LineAmountTypes : null;
+	const fallbackSubtotal    = _resolveFallbackSubtotal(subtotal, total, tax);
+	const fallbackDescription = _buildFallbackDescription(merchantName, reference);
 
 	const existing = await _findExistingReceipt(userId, externalSource, invoiceId);
 
+	// Same as sales: defer classification to the single post-loop pass.
+	const insertCtx = {
+		env:                /** @type {App.Platform['env'] | undefined} */ (undefined),
+		userId,
+		workspaceId,
+		merchant:           merchantName,
+		fallbackDescription,
+		fallbackSubtotal,
+		invoiceNumber,
+		lineAmountTypes
+	};
+
 	if (existing) {
 		await db.update(schema.receipt)
-			.set({ status, merchantName, receiptDate, total, subtotal, tax, currency, invoiceNumber })
+			.set({ status, merchantName, receiptDate, total, subtotal, tax, currency, invoiceNumber, workspaceId })
 			.where(eq(schema.receipt.id, existing.id));
 		await db.delete(schema.receiptLineItem).where(eq(schema.receiptLineItem.receiptId, existing.id));
-		await _insertReceiptLineItems(existing.id, inv?.LineItems ?? [], inv?.TotalTax, {
-			env, userId, workspaceId: existing.workspaceId, merchant: merchantName
+		const headerCategory = await _insertReceiptLineItems(existing.id, inv?.LineItems ?? [], inv?.TotalTax, {
+			...insertCtx, currentHeaderCategory: existing.category ?? null
 		});
+		if (headerCategory) {
+			await db.update(schema.receipt).set({ category: headerCategory })
+				.where(eq(schema.receipt.id, existing.id));
+		}
 		return 'updated';
 	}
 
 	const id = crypto.randomUUID();
 	await db.insert(schema.receipt).values({
-		id, userId, workspaceId: null, status,
+		id, userId, workspaceId, status,
 		merchantName, receiptDate, total, subtotal, tax, currency, invoiceNumber,
 		externalSource, externalAccountId: invoiceId
 	});
-	await _insertReceiptLineItems(id, inv?.LineItems ?? [], inv?.TotalTax, {
-		env, userId, workspaceId: null, merchant: merchantName
+	const headerCategory = await _insertReceiptLineItems(id, inv?.LineItems ?? [], inv?.TotalTax, {
+		...insertCtx, currentHeaderCategory: null
 	});
+	if (headerCategory) {
+		await db.update(schema.receipt).set({ category: headerCategory })
+			.where(eq(schema.receipt.id, id));
+	}
 	return 'created';
 }
 
 /**
+ * Insert a sale's line items. All stored amounts are canonicalised to
+ * **tax-exclusive** regardless of the invoice's `LineAmountTypes`, so
+ * that standard rows sum to `SubTotal` and the synthesised
+ * `kind='tax'` row makes the grand total balance.
+ *
  * @param {string} saleId
  * @param {Array<any>} lineItems
  * @param {number | string | null | undefined} totalTax   Xero invoice TotalTax — emits a synthesised tax line when > 0
- * @param {{ env?: App.Platform['env'], userId: string, workspaceId: string|null, merchant: string|null }} ctx
+ * @param {{ env?: App.Platform['env'], userId: string, workspaceId: string|null, merchant: string|null, currentHeaderCategory: string|null, fallbackDescription?: string|null, fallbackSubtotal?: string|null, invoiceNumber?: string|null, lineAmountTypes?: string|null }} ctx
+ * @returns {Promise<string | null>}  Derived header category (only when one needed setting); `null` if header is already set or nothing to derive.
  */
 async function _insertSaleLineItems(saleId, lineItems, totalTax, ctx) {
 	/** @type {Array<typeof schema.saleLineItem.$inferInsert>} */
 	const rows = [];
 
-	if (Array.isArray(lineItems)) {
+	const hasLineItems = Array.isArray(lineItems) && lineItems.length > 0;
+
+	if (hasLineItems) {
 		for (let idx = 0; idx < lineItems.length; idx++) {
 			const li = lineItems[idx];
 			const trackingName = li?.Tracking?.[0]?.Option ?? null;
+			const amounts = _normalizeLineAmounts(li, ctx.lineAmountTypes);
+			// Xero's `AccountCode` is a chart-of-accounts numeric code
+			// (e.g. "200", "400") — NOT a FuzzyFinance taxonomy value.
+			// Leave primaryCategory null so the post-sync classifier can
+			// derive a proper category from the description; the AccountCode
+			// belongs in a separate audit field if we ever wire one up.
 			rows.push({
 				id:                crypto.randomUUID(),
 				saleId,
 				description:       li?.Description ?? null,
 				type:              null,
-				unitsSold:         li?.Quantity   != null ? String(li.Quantity)   : null,
+				unitsSold:         li?.Quantity != null ? String(li.Quantity) : null,
 				buyPrice:          null,
-				sellPrice:         li?.UnitAmount != null ? String(li.UnitAmount) : null,
+				sellPrice:         amounts.unitPrice,
 				margin:            null,
-				total:             li?.LineAmount != null ? String(li.LineAmount) : null,
+				total:             amounts.total,
 				totalCost:         null,
 				unitSize:          null,
 				unitType:          null,
-				primaryCategory:   li?.AccountCode ?? null,
+				primaryCategory:   null,
 				secondaryCategory: trackingName,
 				sortOrder:         idx,
 				kind:              'standard'
 			});
 		}
+	} else if (ctx.fallbackSubtotal != null) {
+		// Xero invoice without line items (just header amounts). Synthesise
+		// ONE standard row from the subtotal + merchant context so the
+		// post-sync classifier has something to work with and the line-items
+		// sum still balances against the header total.
+		rows.push({
+			id:                crypto.randomUUID(),
+			saleId,
+			description:       ctx.fallbackDescription ?? null,
+			type:              null,
+			unitsSold:         null,
+			buyPrice:          null,
+			sellPrice:         ctx.fallbackSubtotal,
+			margin:            null,
+			total:             ctx.fallbackSubtotal,
+			totalCost:         null,
+			unitSize:          null,
+			unitType:          null,
+			primaryCategory:   null,
+			secondaryCategory: null,
+			sortOrder:         0,
+			kind:              'standard'
+		});
 	}
 
 	await _applyCategorySuggestions(rows, ctx);
@@ -392,45 +514,73 @@ async function _insertSaleLineItems(saleId, lineItems, totalTax, ctx) {
 			totalCost:         null,
 			unitSize:          null,
 			unitType:          null,
-			primaryCategory:   null,
-			secondaryCategory: null,
+			primaryCategory:   'Tax',
+			secondaryCategory: 'GST',
 			sortOrder:         rows.length,
 			kind:              'tax'
 		});
 	}
 
 	if (rows.length > 0) await db.insert(schema.saleLineItem).values(rows);
+
+	return _deriveHeaderCategory(rows, ctx.currentHeaderCategory);
 }
 
 /**
+ * Insert a receipt's line items. Same tax-exclusive canonicalisation as
+ * `_insertSaleLineItems` — see that function's comment for the rationale.
+ *
  * @param {string} receiptId
  * @param {Array<any>} lineItems
  * @param {number | string | null | undefined} totalTax   Xero invoice TotalTax — emits a synthesised tax line when > 0
- * @param {{ env?: App.Platform['env'], userId: string, workspaceId: string|null, merchant: string|null }} ctx
+ * @param {{ env?: App.Platform['env'], userId: string, workspaceId: string|null, merchant: string|null, currentHeaderCategory: string|null, fallbackDescription?: string|null, fallbackSubtotal?: string|null, invoiceNumber?: string|null, lineAmountTypes?: string|null }} ctx
+ * @returns {Promise<string | null>}  Derived header category (only when one needed setting); `null` if header is already set or nothing to derive.
  */
 async function _insertReceiptLineItems(receiptId, lineItems, totalTax, ctx) {
 	/** @type {Array<typeof schema.receiptLineItem.$inferInsert>} */
 	const rows = [];
 
-	if (Array.isArray(lineItems)) {
+	const hasLineItems = Array.isArray(lineItems) && lineItems.length > 0;
+
+	if (hasLineItems) {
 		for (let idx = 0; idx < lineItems.length; idx++) {
 			const li = lineItems[idx];
 			const trackingName = li?.Tracking?.[0]?.Option ?? null;
+			const amounts = _normalizeLineAmounts(li, ctx.lineAmountTypes);
+			// See _insertSaleLineItems — AccountCode is Xero's COA number,
+			// not our taxonomy. Leave primary null for the classifier.
 			rows.push({
 				id:                crypto.randomUUID(),
 				receiptId,
 				description:       li?.Description ?? null,
-				qty:               li?.Quantity   != null ? String(li.Quantity)   : null,
-				unitPrice:         li?.UnitAmount != null ? String(li.UnitAmount) : null,
-				total:             li?.LineAmount != null ? String(li.LineAmount) : null,
-				unitSize:          li?.UnitAmount != null ? String(li.UnitAmount) : null,
+				qty:               li?.Quantity != null ? String(li.Quantity) : null,
+				unitPrice:         amounts.unitPrice,
+				total:             amounts.total,
+				unitSize:          amounts.unitPrice,
 				unitType:          null,
-				primaryCategory:   li?.AccountCode ?? null,
+				primaryCategory:   null,
 				secondaryCategory: trackingName,
 				sortOrder:         idx,
 				kind:              'standard'
 			});
 		}
+	} else if (ctx.fallbackSubtotal != null) {
+		// Header-only Xero invoice — synthesise a single standard row from
+		// the subtotal so total balances and the classifier has signal.
+		rows.push({
+			id:                crypto.randomUUID(),
+			receiptId,
+			description:       ctx.fallbackDescription ?? null,
+			qty:               '1',
+			unitPrice:         ctx.fallbackSubtotal,
+			total:             ctx.fallbackSubtotal,
+			unitSize:          null,
+			unitType:          null,
+			primaryCategory:   null,
+			secondaryCategory: null,
+			sortOrder:         0,
+			kind:              'standard'
+		});
 	}
 
 	await _applyCategorySuggestions(rows, ctx);
@@ -454,17 +604,27 @@ async function _insertReceiptLineItems(receiptId, lineItems, totalTax, ctx) {
 	}
 
 	if (rows.length > 0) await db.insert(schema.receiptLineItem).values(rows);
+
+	return _deriveHeaderCategory(rows, ctx.currentHeaderCategory);
 }
 
 /**
- * Mutates `rows` in place: for each standard line that arrived without
- * BOTH primary + secondary set, run the embedding-based suggestor and
- * stamp the result + `aiSuggested = true`. Lines that already have both
- * categories (or that are kind='tax', or that the suggestor doesn't
- * confidently classify) are left untouched.
+ * Two-hop classification waterfall, mutating `rows` in place:
  *
- * Silently no-ops when env isn't passed (e.g. during tests or cron paths
- * that don't carry the runtime bindings yet).
+ *   1. Embeddings (kNN over the workspace's confirmed labels). Cheap +
+ *      personalised — fills whatever it can with high confidence.
+ *   2. Gemini (LLM call against the full taxonomy). Picks up the long
+ *      tail the kNN can't confidently bucket. Either OAuth via the
+ *      user's Google integration with the
+ *      `generative-language.retriever` scope, or a workspace API key.
+ *
+ * Any line filled by either hop is stamped `aiSuggested = true` so the
+ * refinement editor can badge it and the user can confirm/edit. Tax
+ * lines + already-categorised rows are left alone.
+ *
+ * Silently no-ops when `env` is absent (test paths). Each hop fails open
+ * independently — Vectorize misses or Gemini quota errors don't abort
+ * the sync.
  *
  * @template {{ description?: string|null, primaryCategory?: string|null, secondaryCategory?: string|null, kind?: string, aiSuggested?: boolean }} T
  * @param {Array<T>} rows
@@ -472,33 +632,90 @@ async function _insertReceiptLineItems(receiptId, lineItems, totalTax, ctx) {
  */
 async function _applyCategorySuggestions(rows, ctx) {
 	if (!ctx?.env) return;
-	const targets = rows.filter((r) =>
+	let targets = rows.filter((r) =>
 		(r.kind ?? 'standard') === 'standard'
 		&& (!r.primaryCategory || !r.secondaryCategory)
 	);
 	if (targets.length === 0) return;
 
-	let suggestions;
+	// Hop 1 — embeddings.
 	try {
-		suggestions = await suggestCategoriesForLines(ctx.env, {
+		const suggestions = await suggestCategoriesForLines(ctx.env, {
 			userId:      ctx.userId,
 			workspaceId: ctx.workspaceId,
 			merchant:    ctx.merchant
 		}, targets.map((r) => ({ description: r.description ?? null })));
+		for (let i = 0; i < targets.length; i++) {
+			const s = suggestions[i];
+			if (!s) continue;
+			const t = targets[i];
+			if (!t.primaryCategory)   t.primaryCategory   = s.primary;
+			if (!t.secondaryCategory) t.secondaryCategory = s.secondary;
+			t.aiSuggested = true;
+		}
 	} catch (/** @type {any} */ err) {
-		// Index empty / Vectorize hiccup — fail open, leave rows as-is.
 		console.warn('[xero-sync] kNN suggestion skipped:', err?.message ?? err);
-		return;
 	}
 
-	for (let i = 0; i < targets.length; i++) {
-		const s = suggestions[i];
-		if (!s) continue;
-		const t = targets[i];
-		if (!t.primaryCategory)   t.primaryCategory   = s.primary;
-		if (!t.secondaryCategory) t.secondaryCategory = s.secondary;
-		t.aiSuggested = true;
+	// Re-filter — only lines the embeddings hop couldn't classify get
+	// sent to Gemini.
+	const remaining = rows.filter((r) =>
+		(r.kind ?? 'standard') === 'standard'
+		&& (!r.primaryCategory || !r.secondaryCategory)
+	);
+	if (remaining.length === 0) return;
+
+	// Hop 2 — Gemini.
+	try {
+		const geminiSuggestions = await classifyLineItemsViaGemini({
+			userId:      ctx.userId,
+			workspaceId: ctx.workspaceId,
+			items:       remaining.map((r) => ({ description: r.description ?? null }))
+		});
+		for (let i = 0; i < remaining.length; i++) {
+			const s = geminiSuggestions[i];
+			if (!s) continue;
+			const t = remaining[i];
+			if (!t.primaryCategory)   t.primaryCategory   = s.primary;
+			if (!t.secondaryCategory) t.secondaryCategory = s.secondary;
+			t.aiSuggested = true;
+		}
+	} catch (/** @type {any} */ err) {
+		console.warn('[xero-sync] Gemini classification skipped:', err?.message ?? err);
 	}
+}
+
+/**
+ * Derive the document-level category from the rolled-up primary
+ * categories on the line items. Returns the value the caller should
+ * write to `receipt.category` / `sale.category`, or `null` when no
+ * write is needed (header was already set, or no signal to derive
+ * from).
+ *
+ * Mode of primary categories across `kind='standard'` lines wins.
+ * Empty + tax rows are excluded.
+ *
+ * @param {Array<{ primaryCategory?: string|null, kind?: string }>} rows
+ * @param {string | null} currentHeaderCategory
+ * @returns {string | null}
+ */
+function _deriveHeaderCategory(rows, currentHeaderCategory) {
+	if (currentHeaderCategory) return null;
+	/** @type {Map<string, number>} */
+	const counts = new Map();
+	for (const r of rows) {
+		if ((r.kind ?? 'standard') !== 'standard') continue;
+		const p = r.primaryCategory;
+		if (!p) continue;
+		counts.set(p, (counts.get(p) ?? 0) + 1);
+	}
+	if (counts.size === 0) return null;
+	let winner = '';
+	let best = 0;
+	for (const [p, n] of counts) {
+		if (n > best) { best = n; winner = p; }
+	}
+	return winner || null;
 }
 
 /**
@@ -593,6 +810,104 @@ function _resolveSubtotal(inv) {
 		return String(lineSum - tax);
 	}
 	return String(lineSum);
+}
+
+/**
+ * Canonicalise a Xero line item's amounts to **tax-exclusive**.
+ *
+ * Xero stores invoices with a `LineAmountTypes` flag controlling how
+ * line-level amounts relate to tax:
+ *   - `'Exclusive'` — line amounts are pre-tax; tax is added on top.
+ *   - `'Inclusive'` — line amounts already include tax; `TaxAmount` per
+ *     line records the included portion.
+ *   - `'NoTax'`    — no tax applies; amounts are effectively pre-tax.
+ *
+ * We canonicalise everything to tax-exclusive at write time so the
+ * standard-line totals sum to `SubTotal`, and the synthesised
+ * `kind='tax'` row makes the grand total balance:
+ *   `sum(standard lines) + tax line = Total`.
+ *
+ * For `Inclusive`: subtract `li.TaxAmount` from `li.LineAmount` to get
+ * the pre-tax line total, then back out the per-unit price too so
+ * `qty × unitPrice ≈ total` stays internally consistent.
+ *
+ * @param {any} li
+ * @param {string | null | undefined} lineAmountTypes
+ * @returns {{ total: string | null, unitPrice: string | null }}
+ */
+function _normalizeLineAmounts(li, lineAmountTypes) {
+	const lineAmount = Number(li?.LineAmount);
+	const qty        = Number(li?.Quantity);
+	const lineTax    = Number(li?.TaxAmount) || 0;
+	const unitAmt    = Number(li?.UnitAmount);
+
+	if (!Number.isFinite(lineAmount)) {
+		return {
+			total:     li?.LineAmount != null ? String(li.LineAmount) : null,
+			unitPrice: li?.UnitAmount != null ? String(li.UnitAmount) : null
+		};
+	}
+
+	const preTaxTotal = lineAmountTypes === 'Inclusive'
+		? lineAmount - lineTax
+		: lineAmount;
+
+	const totalStr = String(+preTaxTotal.toFixed(2));
+
+	// Derive the pre-tax unit price from the normalised line total when we
+	// have a positive quantity; otherwise fall back to Xero's UnitAmount
+	// (which may be inclusive — best we can do without per-unit context).
+	let unitStr;
+	if (Number.isFinite(qty) && qty > 0) {
+		unitStr = String(+(preTaxTotal / qty).toFixed(4));
+	} else if (Number.isFinite(unitAmt)) {
+		unitStr = lineAmountTypes === 'Inclusive'
+			? String(+(unitAmt - lineTax).toFixed(4))
+			: String(unitAmt);
+	} else {
+		unitStr = null;
+	}
+
+	return { total: totalStr, unitPrice: unitStr };
+}
+
+/**
+ * Pre-tax amount for the synthetic standard line we insert when Xero
+ * doesn't ship any `LineItems[]`. Priority: explicit subtotal > total
+ * minus tax > total. Returned as a decimal string for direct insertion
+ * into the row's `total` column. Null only when nothing computable.
+ *
+ * @param {string | null | undefined} subtotal
+ * @param {string | null | undefined} total
+ * @param {string | null | undefined} tax
+ * @returns {string | null}
+ */
+function _resolveFallbackSubtotal(subtotal, total, tax) {
+	if (subtotal != null && subtotal !== '') return subtotal;
+	const totalNum = Number(total);
+	if (!Number.isFinite(totalNum)) return null;
+	const taxNum = Number(tax);
+	if (Number.isFinite(taxNum) && taxNum > 0) {
+		return String(+(totalNum - taxNum).toFixed(2));
+	}
+	return String(totalNum);
+}
+
+/**
+ * Build the description for the synthetic standard line. Joins whatever
+ * descriptive bits we have from the Xero header — typically the contact
+ * name plus `Reference` — so the post-sync classifier has more signal
+ * than just a merchant name. Falls back to a literal "Document" when
+ * nothing else is available, so the row can still be classified.
+ *
+ * @param {...(string | null | undefined)} parts
+ * @returns {string}
+ */
+function _buildFallbackDescription(...parts) {
+	const cleaned = parts
+		.map((p) => (p == null ? '' : String(p).trim()))
+		.filter((s) => s.length > 0);
+	return cleaned.length > 0 ? cleaned.join(' — ') : 'Document';
 }
 
 /**

@@ -42,6 +42,25 @@ export async function load({ url, locals }) {
 	const wsFilterR = locals.workspaceId ? [eq(schema.receipt.workspaceId, locals.workspaceId)] : [];
 	const wsFilterS = locals.workspaceId ? [eq(schema.sale.workspaceId,    locals.workspaceId)] : [];
 
+	// AutoFix state for the active workspace — surfaced as a button +
+	// status pill in the UI. Falls back to `idle` when there's no
+	// workspace context or no stored state yet.
+	let autofixState = { status: /** @type {'idle' | 'running'} */ ('idle') };
+	let autofixWorkspaceId = locals.workspaceId ?? null;
+	if (locals.workspaceId) {
+		const [ws] = await db.select({ autofixState: schema.workspace.autofixState })
+			.from(schema.workspace)
+			.where(eq(schema.workspace.id, locals.workspaceId));
+		if (ws?.autofixState) {
+			try {
+				const parsed = JSON.parse(ws.autofixState);
+				if (parsed && (parsed.status === 'idle' || parsed.status === 'running')) {
+					autofixState = parsed;
+				}
+			} catch { /* leave default */ }
+		}
+	}
+
 	const receipts = await db.select()
 		.from(schema.receipt)
 		.where(and(eq(schema.receipt.userId, locals.user.id), ...wsFilterR))
@@ -158,6 +177,10 @@ export async function load({ url, locals }) {
 			sizeOptions: PAGE_SIZE_OPTIONS,
 			start:       total === 0 ? 0 : start + 1,
 			end:         start + rows.length
+		},
+		autofix: {
+			workspaceId: autofixWorkspaceId,
+			state:       autofixState
 		}
 	};
 }

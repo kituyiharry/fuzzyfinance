@@ -32,11 +32,13 @@
 		"MICROSOFT_CLIENT_ID": "",
 		"MICROSOFT_CLIENT_SECRET": ""
 	},
-	// Cron Trigger — daily R2 cleanup at 03:00 UTC
-	// Deletes R2 objects for synced docs (7d TTL) and abandoned uploads (30d TTL)
+	// Cron Triggers — routed in worker-entry.js by `controller.cron`.
+	//   "0 3 * * *"      — daily R2 cleanup (synced 7d TTL + abandoned 30d TTL)
+	//   "0 0,12 * * *"   — AutoFix classifier (00:00 + 12:00 UTC, every 12h)
 	"triggers": {
 		"crons": [
-			"0 3 * * *"
+			"0 3 * * *",
+			"0 0,12 * * *"
 		]
 	},
 	// Cloudflare D1 — primary database
