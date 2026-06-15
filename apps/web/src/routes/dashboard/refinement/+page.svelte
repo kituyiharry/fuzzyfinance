@@ -6,53 +6,216 @@
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
 
-	// ── AutoFix state (read-only) ─────────────────────────────────────
-	// AutoFix runs as a Cloudflare cron every 12 hours (see
-	// `lib/server/autofix-cron.js`). The UI no longer has a button to
-	// trigger it — we just surface the workspace's most recent run state
-	// so the user can see when categorisation last advanced and whether
-	// it failed. A poll loop keeps the pill live when a cron-scheduled
-	// run is currently in flight.
-	/** @type {{ status: 'idle' | 'running', runId?: string, source?: string, startedAt?: string, completedAt?: string, summary?: { uniqueDescriptions?: number, linesUpdated?: number, headersUpdated?: number, skipped?: number }, error?: string, progress?: { phase: string, workspaceIndex?: number, workspaceCount?: number, uniqueDescriptions?: number, geminiPending?: number, dirtyReceipts?: number, dirtySales?: number, linesUpdated?: number, updatedAt: string } }} */
-	let autofix = $state(data.autofix?.state ?? { status: 'idle' });
-	let pollAbort = /** @type {AbortController | null} */ (null);
-
-	/** Poll the GET endpoint every 10s while running. Stops on idle or unmount. */
-	async function pollUntilIdle() {
-		if (!data.autofix?.workspaceId) return;
-		pollAbort?.abort();
-		pollAbort = new AbortController();
-		const signal = pollAbort.signal;
-		while (autofix.status === 'running' && !signal.aborted) {
-			await new Promise((r) => setTimeout(r, 10000));
-			if (signal.aborted) return;
-			try {
-				const res = await fetch(`/api/workspaces/${data.autofix.workspaceId}/autofix`, { signal });
-				if (!res.ok) break;
-				autofix = await res.json();
-			} catch {
-				break;
-			}
-		}
-		if (autofix.status === 'idle') await invalidateAll();
-	}
-
 	$effect(() => {
-		// Kick off polling on mount if the server-loaded state is already running.
-		if (autofix.status === 'running') pollUntilIdle();
-		return () => pollAbort?.abort();
+		// Navigating away cancels any in-flight page-autofill loop.
+		return () => pageAutofillAbort?.abort();
 	});
 
-	/** @param {string | undefined} iso */
-	function fmtRelative(iso) {
-		if (!iso) return '';
-		const ms = Date.now() - new Date(iso).getTime();
-		const s = Math.max(0, Math.round(ms / 1000));
-		if (s < 60) return `${s}s ago`;
-		const m = Math.round(s / 60);
-		if (m < 60) return `${m}m ago`;
-		const h = Math.round(m / 60);
-		return `${h}h ago`;
+	// ── Page-based autofill loop ──────────────────────────────────────────
+	// Runs the same waterfall the editor's Autofill button uses, but driven
+	// from outside per row. Visible on the Needs Review tab only. Iterates
+	// the currently-visible rows that need attention, throttled with a
+	// PAGE_AUTOFILL_DELAY_MS gap between rows so we don't spam the suggest
+	// endpoint, and bails on navigation (the $effect above aborts the
+	// AbortController on unmount).
+	const PAGE_AUTOFILL_DELAY_MS = 700;
+
+	/** @typedef {{ id: string, error: string }} PageAutofillFailure */
+	let pageAutofill = $state({
+		active:        false,
+		current:       0,
+		total:         0,
+		successCount:  0,
+		skipCount:     0,
+		failureCount:  0,
+		currentTitle:  '',
+		/** @type {PageAutofillFailure[]} */
+		failures:      []
+	});
+	let pageAutofillAbort = /** @type {AbortController | null} */ (null);
+
+	async function startPageAutofill() {
+		if (pageAutofill.active) return;
+		if (!data.autofix?.workspaceId) {
+			pageAutofill = { ...pageAutofill, failures: [{ id: '', error: 'No workspace context.' }] };
+			return;
+		}
+		const targets = pageAutofillCandidates.slice();
+		if (targets.length === 0) return;
+
+		pageAutofillAbort?.abort();
+		pageAutofillAbort = new AbortController();
+		const signal = pageAutofillAbort.signal;
+		pageAutofill = {
+			active:        true,
+			current:       0,
+			total:         targets.length,
+			successCount:  0,
+			skipCount:     0,
+			failureCount:  0,
+			currentTitle:  '',
+			failures:      []
+		};
+
+		try {
+			for (let i = 0; i < targets.length; i++) {
+				if (signal.aborted) break;
+				const row = targets[i];
+				pageAutofill.current = i + 1;
+				pageAutofill.currentTitle = row.documentTitle;
+
+				try {
+					const outcome = await autofillOneRow(row, signal);
+					if (outcome === 'noop') pageAutofill.skipCount++;
+					else                    pageAutofill.successCount++;
+				} catch (/** @type {any} */ err) {
+					if (signal.aborted) break;
+					pageAutofill.failureCount++;
+					pageAutofill.failures = [...pageAutofill.failures, { id: row.id, error: String(err?.message ?? err) }];
+				}
+
+				if (i < targets.length - 1 && !signal.aborted) {
+					await new Promise((r) => setTimeout(r, PAGE_AUTOFILL_DELAY_MS));
+				}
+			}
+		} finally {
+			pageAutofill.active = false;
+			if (!signal.aborted) await invalidateAll();
+		}
+	}
+
+	function stopPageAutofill() {
+		pageAutofillAbort?.abort();
+	}
+
+	/**
+	 * Pulls the row's line items, asks the suggest endpoint, applies
+	 * returned (primary, secondary) tuples, derives the header category
+	 * from the mode of primaries if blank, then PATCHes + PUTs.
+	 *
+	 * Returns `'noop'` when there's nothing to fill (already complete).
+	 *
+	 * @param {{ kind: 'receipt' | 'sale', id: string, documentTitle: string }} row
+	 * @param {AbortSignal} signal
+	 * @returns {Promise<'updated' | 'noop'>}
+	 */
+	async function autofillOneRow(row, signal) {
+		const workspaceId = data.autofix?.workspaceId;
+		if (!workspaceId) throw new Error('No workspace context');
+		const kindPath = row.kind === 'receipt' ? 'receipts' : 'sales';
+
+		// 1. Fetch row + line items.
+		const getRes = await fetch(`/api/${kindPath}/${row.id}`, { signal });
+		if (!getRes.ok) throw new Error(`Load failed (${getRes.status})`);
+		const doc = await getRes.json();
+		/** @type {Array<{ id: string, description: string|null, qty?: string|null, unitPrice?: string|null, unitsSold?: string|null, sellPrice?: string|null, total: string|null, primaryCategory: string|null, secondaryCategory: string|null, kind: 'standard'|'tax', aiSuggested?: boolean }>} */
+		const lineItems = Array.isArray(doc.lineItems) ? doc.lineItems : [];
+
+		const targets = lineItems
+			.filter((li) => li.kind === 'standard' && (!li.primaryCategory || !li.secondaryCategory));
+
+		// Already complete — both lines and header settled.
+		if (targets.length === 0 && doc.category) return 'noop';
+
+		// 2. Ask the suggest endpoint (only if there are uncategorised lines).
+		/** @type {Array<{ primary: string, secondary: string } | null>} */
+		let suggestions = [];
+		if (targets.length > 0) {
+			const merchant = row.kind === 'receipt' ? doc.merchantName : doc.documentTitle;
+			const suggestRes = await fetch(`/api/workspaces/${workspaceId}/embeddings/suggest`, {
+				method:  'POST',
+				headers: { 'content-type': 'application/json' },
+				body:    JSON.stringify({ merchant, lines: targets.map((t) => ({ description: t.description })) }),
+				signal
+			});
+			if (!suggestRes.ok) throw new Error(`Suggest failed (${suggestRes.status})`);
+			const body = await suggestRes.json();
+			suggestions = Array.isArray(body?.suggestions) ? body.suggestions : [];
+		}
+
+		// 3. Apply suggestions.
+		// Same overwrite rule as the editor's Autofill button:
+		//   - primary missing  → take the whole tuple, overwriting any
+		//     orphaned secondary (it lacked a primary, so it's suspect).
+		//   - primary set      → only fill in missing secondary; never
+		//     stomp on the user-set primary.
+		const updatedLines = lineItems.map((li) => ({ ...li }));
+		let lineFills = 0;
+		for (let i = 0; i < targets.length; i++) {
+			const s = suggestions[i];
+			if (!s) continue;
+			const idx = updatedLines.findIndex((li) => li.id === targets[i].id);
+			if (idx === -1) continue;
+			if (!updatedLines[idx].primaryCategory) {
+				updatedLines[idx].primaryCategory   = s.primary;
+				updatedLines[idx].secondaryCategory = s.secondary;
+			} else if (!updatedLines[idx].secondaryCategory) {
+				updatedLines[idx].secondaryCategory = s.secondary;
+			}
+			updatedLines[idx].aiSuggested = true;
+			lineFills++;
+		}
+
+		// 4. Derive header category if blank.
+		const derivedHeader = doc.category ? null : _modePrimaryFromArray(updatedLines);
+
+		// 5. Nothing actually changed — nothing to write.
+		if (lineFills === 0 && !derivedHeader) return 'noop';
+
+		// 6. PATCH header if we got a new value for it.
+		if (derivedHeader) {
+			const patchRes = await fetch(`/api/${kindPath}/${row.id}`, {
+				method:  'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body:    JSON.stringify({ category: derivedHeader }),
+				signal
+			});
+			if (!patchRes.ok) throw new Error(`Header save failed (${patchRes.status})`);
+		}
+
+		// 7. PUT line items if any were filled.
+		if (lineFills > 0) {
+			const payload = row.kind === 'receipt'
+				? updatedLines.map((li) => ({
+					id: li.id, description: li.description, qty: li.qty, unitPrice: li.unitPrice,
+					total: li.total, primaryCategory: li.primaryCategory, secondaryCategory: li.secondaryCategory,
+					kind: li.kind, aiSuggested: li.aiSuggested
+				}))
+				: updatedLines.map((li) => ({
+					id: li.id, description: li.description, unitsSold: li.unitsSold, sellPrice: li.sellPrice,
+					total: li.total, primaryCategory: li.primaryCategory, secondaryCategory: li.secondaryCategory,
+					kind: li.kind, aiSuggested: li.aiSuggested
+				}));
+			const putRes = await fetch(`/api/${kindPath}/${row.id}/line-items`, {
+				method:  'PUT',
+				headers: { 'content-type': 'application/json' },
+				body:    JSON.stringify({ lineItems: payload }),
+				signal
+			});
+			if (!putRes.ok) {
+				const body = await putRes.json().catch(() => null);
+				throw new Error(body?.message ?? `Line save failed (${putRes.status})`);
+			}
+		}
+
+		return 'updated';
+	}
+
+	/** @param {Array<{ kind: 'standard'|'tax', primaryCategory: string|null }>} ls */
+	function _modePrimaryFromArray(ls) {
+		/** @type {Map<string, number>} */
+		const counts = new Map();
+		for (const li of ls) {
+			if (li.kind !== 'standard') continue;
+			const p = li.primaryCategory;
+			if (!p) continue;
+			counts.set(p, (counts.get(p) ?? 0) + 1);
+		}
+		if (counts.size === 0) return null;
+		let winner = '';
+		let best = 0;
+		for (const [p, n] of counts) if (n > best) { best = n; winner = p; }
+		return winner || null;
 	}
 
 	const FILTERS = /** @type {const} */ ([
@@ -119,6 +282,9 @@
 			return 0;
 		});
 	});
+
+	// Derived after `visibleRows` so the use-before-declaration order is right.
+	const pageAutofillCandidates = $derived(visibleRows.filter((r) => r.needsAttention));
 
 	/** Build a URL preserving the other current query params. */
 	/** @param {Partial<{ filter: string, page: number, size: number }>} patch */
@@ -188,51 +354,77 @@
 		<div class="flex gap-2 mb-3 flex-wrap items-center">
 			{#each FILTERS as opt (opt.id)}
 				{@const count = data.counts[opt.countKey]}
+				{@const active = data.filter === opt.id}
 				<button
 					onclick={() => setFilter(opt.id)}
-					class="px-3 py-1.5 border-2 font-mono text-[10px] font-black uppercase tracking-widest transition-colors
-						{data.filter === opt.id ? 'border-(--color-fg) bg-(--color-fg) text-(--color-bg)' : 'border-(--color-border) text-(--color-muted-foreground) hover:border-(--color-fg)'}"
-				>{opt.label} ({count})</button>
+					aria-pressed={active}
+					class="px-3 py-1.5 border-2 font-mono text-[10px] font-black uppercase tracking-widest transition-all
+						{active
+							? 'border-(--color-fg) bg-(--color-fg) text-(--color-bg) shadow-[2px_2px_0_0_var(--color-fg)] translate-x-[-1px] translate-y-[-1px]'
+							: 'border-(--color-border) text-(--color-muted-foreground) hover:border-(--color-fg) hover:text-(--color-fg)'}"
+				>{#if active}● {/if}{opt.label} ({count})</button>
 			{/each}
+
+			{#if data.filter === 'attention'}
+				<div class="ml-auto flex items-center gap-2">
+					{#if pageAutofill.active}
+						<button
+							onclick={stopPageAutofill}
+							class="px-3 py-1.5 border-2 border-(--color-danger) font-mono text-[10px] font-black uppercase tracking-widest text-(--color-danger) hover:bg-(--color-danger) hover:text-(--color-bg) transition-colors"
+						>STOP</button>
+					{:else}
+						<button
+							onclick={startPageAutofill}
+							disabled={pageAutofillCandidates.length === 0 || !data.autofix?.workspaceId}
+							class="px-3 py-1.5 border-2 font-mono text-[10px] font-black uppercase tracking-widest transition-colors
+								{pageAutofillCandidates.length === 0
+									? 'border-(--color-border) text-(--color-muted-foreground) cursor-not-allowed'
+									: 'border-(--color-fg) bg-(--color-fg) text-(--color-bg) hover:bg-(--color-bg) hover:text-(--color-fg)'}"
+						>✨ AUTOFILL PAGE ({pageAutofillCandidates.length})</button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
-		<!-- AutoFix status pill (auto-runs every 12h via cron — read-only here) -->
-		{#if autofix.status === 'running'}
-			<div class="font-mono text-[10px] text-(--color-muted-foreground) uppercase tracking-widest mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-				<span>AutoFix running ({autofix.source ?? 'manual'}) — for {fmtRelative(autofix.startedAt)}.</span>
-				{#if autofix.progress}
-					<span class="text-(--color-fg)">Phase: <strong>{autofix.progress.phase}</strong></span>
-					{#if autofix.progress.uniqueDescriptions != null}
-						<span>{autofix.progress.uniqueDescriptions} unique desc</span>
+		<!-- Page-autofill progress -->
+		{#if pageAutofill.active || pageAutofill.failures.length > 0 || pageAutofill.successCount > 0}
+			{@const pct = pageAutofill.total === 0 ? 0 : Math.min(100, Math.round((pageAutofill.current / pageAutofill.total) * 100))}
+			<div class="mb-3 flex flex-col gap-1.5">
+				<!-- Bar -->
+				<div class="h-1.5 w-full border border-(--color-border) bg-(--color-bg) overflow-hidden">
+					<div
+						class="h-full transition-[width] duration-300
+							{pageAutofill.failureCount > 0 && !pageAutofill.active ? 'bg-(--color-warning)' : 'bg-(--color-fg)'}"
+						style="width: {pct}%"
+					></div>
+				</div>
+
+				<!-- Status text -->
+				<div class="font-mono text-[10px] uppercase tracking-widest flex flex-wrap items-center gap-x-2 gap-y-1
+					{pageAutofill.failures.length > 0 ? 'text-(--color-warning)' : 'text-(--color-muted-foreground)'}">
+					{#if pageAutofill.active}
+						<span class="text-(--color-fg) font-black">{pct}%</span>
+						<span>row {pageAutofill.current}/{pageAutofill.total}</span>
+						{#if pageAutofill.currentTitle}<span class="truncate max-w-xs">· {pageAutofill.currentTitle}</span>{/if}
+						<span>· {pageAutofill.successCount} updated, {pageAutofill.skipCount} skipped, {pageAutofill.failureCount} failed</span>
+					{:else}
+						<span class="text-(--color-fg) font-black">Done.</span>
+						<span>{pageAutofill.successCount} updated · {pageAutofill.skipCount} skipped · {pageAutofill.failureCount} failed</span>
 					{/if}
-					{#if autofix.progress.geminiPending != null}
-						<span>{autofix.progress.geminiPending} via Gemini</span>
+					{#if pageAutofill.failures.length > 0}
+						<details class="ml-auto">
+							<summary class="cursor-pointer text-(--color-warning)">{pageAutofill.failures.length} error(s)</summary>
+							<ul class="text-(--color-warning) mt-2 ml-4 list-disc">
+								{#each pageAutofill.failures.slice(0, 10) as f, i (i)}
+									<li><code>{f.id.slice(0, 8)}</code>: {f.error}</li>
+								{/each}
+								{#if pageAutofill.failures.length > 10}
+									<li class="text-(--color-muted-foreground)">… +{pageAutofill.failures.length - 10} more</li>
+								{/if}
+							</ul>
+						</details>
 					{/if}
-					{#if autofix.progress.linesUpdated != null}
-						<span>{autofix.progress.linesUpdated} lines updated</span>
-					{/if}
-				{/if}
-				{#if autofix.runId}
-					<span class="text-(--color-muted-foreground) ml-auto">runId: <code>{autofix.runId.slice(0, 8)}</code></span>
-				{/if}
-			</div>
-		{:else if autofix.error}
-			<div class="font-mono text-[10px] text-(--color-danger) uppercase tracking-widest mb-3 flex flex-wrap items-center gap-x-2">
-				<span>Last AutoFix failed: {autofix.error}</span>
-				{#if autofix.runId}
-					<span class="ml-auto">runId: <code>{autofix.runId.slice(0, 8)}</code></span>
-				{/if}
-			</div>
-		{:else if autofix.summary && autofix.completedAt}
-			<div class="font-mono text-[10px] text-(--color-muted-foreground) uppercase tracking-widest mb-3 flex flex-wrap items-center gap-x-2">
-				<span>Last AutoFix ({autofix.source ?? 'manual'}): {fmtRelative(autofix.completedAt)} — {autofix.summary?.linesUpdated ?? 0} line(s) updated from {autofix.summary?.uniqueDescriptions ?? 0} unique description(s), {autofix.summary?.headersUpdated ?? 0} header(s) derived. Next cron run: every 12h.</span>
-				{#if autofix.runId}
-					<span class="ml-auto">runId: <code>{autofix.runId.slice(0, 8)}</code></span>
-				{/if}
-			</div>
-		{:else}
-			<div class="font-mono text-[10px] text-(--color-muted-foreground) uppercase tracking-widest mb-3">
-				AutoFix runs automatically every 12 hours via the Cloudflare cron.
+				</div>
 			</div>
 		{/if}
 
@@ -273,28 +465,28 @@
 					<thead class="border-b-2 border-(--color-border) text-(--color-muted-foreground) uppercase tracking-widest select-none">
 						<tr>
 							<th class="text-left py-2 pr-3">
-								<button onclick={() => toggleSort('kind')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Type{sortArrow('kind')}</button>
+								<button onclick={() => toggleSort('kind')} aria-pressed={sortKey === 'kind'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'kind' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Type{sortArrow('kind')}</button>
 							</th>
 							<th class="text-left py-2 pr-1">
-								<button onclick={() => toggleSort('date')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Date{sortArrow('date')}</button>
+								<button onclick={() => toggleSort('date')} aria-pressed={sortKey === 'date'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'date' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Date{sortArrow('date')}</button>
 							</th>
 							<th class="text-left py-2 pr-3">
-								<button onclick={() => toggleSort('documentTitle')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Document{sortArrow('documentTitle')}</button>
+								<button onclick={() => toggleSort('documentTitle')} aria-pressed={sortKey === 'documentTitle'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'documentTitle' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Document{sortArrow('documentTitle')}</button>
 							</th>
 							<th class="text-left py-2 pr-3">
-								<button onclick={() => toggleSort('externalSource')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Source{sortArrow('externalSource')}</button>
+								<button onclick={() => toggleSort('externalSource')} aria-pressed={sortKey === 'externalSource'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'externalSource' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Source{sortArrow('externalSource')}</button>
 							</th>
 							<th class="text-right py-2 pr-3">
-								<button onclick={() => toggleSort('total')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Total{sortArrow('total')}</button>
+								<button onclick={() => toggleSort('total')} aria-pressed={sortKey === 'total'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'total' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Total{sortArrow('total')}</button>
 							</th>
 							<th class="text-right py-2 pr-3">
-								<button onclick={() => toggleSort('tax')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Tax{sortArrow('tax')}</button>
+								<button onclick={() => toggleSort('tax')} aria-pressed={sortKey === 'tax'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'tax' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Tax{sortArrow('tax')}</button>
 							</th>
 							<!--<th class="text-left py-2 pr-3">-->
 								<!--<button onclick={() => toggleSort('category')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Category{sortArrow('category')}</button>-->
 							<!--</th>-->
 							<th class="text-left py-2 pr-2">
-								<button onclick={() => toggleSort('categorised')} class="font-black uppercase tracking-widest hover:text-(--color-fg)">Lines{sortArrow('categorised')}</button>
+								<button onclick={() => toggleSort('categorised')} aria-pressed={sortKey === 'categorised'} class="font-black uppercase tracking-widest transition-colors {sortKey === 'categorised' ? 'text-(--color-fg) underline underline-offset-[3px] decoration-2' : 'hover:text-(--color-fg)'}">Lines{sortArrow('categorised')}</button>
 							</th>
 						</tr>
 					</thead>

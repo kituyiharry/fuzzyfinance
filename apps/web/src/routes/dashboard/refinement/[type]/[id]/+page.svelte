@@ -112,6 +112,31 @@
 		} finally { saving = false; }
 	}
 
+	/**
+	 * Mode of `primaryCategory` across `kind='standard'` line items —
+	 * used to derive the document-level header category from its lines
+	 * when the user hits Autofill and the header is still blank.
+	 * Returns null if nothing's countable.
+	 *
+	 * @param {Array<{ kind: 'standard'|'tax', primaryCategory: string|null }>} ls
+	 * @returns {string | null}
+	 */
+	function _modePrimary(ls) {
+		/** @type {Map<string, number>} */
+		const counts = new Map();
+		for (const li of ls) {
+			if (li.kind !== 'standard') continue;
+			const p = li.primaryCategory;
+			if (!p) continue;
+			counts.set(p, (counts.get(p) ?? 0) + 1);
+		}
+		if (counts.size === 0) return null;
+		let winner = '';
+		let best = 0;
+		for (const [p, n] of counts) if (n > best) { best = n; winner = p; }
+		return winner || null;
+	}
+
 	// ── autofill (embedding-based suggestions) ──────────────────────────
 	let autofilling    = $state(false);
 	let autofillNote   = $state('');
@@ -158,17 +183,44 @@
 				const s = suggestions[i];
 				if (!s) continue;
 				const li = lines[targets[i].idx];
-				if (!li.primaryCategory)   li.primaryCategory   = s.primary;
-				if (!li.secondaryCategory) li.secondaryCategory = s.secondary;
+				// Apply rule:
+				//   - primary missing  → take the whole tuple, OVERWRITE secondary
+				//     too (it was orphaned without a primary, so it's probably
+				//     not a valid pairing).
+				//   - primary set      → only fill missing secondary; never
+				//     stomp on the primary the user chose.
+				if (!li.primaryCategory) {
+					li.primaryCategory   = s.primary;
+					li.secondaryCategory = s.secondary;
+				} else if (!li.secondaryCategory) {
+					li.secondaryCategory = s.secondary;
+				}
 				li.aiSuggested = true;
 				if (s.source === 'gemini') filledGem++; else filledEmb++;
 			}
 			const filled = filledEmb + filledGem;
+
+			// Roll the most common standard line primary up to the document
+			// header when the header is still blank. Save flow already
+			// PATCHes `category` from this state, so just setting it here
+			// is enough — user can override before clicking Save.
+			let headerDerived = false;
+			if (!category.trim()) {
+				const derived = _modePrimary(lines);
+				if (derived) {
+					category = derived;
+					headerDerived = true;
+				}
+			}
+
 			if (filled > 0) {
 				const parts = [];
 				if (filledEmb > 0) parts.push(`${filledEmb} via embeddings`);
 				if (filledGem > 0) parts.push(`${filledGem} via Gemini`);
+				if (headerDerived) parts.push(`header set to "${category}"`);
 				autofillNote = `Suggested ${filled} of ${targets.length} line(s) (${parts.join(', ')}). Confirm or edit, then save.`;
+			} else if (headerDerived) {
+				autofillNote = `No new line suggestions, but header set to "${category}" from existing line categories. Confirm or edit, then save.`;
 			} else {
 				autofillNote = `No confident match for ${targets.length} line(s). Set GEMINI_API_KEY in Worker secrets or fill manually — saves train the embeddings index for next time.`;
 			}

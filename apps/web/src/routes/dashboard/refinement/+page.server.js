@@ -100,10 +100,17 @@ export async function load({ url, locals }) {
 		sLineByParent.set(li.saleId, arr);
 	}
 
-	/** @param {Array<{kind:string,primaryCategory:string|null}>} mine */
+	/**
+	 * `categorised` now counts standard lines that have BOTH primary AND
+	 * secondary — partial categorisation (only primary) still shows up in
+	 * Needs Review. Tax lines are excluded from the denominator because
+	 * their categorisation is locked to the upstream Xero data.
+	 *
+	 * @param {Array<{kind:string,primaryCategory:string|null,secondaryCategory:string|null}>} mine
+	 */
 	function annotate(mine) {
 		const standardCount = mine.filter((l) => l.kind === 'standard').length;
-		const categorised   = mine.filter((l) => l.primaryCategory).length;
+		const categorised   = mine.filter((l) => l.kind === 'standard' && l.primaryCategory && l.secondaryCategory).length;
 		return { lineCount: mine.length, standardCount, categorised };
 	}
 
@@ -120,7 +127,11 @@ export async function load({ url, locals }) {
 			externalSource: r.externalSource,
 			tax:            r.tax,
 			...stats,
-			needsAttention: !r.category || stats.standardCount === 0 || stats.categorised < stats.standardCount
+			// "Needs Review" = header missing a category, OR any standard line
+			// item missing primary or secondary. The "no line items at all"
+			// branch was dropped — that's a sync/data-quality concern, not
+			// a categorisation one, and it was over-flagging.
+			needsAttention: !r.category || stats.categorised < stats.standardCount
 		};
 	});
 

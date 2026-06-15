@@ -32,14 +32,13 @@
 		"MICROSOFT_CLIENT_ID": "",
 		"MICROSOFT_CLIENT_SECRET": ""
 	},
-	// Cron Triggers — routed in worker-entry.js by `controller.cron`.
-	//   "0 3 * * *"      — daily R2 cleanup (synced 7d TTL + abandoned 30d TTL)
-	//   "0 0,12 * * *"   — AutoFix classifier (00:00 + 12:00 UTC, every 12h)
+	// Cron Triggers — intentionally empty. Re-add patterns here when
+	// wiring a new scheduled handler in worker-entry.js. The next
+	// `wrangler deploy` after editing this block replaces the deployed
+	// worker's cron configuration, so removing entries here removes them
+	// from the platform.
 	"triggers": {
-		"crons": [
-			"0 3 * * *",
-			"0 0,12 * * *"
-		]
+		"crons": []
 	},
 	// Cloudflare D1 — primary database
 	// Create with: wrangler d1 create fuzzyfinance-db

@@ -12,10 +12,17 @@ fn normalize(s: &str) -> String {
 // ── Primary Category ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(into = "String", from = "String")]
 pub enum PrimaryCategory {
     #[default]
     #[serde(rename = "Unclassified")]
     Unclassified,
+    /// User-defined category name that isn't part of the built-in
+    /// taxonomy. Carries the normalised original string so analysis
+    /// passes can still group + display it. Distinguished from
+    /// `Unclassified` (which means "nothing was specified at all")
+    /// so we don't conflate user-created tags with missing data.
+    Foreign(String),
     #[serde(rename = "Food & Grocery")]
     FoodAndGrocery,
     #[serde(rename = "Health & Beauty")]
@@ -71,7 +78,13 @@ pub enum PrimaryCategory {
 impl std::str::FromStr for PrimaryCategory {
     type Err = std::convert::Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match normalize(s).as_str() {
+        let normalized = normalize(s);
+        // Truly empty input → Unclassified (the "missing data" signal).
+        if normalized.is_empty() {
+            return Ok(Self::Unclassified);
+        }
+        Ok(match normalized.as_str() {
+            "Unclassified"                    => Self::Unclassified,
             "Food & Grocery"                  => Self::FoodAndGrocery,
             "Health & Beauty"                 => Self::HealthAndBeauty,
             "Baby & Maternity"                => Self::BabyAndMaternity,
@@ -97,18 +110,73 @@ impl std::str::FromStr for PrimaryCategory {
             "Food Service & Commercial"       => Self::FoodServiceAndCommercial,
             "Business Service"                => Self::BusinessService,
             "Utilities"                       => Self::Utilities,
-            _                                 => Self::Unclassified,
+            // Non-empty but unknown → user-defined tag carried through.
+            _                                 => Self::Foreign(normalized),
         })
+    }
+}
+
+impl std::fmt::Display for PrimaryCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Unclassified                   => "Unclassified",
+            Self::Foreign(tag)                   => tag.as_str(),
+            Self::FoodAndGrocery                 => "Food & Grocery",
+            Self::HealthAndBeauty                => "Health & Beauty",
+            Self::BabyAndMaternity               => "Baby & Maternity",
+            Self::Pets                           => "Pets",
+            Self::HomeAndLiving                  => "Home & Living",
+            Self::KitchenAndDining               => "Kitchen & Dining",
+            Self::Appliances                     => "Appliances",
+            Self::ElectronicsAndTechnology       => "Electronics & Technology",
+            Self::SoftwareAndApps                => "Software & Apps",
+            Self::Gaming                         => "Gaming",
+            Self::OutdoorLivingAndGarden         => "Outdoor Living & Garden",
+            Self::ToolsAndHardware               => "Tools & Hardware",
+            Self::FurnitureAndOffice             => "Furniture & Office",
+            Self::ClothingShoesAndAccessories    => "Clothing, Shoes & Accessories",
+            Self::SportsAndFitness               => "Sports & Fitness",
+            Self::ToysGamesAndHobbies            => "Toys, Games & Hobbies",
+            Self::BooksMoviesAndMusic            => "Books, Movies & Music",
+            Self::StationeryAndOfficeSupplies    => "Stationery & Office Supplies",
+            Self::Automotive                     => "Automotive",
+            Self::ElectricalAndSmartHome         => "Electrical & Smart Home",
+            Self::AssistedLivingAndAccessibility => "Assisted Living & Accessibility",
+            Self::PartyCelebrationsAndGifts      => "Party, Celebrations & Gifts",
+            Self::FoodServiceAndCommercial       => "Food Service & Commercial",
+            Self::BusinessService                => "Business Service",
+            Self::Utilities                      => "Utilities",
+        })
+    }
+}
+
+// `From<String>` + `Into<String>` adapters that `#[serde(from / into)]`
+// dispatches to. Keeps the JSON wire format identical (a plain string)
+// while the variant set in Rust gets `Foreign(...)` for arbitrary tags.
+impl From<String> for PrimaryCategory {
+    fn from(s: String) -> Self {
+        s.parse().expect("PrimaryCategory::FromStr is Infallible")
+    }
+}
+impl From<PrimaryCategory> for String {
+    fn from(c: PrimaryCategory) -> Self {
+        c.to_string()
     }
 }
 
 // ── Secondary Category ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(into = "String", from = "String")]
 pub enum SecondaryCategory {
     #[default]
     #[serde(rename = "Unclassified")]
     Unclassified,
+    /// User-defined secondary tag that isn't part of the built-in
+    /// taxonomy. See `PrimaryCategory::Foreign` for the same rationale —
+    /// distinguished from `Unclassified` so analysis can tell missing
+    /// data apart from a user-named bucket.
+    Foreign(String),
 
     // Food & Grocery
     #[serde(rename = "Fresh Produce")]
@@ -632,7 +700,13 @@ pub enum SecondaryCategory {
 impl std::str::FromStr for SecondaryCategory {
     type Err = std::convert::Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match normalize(s).as_str() {
+        let normalized = normalize(s);
+        // Truly empty input → Unclassified ("missing data" signal).
+        if normalized.is_empty() {
+            return Ok(Self::Unclassified);
+        }
+        Ok(match normalized.as_str() {
+            "Unclassified"                     => Self::Unclassified,
             // Food & Grocery
             "Fresh Produce"                    => Self::FreshProduce,
             "Meat & Seafood"                   => Self::MeatAndSeafood,
@@ -905,10 +979,290 @@ impl std::str::FromStr for SecondaryCategory {
             "Gas" => Self::Gas,
             "Electricity and Energy"                 => Self::ElectricityAndEnergy,
             "Water and Sewerage"                     => Self::WaterAndSewerage,
-            "Internet, Telecommunications and Cable" => Self::InternetTelecommunicationsAndCable, 
+            "Internet, Telecommunications and Cable" => Self::InternetTelecommunicationsAndCable,
             "Waste and Recycling"                    => Self::WasteAndRecycling,
-            _                                        => Self::Unclassified,
+            // Non-empty but unknown → user-defined tag carried through.
+            _                                        => Self::Foreign(normalized),
         })
+    }
+}
+
+impl std::fmt::Display for SecondaryCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Unclassified                          => "Unclassified",
+            Self::Foreign(tag)                          => tag.as_str(),
+            // Food & Grocery
+            Self::FreshProduce                          => "Fresh Produce",
+            Self::MeatAndSeafood                        => "Meat & Seafood",
+            Self::DairyAndEggs                          => "Dairy & Eggs",
+            Self::BakeryAndBread                        => "Bakery & Bread",
+            Self::DeliAndCharcuterie                    => "Deli & Charcuterie",
+            Self::PantryAndDryGoods                     => "Pantry & Dry Goods",
+            Self::SnacksAndConfectionery                => "Snacks & Confectionery",
+            Self::BreakfastAndCereal                    => "Breakfast & Cereal",
+            Self::Beverages                             => "Beverages",
+            Self::FrozenFood                            => "Frozen Food",
+            Self::InternationalAndWorldFoods            => "International & World Foods",
+            Self::OrganicAndSpecialtyFoods              => "Organic & Specialty Foods",
+            Self::BabyAndToddlerFood                    => "Baby & Toddler Food",
+            Self::CondimentsSaucesAndSpreads            => "Condiments, Sauces & Spreads",
+            Self::ReadyMealsAndMealKits                 => "Ready Meals & Meal Kits",
+            Self::VegetarianAndVegan                    => "Vegetarian & Vegan",
+            // Health & Beauty
+            Self::VitaminsAndSupplements                => "Vitamins & Supplements",
+            Self::Skincare                              => "Skincare",
+            Self::HairCare                              => "Hair Care",
+            Self::CosmeticsAndMakeup                    => "Cosmetics & Makeup",
+            Self::DentalCare                            => "Dental Care",
+            Self::DeodorantsAndFragrances               => "Deodorants & Fragrances",
+            Self::ShavingAndHairRemoval                 => "Shaving & Hair Removal",
+            Self::ShowerBathAndSoap                     => "Shower, Bath & Soap",
+            Self::SunProtection                         => "Sun Protection",
+            Self::PeriodAndContinenceCare               => "Period & Continence Care",
+            Self::FirstAidAndMedicinal                  => "First Aid & Medicinal",
+            Self::SexualHealthAndFamilyPlanning         => "Sexual Health & Family Planning",
+            Self::TravelAndMinis                        => "Travel & Minis",
+            // Baby & Maternity
+            Self::NappiesAndChanging                    => "Nappies & Changing",
+            Self::BabyFormulaAndFeeding                 => "Baby Formula & Feeding",
+            Self::BabyBathAndSkincare                   => "Baby Bath & Skincare",
+            Self::BabyHealthAndMedicinal                => "Baby Health & Medicinal",
+            Self::BabyClothingAndAccessories            => "Baby Clothing & Accessories",
+            Self::DummiesTeethersAndSoothers            => "Dummies, Teethers & Soothers",
+            Self::PostpartumAndMaternityCare            => "Postpartum & Maternity Care",
+            Self::BabyMonitorsAndSafety                 => "Baby Monitors & Safety",
+            // Pets
+            Self::DogAndPuppy                           => "Dog & Puppy",
+            Self::CatAndKitten                          => "Cat & Kitten",
+            Self::Bird                                  => "Bird",
+            Self::FishAndAquatic                        => "Fish & Aquatic",
+            Self::SmallAnimalsAndReptiles               => "Small Animals & Reptiles",
+            Self::PetAccessoriesAndGrooming             => "Pet Accessories & Grooming",
+            Self::PetHealthAndFleaControl               => "Pet Health & Flea Control",
+            // Home & Living
+            Self::Furniture                             => "Furniture",
+            Self::BeddingAndManchester                  => "Bedding & Manchester",
+            Self::HomeDecorAndAccessories               => "Home Decor & Accessories",
+            Self::Lighting                              => "Lighting",
+            Self::RugsAndFlooring                       => "Rugs & Flooring",
+            Self::StorageAndOrganisation                => "Storage & Organisation",
+            Self::CleaningSuppliesAndEquipment          => "Cleaning Supplies & Equipment",
+            Self::Laundry                               => "Laundry",
+            Self::KitchenwareAndTableware               => "Kitchenware & Tableware",
+            Self::BathroomAccessories                   => "Bathroom Accessories",
+            Self::AirFreshenersAndHomeFragrance         => "Air Fresheners & Home Fragrance",
+            Self::CandlesAndDiffusers                   => "Candles & Diffusers",
+            Self::PestControl                           => "Pest Control",
+            // Kitchen & Dining
+            Self::KitchenAppliances                     => "Kitchen Appliances",
+            Self::CookwareAndBakeware                   => "Cookware & Bakeware",
+            Self::KitchenStorageAndOrganisation         => "Kitchen Storage & Organisation",
+            Self::KnivesAndUtensils                     => "Knives & Utensils",
+            Self::TablewareAndServingware               => "Tableware & Servingware",
+            Self::CoffeeAndTea                          => "Coffee & Tea",
+            Self::BeverageMakers                        => "Beverage Makers",
+            Self::KitchenCleaning                       => "Kitchen Cleaning",
+            // Appliances
+            Self::RefrigeratorsAndFreezers              => "Refrigerators & Freezers",
+            Self::WashingMachinesAndDryers              => "Washing Machines & Dryers",
+            Self::Dishwashers                           => "Dishwashers",
+            Self::VacuumCleanersAndFloorCare            => "Vacuum Cleaners & Floor Care",
+            Self::MicrowavesAndOvens                    => "Microwaves & Ovens",
+            Self::AirConditionersAndFans                => "Air Conditioners & Fans",
+            Self::HeatersAndAirTreatment                => "Heaters & Air Treatment",
+            Self::IronsAndSteamers                      => "Irons & Steamers",
+            Self::PersonalCareAppliances                => "Personal Care Appliances",
+            // Electronics & Technology
+            Self::MobilePhonesAndAccessories            => "Mobile Phones & Accessories",
+            Self::ComputersAndLaptops                   => "Computers & Laptops",
+            Self::TabletsAndEReaders                    => "Tablets & eReaders",
+            Self::TVsAndHomeTheatre                     => "TVs & Home Theatre",
+            Self::AudioHeadphonesAndSpeakers            => "Audio, Headphones & Speakers",
+            Self::CamerasAndPhotography                 => "Cameras & Photography",
+            Self::SmartHome                             => "Smart Home",
+            Self::WearablesAndSmartwatches              => "Wearables & Smartwatches",
+            Self::GamingConsolesAndAccessories          => "Gaming Consoles & Accessories",
+            Self::PCComponentsAndITAccessories          => "PC Components & IT Accessories",
+            Self::BatteriesAndPower                     => "Batteries & Power",
+            Self::DronesAndActionCameras                => "Drones & Action Cameras",
+            Self::NetworkingAndInternet                 => "Networking & Internet",
+            Self::PrintersAndOfficeTech                 => "Printers & Office Tech",
+            // Software & Apps
+            Self::Business                              => "Business",
+            Self::Games                                 => "Games",
+            Self::DeveloperTools                        => "Developer Tools",
+            Self::Education                             => "Education",
+            Self::Entertainment                         => "Entertainment",
+            Self::Finance                               => "Finance",
+            Self::GraphicsAndDesign                     => "Graphics & Design",
+            Self::HealthAndFitness                      => "Health & Fitness",
+            Self::Lifestyle                             => "Lifestyle",
+            Self::Medical                               => "Medical",
+            Self::Music                                 => "Music",
+            Self::PhotoAndVideo                         => "Photo & Video",
+            Self::Productivity                          => "Productivity",
+            Self::SocialNetworking                      => "Social Networking",
+            Self::Sports                                => "Sports",
+            Self::Travel                                => "Travel",
+            Self::UtilitiesAndWeather                   => "Utilities & Weather",
+            // Gaming
+            Self::PlayStation                           => "PlayStation",
+            Self::Xbox                                  => "Xbox",
+            Self::Nintendo                              => "Nintendo",
+            Self::PCGaming                              => "PC Gaming",
+            Self::VirtualRealityAndMixedReality         => "Virtual Reality & Mixed Reality",
+            Self::HandheldAndMobileGaming               => "Handheld & Mobile Gaming",
+            Self::RetroAndArcadeGaming                  => "Retro & Arcade Gaming",
+            Self::GamingAccessoriesAndFurniture         => "Gaming Accessories & Furniture",
+            Self::DigitalGamesAndGiftCards              => "Digital Games & Gift Cards",
+            // Outdoor Living & Garden
+            Self::BBQsAndOutdoorCooking                 => "BBQs & Outdoor Cooking",
+            Self::OutdoorFurnitureAndShade              => "Outdoor Furniture & Shade",
+            Self::GardeningToolsAndEquipment            => "Gardening Tools & Equipment",
+            Self::PlantsSeedsAndLawnCare                => "Plants, Seeds & Lawn Care",
+            Self::GardenDecorAndStructures              => "Garden Decor & Structures",
+            Self::OutdoorHeatingAndCooling              => "Outdoor Heating & Cooling",
+            Self::IrrigationAndWaterConservation        => "Irrigation & Water Conservation",
+            Self::PestControlOutdoor                    => "Pest Control (Outdoor)",
+            Self::CampingAndRecreation                  => "Camping & Recreation",
+            Self::SwimmingPoolsSpasAndSaunas            => "Swimming Pools, Spas & Saunas",
+            Self::ShedsAndStorage                       => "Sheds & Storage",
+            // Tools & Hardware
+            Self::PowerTools                            => "Power Tools",
+            Self::HandTools                             => "Hand Tools",
+            Self::ToolStorageAndAccessories             => "Tool Storage & Accessories",
+            Self::SafetyEquipmentAndWorkwear            => "Safety Equipment & Workwear",
+            Self::BuildingAndConstructionMaterials      => "Building & Construction Materials",
+            Self::ElectricalAndWiring                   => "Electrical & Wiring",
+            Self::PlumbingAndBathroomFittings           => "Plumbing & Bathroom Fittings",
+            Self::FlooringAndTiling                     => "Flooring & Tiling",
+            Self::PaintWoodcareAndWallpaper             => "Paint, Woodcare & Wallpaper",
+            Self::FencingAndGates                       => "Fencing & Gates",
+            Self::RoofingAndInsulation                  => "Roofing & Insulation",
+            Self::WeldingAndSoldering                   => "Welding & Soldering",
+            Self::HeavyLiftingEquipment                 => "Heavy Lifting Equipment",
+            // Furniture & Office
+            Self::OfficeChairsAndDesks                  => "Office Chairs & Desks",
+            Self::HomeOfficeFurniture                   => "Home Office Furniture",
+            Self::LivingRoomFurniture                   => "Living Room Furniture",
+            Self::BedroomFurniture                      => "Bedroom Furniture",
+            Self::DiningFurniture                       => "Dining Furniture",
+            Self::KidsFurniture                         => "Kids Furniture",
+            Self::BookshelvesAndStorageUnits            => "Bookshelves & Storage Units",
+            Self::OutdoorFurniture                      => "Outdoor Furniture",
+            // Clothing, Shoes & Accessories
+            Self::WomensClothing                        => "Women's Clothing",
+            Self::MensClothing                          => "Men's Clothing",
+            Self::KidsClothing                          => "Kids' Clothing",
+            Self::BabyClothing                          => "Baby Clothing",
+            Self::Footwear                              => "Footwear",
+            Self::UnderwearAndSocks                     => "Underwear & Socks",
+            Self::JewelleryAndWatches                   => "Jewellery & Watches",
+            Self::BagsAndLuggage                        => "Bags & Luggage",
+            Self::AccessoriesAndHats                    => "Accessories & Hats",
+            // Sports & Fitness
+            Self::FitnessEquipment                      => "Fitness Equipment",
+            Self::Cycling                               => "Cycling",
+            Self::Golf                                  => "Golf",
+            Self::RunningAndYoga                        => "Running & Yoga",
+            Self::OutdoorAndAdventureSports             => "Outdoor & Adventure Sports",
+            Self::TeamSports                            => "Team Sports",
+            Self::WaterSports                           => "Water Sports",
+            Self::CampingAndHiking                      => "Camping & Hiking",
+            Self::WearablesAndFitnessTrackers           => "Wearables & Fitness Trackers",
+            // Toys, Games & Hobbies
+            Self::ActionFiguresAndCollectibles          => "Action Figures & Collectibles",
+            Self::BoardGamesAndPuzzles                  => "Board Games & Puzzles",
+            Self::BuildingAndConstructionToys           => "Building & Construction Toys",
+            Self::RemoteControlAndDrones                => "Remote Control & Drones",
+            Self::OutdoorPlayEquipment                  => "Outdoor Play Equipment",
+            Self::EducationalToys                       => "Educational Toys",
+            Self::ArtsAndCrafts                         => "Arts & Crafts",
+            Self::ModelKitsAndTrains                    => "Model Kits & Trains",
+            Self::TradingCardGames                      => "Trading Card Games",
+            Self::PlushAndStuffedToys                   => "Plush & Stuffed Toys",
+            // Books, Movies & Music
+            Self::Books                                 => "Books",
+            Self::DVDsAndBluRay                         => "DVDs & Blu-ray",
+            Self::VinylAndMusic                         => "Vinyl & Music",
+            Self::DigitalMediaAndStreaming              => "Digital Media & Streaming",
+            Self::MusicCollectiblesAndMerchandise       => "Music Collectibles & Merchandise",
+            // Stationery & Office Supplies
+            Self::PensPencilsAndMarkers                 => "Pens, Pencils & Markers",
+            Self::NotebooksJournalsAndPlanners          => "Notebooks, Journals & Planners",
+            Self::FilingAndOrganisation                 => "Filing & Organisation",
+            Self::LabelsAndStickers                     => "Labels & Stickers",
+            Self::StickyNotesAndAccessories             => "Sticky Notes & Accessories",
+            Self::CorrectionProducts                    => "Correction Products",
+            // Automotive
+            Self::CarPartsAndAccessories                => "Car Parts & Accessories",
+            Self::CarCareAndCleaning                    => "Car Care & Cleaning",
+            Self::MotorcyclesAndParts                   => "Motorcycles & Parts",
+            Self::BoatsAndMarine                        => "Boats & Marine",
+            Self::CarElectronicsAndDashCams             => "Car Electronics & Dash Cams",
+            Self::TyresAndWheels                        => "Tyres & Wheels",
+            // Electrical & Smart Home
+            Self::SmartLightingAndPower                 => "Smart Lighting & Power",
+            Self::SmartSecurityAndDoorbells             => "Smart Security & Doorbells",
+            Self::SmartSpeakersAndDisplays              => "Smart Speakers & Displays",
+            Self::HomeAutomation                        => "Home Automation",
+            Self::SolarAndEVCharging                    => "Solar & EV Charging",
+            Self::ElectricalAccessoriesAndWiring        => "Electrical Accessories & Wiring",
+            // Assisted Living & Accessibility
+            Self::MobilityAids                          => "Mobility Aids",
+            Self::BathroomSafety                        => "Bathroom Safety",
+            Self::DailyLivingAids                       => "Daily Living Aids",
+            Self::HomeSafetyAndModifications            => "Home Safety & Modifications",
+            Self::BedroomSupport                        => "Bedroom Support",
+            Self::HealthAndWellnessAids                 => "Health & Wellness Aids",
+            // Party, Celebrations & Gifts
+            Self::PartySuppliesAndDecorations           => "Party Supplies & Decorations",
+            Self::GiftWrapAndCards                      => "Gift Wrap & Cards",
+            Self::SeasonalAndHolidayDecor               => "Seasonal & Holiday Decor",
+            Self::DisposableTableware                   => "Disposable Tableware",
+            Self::CelebrationCakesAndCandles            => "Celebration Cakes & Candles",
+            // Food Service & Commercial
+            Self::CommercialKitchenEquipment            => "Commercial Kitchen Equipment",
+            Self::CateringSupplies                      => "Catering Supplies",
+            Self::IndustrialCleaning                    => "Industrial Cleaning",
+            Self::BusinessSupplies                      => "Business Supplies",
+            Self::Restaurant                            => "Restaurant",
+            // Business Service
+            Self::AccommodationAndFoodServicesIndustry              => "Accommodation and food services industry",
+            Self::AdministrativeAndSupportServicesIndustry          => "Administrative and support services industry",
+            Self::AgricultureForestryAndFishingIndustry             => "Agriculture, forestry and fishing industry",
+            Self::ArtsAndRecreationServicesIndustry                 => "Arts and recreation services industry",
+            Self::ConstructionIndustry                              => "Construction industry",
+            Self::EducationAndTrainingIndustry                      => "Education and training industry",
+            Self::FinancialAndInsuranceServicesIndustry             => "Financial and insurance services industry",
+            Self::HealthCareAndSocialAssistanceIndustry             => "Health care and social assistance industry",
+            Self::InformationMediaAndTelecommunicationsIndustry     => "Information media and telecommunications industry",
+            Self::ManufacturingIndustry                             => "Manufacturing industry",
+            Self::MiningIndustry                                    => "Mining industry",
+            Self::ProfessionalScientificAndTechnicalServicesIndustry => "Professional, scientific and technical services industry",
+            Self::RentalHiringAndRealEstateServicesIndustry         => "Rental, hiring and real estate services industry",
+            Self::RetailAndWholesaleTradeIndustry                   => "Retail and wholesale trade industry",
+            Self::TourismIndustry                                   => "Tourism industry",
+            Self::TransportPostalAndWarehousingIndustry             => "Transport, postal and warehousing industry",
+            // Utilities
+            Self::Gas                                   => "Gas",
+            Self::ElectricityAndEnergy                  => "Electricity and Energy",
+            Self::WaterAndSewerage                      => "Water and Sewerage",
+            Self::InternetTelecommunicationsAndCable    => "Internet, Telecommunications and Cable",
+            Self::WasteAndRecycling                     => "Waste and Recycling",
+        })
+    }
+}
+
+impl From<String> for SecondaryCategory {
+    fn from(s: String) -> Self {
+        s.parse().expect("SecondaryCategory::FromStr is Infallible")
+    }
+}
+impl From<SecondaryCategory> for String {
+    fn from(c: SecondaryCategory) -> Self {
+        c.to_string()
     }
 }
 
@@ -927,10 +1281,19 @@ mod tests {
     }
 
     #[test]
-    fn primary_empty_and_unknown_give_unclassified() {
+    fn primary_empty_gives_unclassified() {
         assert_eq!(prim(""), PrimaryCategory::Unclassified);
         assert_eq!(prim("  "), PrimaryCategory::Unclassified);
-        assert_eq!(prim("Completely Unknown"), PrimaryCategory::Unclassified);
+        // The literal string "Unclassified" round-trips to the variant
+        // rather than landing in Foreign.
+        assert_eq!(prim("Unclassified"), PrimaryCategory::Unclassified);
+    }
+
+    #[test]
+    fn primary_unknown_value_lands_in_foreign() {
+        assert_eq!(prim("Custom Tag"),         PrimaryCategory::Foreign("Custom Tag".into()));
+        assert_eq!(prim("  Custom Tag  "),     PrimaryCategory::Foreign("Custom Tag".into()));
+        assert_eq!(prim("Completely Unknown"), PrimaryCategory::Foreign("Completely Unknown".into()));
     }
 
     #[test]
@@ -947,9 +1310,16 @@ mod tests {
     }
 
     #[test]
-    fn secondary_empty_and_unknown_give_unclassified() {
+    fn secondary_empty_gives_unclassified() {
         assert_eq!(sec(""), SecondaryCategory::Unclassified);
-        assert_eq!(sec("Not a real category"), SecondaryCategory::Unclassified);
+        assert_eq!(sec("   "), SecondaryCategory::Unclassified);
+        assert_eq!(sec("Unclassified"), SecondaryCategory::Unclassified);
+    }
+
+    #[test]
+    fn secondary_unknown_value_lands_in_foreign() {
+        assert_eq!(sec("Custom Sub-tag"),       SecondaryCategory::Foreign("Custom Sub-tag".into()));
+        assert_eq!(sec("Not a real category"),  SecondaryCategory::Foreign("Not a real category".into()));
     }
 
     #[test]
@@ -979,5 +1349,35 @@ mod tests {
         let json = serde_json::to_string(&original).unwrap();
         let back: PrimaryCategory = serde_json::from_str(&json).unwrap();
         assert_eq!(back, original);
+    }
+
+    #[test]
+    fn foreign_primary_serialises_as_inner_string() {
+        let tag = PrimaryCategory::Foreign("Crypto Wallet".into());
+        let json = serde_json::to_string(&tag).unwrap();
+        assert_eq!(json, "\"Crypto Wallet\"");
+    }
+
+    #[test]
+    fn foreign_secondary_serialises_as_inner_string() {
+        let tag = SecondaryCategory::Foreign("Coffee Subscription".into());
+        let json = serde_json::to_string(&tag).unwrap();
+        assert_eq!(json, "\"Coffee Subscription\"");
+    }
+
+    #[test]
+    fn foreign_roundtrip_through_serde() {
+        let original = PrimaryCategory::Foreign("Quirky Bespoke Tag".into());
+        let json = serde_json::to_string(&original).unwrap();
+        let back: PrimaryCategory = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn empty_string_deserialises_to_unclassified() {
+        let back: PrimaryCategory = serde_json::from_str("\"\"").unwrap();
+        assert_eq!(back, PrimaryCategory::Unclassified);
+        let back: SecondaryCategory = serde_json::from_str("\"\"").unwrap();
+        assert_eq!(back, SecondaryCategory::Unclassified);
     }
 }

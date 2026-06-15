@@ -66,11 +66,16 @@ const MAX_UNIQUE_PER_RUN = 500;
  * @param {string} userId
  * @param {App.Platform['env'] | undefined} env
  * @param {{
- *   workspaceId?: string,
- *   stampAutofix?: boolean,
- *   runId?:       string,
- *   onProgress?:  (snapshot: ProgressSnapshot) => Promise<void> | void
+ *   workspaceId?:           string,
+ *   stampAutofix?:          boolean,
+ *   runId?:                 string,
+ *   maxUniqueDescriptions?: number,
+ *   onProgress?:            (snapshot: ProgressSnapshot) => Promise<void> | void
  * }} [opts]
+ *   - `maxUniqueDescriptions` — override the global `MAX_UNIQUE_PER_RUN`
+ *     for this run. Cron passes a lower value (~100) so each workspace
+ *     fits inside Cloudflare's 15-minute scheduled-event budget even
+ *     when Gemini latency is high.
  *   - `workspaceId` — scope the pass to a single workspace (autofix flow).
  *     Omit for user-wide runs (post-sync flow).
  *   - `stampAutofix` — when true, every line item we update also gets an
@@ -180,7 +185,7 @@ export async function classifyPendingForUser(userId, env, opts = {}) {
 	/** @type {Set<string>} */ const touchedReceiptLineIds = new Set();
 	/** @type {Set<string>} */ const touchedSaleLineIds = new Set();
 
-	let budget = MAX_UNIQUE_PER_RUN;
+	let budget = opts.maxUniqueDescriptions ?? MAX_UNIQUE_PER_RUN;
 	let workspaceIndex = 0;
 	const workspaceCount = byWs.size;
 
