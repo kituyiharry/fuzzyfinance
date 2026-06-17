@@ -8,6 +8,7 @@ import {
 	checkTaxAmountUntouched
 } from '$lib/server/refinement';
 import { indexLineItems, deleteLineItemVectors } from '$lib/server/vectorize';
+import { normalizeUnitType } from '$lib/server/unit-normalizer';
 
 /**
  * Bulk-replace a receipt's line items. The refinement editor's
@@ -31,7 +32,7 @@ export async function PUT({ params, locals, request, platform }) {
 		.where(and(eq(schema.receipt.id, params.id), eq(schema.receipt.userId, locals.user.id)));
 	if (!receipt) error(404, 'Receipt not found');
 
-	/** @type {{ lineItems: Array<{ id?: string|null, description?: string|null, qty?: string|null, unitPrice?: string|null, total: string|null, primaryCategory?: string|null, secondaryCategory?: string|null, kind?: 'standard'|'tax', aiSuggested?: boolean }> }} */
+	/** @type {{ lineItems: Array<{ id?: string|null, description?: string|null, qty?: string|null, unitPrice?: string|null, total: string|null, primaryCategory?: string|null, secondaryCategory?: string|null, kind?: 'standard'|'tax', aiSuggested?: boolean, unitSize?: string|null, unitType?: string|null }> }} */
 	const body = await request.json();
 	const incoming = Array.isArray(body.lineItems) ? body.lineItems : [];
 
@@ -96,8 +97,11 @@ export async function PUT({ params, locals, request, platform }) {
 		qty:               li.qty ?? null,
 		unitPrice:         li.unitPrice ?? null,
 		total:             li.total ?? null,
-		unitSize:          null,
-		unitType:          null,
+		// Unit columns now accepted on the wire; types are routed through
+		// the canonical normaliser so display + analysis can rely on a
+		// consistent abbreviation (kg, L, pk, …).
+		unitSize:          li.unitSize ? String(li.unitSize).trim() || null : null,
+		unitType:          li.unitType ? normalizeUnitType(li.unitType) ?? null : null,
 		primaryCategory:   li.primaryCategory ?? null,
 		secondaryCategory: li.secondaryCategory ?? null,
 		sortOrder:         idx,
@@ -118,6 +122,8 @@ export async function PUT({ params, locals, request, platform }) {
 			qty:               r.qty,
 			unitPrice:         r.unitPrice,
 			total:             r.total,
+			unitSize:          r.unitSize,
+			unitType:          r.unitType,
 			primaryCategory:   r.primaryCategory,
 			secondaryCategory: r.secondaryCategory,
 			kind:              r.kind

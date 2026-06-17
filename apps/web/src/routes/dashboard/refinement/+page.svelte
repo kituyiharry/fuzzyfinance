@@ -11,6 +11,38 @@
 		return () => pageAutofillAbort?.abort();
 	});
 
+	// ── Quick delta sync ──────────────────────────────────────────────────
+	// Mirrors the "SYNC NOW" button on the Integrations card. Calls the
+	// existing Xero sync endpoint with the default `auto` mode, which uses
+	// `If-Modified-Since` against the workspace's `lastSyncedAt` watermark
+	// so only invoices touched since the last run come down. Surfaced here
+	// so the user can pull a delta without leaving the refinement queue.
+	let syncing = $state(false);
+	/** @type {string | null} */
+	let syncMessage = $state(null);
+	async function deltaSync() {
+		if (syncing) return;
+		syncing = true;
+		syncMessage = null;
+		try {
+			const res = await fetch('/api/integrations/xero/sync?mode=auto', { method: 'POST' });
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				syncMessage = body?.message ?? `Sync failed (${res.status})`;
+				return;
+			}
+			const s = body?.summary;
+			syncMessage = s
+				? `Synced ${s.invoicesCreated ?? 0} new + ${s.invoicesUpdated ?? 0} updated across ${s.tenants ?? 0} tenant(s).`
+				: 'Sync complete.';
+			await invalidateAll();
+		} catch (/** @type {any} */ err) {
+			syncMessage = String(err?.message ?? err);
+		} finally {
+			syncing = false;
+		}
+	}
+
 	// ── Page-based autofill loop ──────────────────────────────────────────
 	// Runs the same waterfall the editor's Autofill button uses, but driven
 	// from outside per row. Visible on the Needs Review tab only. Iterates
@@ -139,10 +171,12 @@
 		//     orphaned secondary (it lacked a primary, so it's suspect).
 		//   - primary set      → only fill in missing secondary; never
 		//     stomp on the user-set primary.
+		// Unit info fills only when the row's existing unit fields are
+		// empty — manual measurements are never overwritten.
 		const updatedLines = lineItems.map((li) => ({ ...li }));
 		let lineFills = 0;
 		for (let i = 0; i < targets.length; i++) {
-			const s = suggestions[i];
+			const s = /** @type {{ primary: string, secondary: string, unitSize?: string, unitType?: string } | null} */ (suggestions[i]);
 			if (!s) continue;
 			const idx = updatedLines.findIndex((li) => li.id === targets[i].id);
 			if (idx === -1) continue;
@@ -151,6 +185,12 @@
 				updatedLines[idx].secondaryCategory = s.secondary;
 			} else if (!updatedLines[idx].secondaryCategory) {
 				updatedLines[idx].secondaryCategory = s.secondary;
+			}
+			if (s.unitSize && s.unitType) {
+				/** @type {Record<string, unknown>} */
+				const row = updatedLines[idx];
+				if (!row.unitSize) row.unitSize = s.unitSize;
+				if (!row.unitType) row.unitType = s.unitType;
 			}
 			updatedLines[idx].aiSuggested = true;
 			lineFills++;
@@ -179,12 +219,14 @@
 				? updatedLines.map((li) => ({
 					id: li.id, description: li.description, qty: li.qty, unitPrice: li.unitPrice,
 					total: li.total, primaryCategory: li.primaryCategory, secondaryCategory: li.secondaryCategory,
-					kind: li.kind, aiSuggested: li.aiSuggested
+					kind: li.kind, aiSuggested: li.aiSuggested,
+					unitSize: /** @type {any} */ (li).unitSize ?? null, unitType: /** @type {any} */ (li).unitType ?? null
 				}))
 				: updatedLines.map((li) => ({
 					id: li.id, description: li.description, unitsSold: li.unitsSold, sellPrice: li.sellPrice,
 					total: li.total, primaryCategory: li.primaryCategory, secondaryCategory: li.secondaryCategory,
-					kind: li.kind, aiSuggested: li.aiSuggested
+					kind: li.kind, aiSuggested: li.aiSuggested,
+					unitSize: /** @type {any} */ (li).unitSize ?? null, unitType: /** @type {any} */ (li).unitType ?? null
 				}));
 			const putRes = await fetch(`/api/${kindPath}/${row.id}/line-items`, {
 				method:  'PUT',
@@ -365,8 +407,18 @@
 				>{#if active}● {/if}{opt.label} ({count})</button>
 			{/each}
 
-			{#if data.filter === 'attention'}
-				<div class="ml-auto flex items-center gap-2">
+			<div class="ml-auto flex items-center gap-2 flex-wrap">
+				<button
+					onclick={deltaSync}
+					disabled={syncing}
+					title="Pulls invoices changed since the last sync (uses Xero's If-Modified-Since header)"
+					class="px-3 py-1.5 border-2 font-mono text-[10px] font-black uppercase tracking-widest transition-colors
+						{syncing
+							? 'border-(--color-border) text-(--color-muted-foreground) cursor-wait'
+							: 'border-(--color-fg) text-(--color-fg) hover:bg-(--color-fg) hover:text-(--color-bg)'}"
+				>{syncing ? 'SYNCING…' : '↻ SYNC DELTA'}</button>
+
+				{#if data.filter === 'attention'}
 					{#if pageAutofill.active}
 						<button
 							onclick={stopPageAutofill}
@@ -382,9 +434,15 @@
 									: 'border-(--color-fg) bg-(--color-fg) text-(--color-bg) hover:bg-(--color-bg) hover:text-(--color-fg)'}"
 						>✨ AUTOFILL PAGE ({pageAutofillCandidates.length})</button>
 					{/if}
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
+
+		{#if syncMessage}
+			<div class="font-mono text-[10px] uppercase tracking-widest mb-3 text-(--color-muted-foreground)">
+				{syncMessage}
+			</div>
+		{/if}
 
 		<!-- Page-autofill progress -->
 		{#if pageAutofill.active || pageAutofill.failures.length > 0 || pageAutofill.successCount > 0}

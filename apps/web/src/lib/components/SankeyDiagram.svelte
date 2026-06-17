@@ -358,9 +358,156 @@
 
 	/** @param {any} link */
 	function linkOpacity(link) {
-		if (reachableIds === null) return 0.22;
+		if (reachableIds === null) return 0.55;
 		const onPath = reachableIds.has(link.source.id) && reachableIds.has(link.target.id);
-		return onPath ? 0.6 : 0.04;
+		return onPath ? 0.85 : 0.06;
+	}
+
+	/**
+	 * Stable string hash → integer.
+	 * @param {string} s
+	 */
+	function _hashStr(s) {
+		let h = 0;
+		for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+		return h;
+	}
+
+	// ── Flow-propagating colours ─────────────────────────────────────────
+	//
+	// Goal: the leftmost layer gets distinct vibrant base colours; every
+	// downstream node's colour is the weighted RGB blend of its incoming
+	// link colours; the further right you go the lighter the colour gets
+	// (so the mix reads as "flowing forward" rather than a flat band).
+	// Each link then paints with a gradient from its source node colour
+	// to its target node colour — which makes flows visually merge at
+	// each intermediate node, exactly like physical streams mixing.
+	//
+	// Conversion is in straight RGB. Hue blending would wrap weirdly when
+	// inputs span the colour wheel (red + green ≠ yellow in HSL space).
+
+	/** Distinct seed colours for the leftmost layer. Picked to be well
+	 *  separated on the wheel and to read clearly on both light + dark
+	 *  themes. The palette wraps cyclically when there are more leftmost
+	 *  nodes than entries. */
+	const PALETTE = [
+		'#e94f4f', // red
+		'#e98c2c', // orange
+		'#d7c024', // yellow
+		'#5fb84a', // green
+		'#3aa6a6', // teal
+		'#3776d8', // blue
+		'#7e57c2', // indigo
+		'#c25aa1', // pink
+		'#d97757', // coral
+		'#4ec1a8'  // mint
+	];
+
+	/** @param {string} hex */
+	function _hexToRgb(hex) {
+		const v = hex.replace('#', '');
+		return {
+			r: parseInt(v.slice(0, 2), 16),
+			g: parseInt(v.slice(2, 4), 16),
+			b: parseInt(v.slice(4, 6), 16)
+		};
+	}
+
+	/** @param {{ r: number, g: number, b: number }} c @param {number} [opacity] */
+	function _rgbCss(c, opacity = 1) {
+		const r = Math.round(c.r), g = Math.round(c.g), b = Math.round(c.b);
+		return opacity === 1 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${opacity})`;
+	}
+
+	/**
+	 * Per-node propagated colour. Computed once per layout change:
+	 *
+	 *   1. Nodes with no incoming links (leftmost layer) get a palette
+	 *      colour, assigned in a deterministic order based on (depth, y0)
+	 *      so the same dataset always paints the same way.
+	 *   2. Every other node's colour is the weighted RGB blend of its
+	 *      incoming link source colours, weighted by `link.value`.
+	 *   3. Each node's colour is then lifted toward white by a fraction
+	 *      of its depth — so right-side layers read as lighter mixes.
+	 */
+	const nodeColors = $derived.by(() => {
+		/** @type {Map<string, { r: number, g: number, b: number }>} */
+		const colors = new Map();
+
+		// Sort by (depth, y0) so palette assignment is stable across renders.
+		/** @type {(a: any, b: any) => number} */
+		const byDepthThenY = (a, b) => {
+			const ad = a.depth ?? 0;
+			const bd = b.depth ?? 0;
+			if (ad !== bd) return ad - bd;
+			return (a.y0 ?? 0) - (b.y0 ?? 0);
+		};
+		const sorted = [...layout.nodes].sort(byDepthThenY);
+
+		let paletteIdx = 0;
+		for (const n of sorted) {
+			const node = /** @type {any} */ (n);
+			const incoming = /** @type {any[]} */ (node.targetLinks ?? []);
+
+			let base;
+			if (incoming.length === 0) {
+				base = _hexToRgb(PALETTE[paletteIdx % PALETTE.length]);
+				paletteIdx++;
+			} else {
+				let r = 0, g = 0, b = 0, w = 0;
+				for (const link of incoming) {
+					const src = colors.get(link.source.id);
+					if (!src) continue;
+					const wi = Math.max(0.0001, link.value);
+					r += src.r * wi;
+					g += src.g * wi;
+					b += src.b * wi;
+					w += wi;
+				}
+				base = w > 0
+					? { r: r / w, g: g / w, b: b / w }
+					: _hexToRgb(PALETTE[0]);
+			}
+
+			// Lift toward white by depth so downstream layers read lighter.
+			// 12% per layer, capped at 50% so deep flows don't fully wash out.
+			const depth = node.depth ?? 0;
+			const lift = Math.min(0.5, depth * 0.12);
+			colors.set(n.id, {
+				r: base.r + (255 - base.r) * lift,
+				g: base.g + (255 - base.g) * lift,
+				b: base.b + (255 - base.b) * lift
+			});
+		}
+		return colors;
+	});
+
+	/** Stable gradient id per (source, target) pair. */
+	/** @param {any} link */
+	function linkGradientId(link) {
+		return `lg-${_hashStr(`${link.source.id}>${link.target.id}`).toString(36)}`;
+	}
+
+	/** @param {any} link */
+	function linkGradientStops(link) {
+		const src = nodeColors.get(link.source.id) ?? { r: 120, g: 120, b: 120 };
+		const dst = nodeColors.get(link.target.id) ?? src;
+		return {
+			id:  linkGradientId(link),
+			src: _rgbCss(src),
+			dst: _rgbCss(dst)
+		};
+	}
+
+	/** Node fill that mirrors the propagated colour. Special group / other
+	 *  buckets keep their semantic accent so the user can still tell them
+	 *  apart at a glance. */
+	/** @param {any} node */
+	function nodeFlowFill(node) {
+		if (node.id.startsWith('group:')) return 'var(--color-accent, currentColor)';
+		if (node.id.startsWith('other:')) return 'var(--color-border)';
+		const c = nodeColors.get(node.id);
+		return c ? _rgbCss(c) : levelColor(node.level);
 	}
 
 	/** @param {any} node */
@@ -490,12 +637,23 @@
 			preserveAspectRatio="xMidYMid meet"
 			class="w-full max-w-400 h-auto font-mono text-[11px]"
 		>
+			<!-- Per-link gradient defs so each flow paints in its own colours -->
+			<defs>
+				{#each layout.links as l, i (i)}
+					{@const g = linkGradientStops(l)}
+					<linearGradient id={g.id} gradientUnits="userSpaceOnUse" x1={l.source.x1 ?? 0} x2={l.target.x0 ?? 0} y1="0" y2="0">
+						<stop offset="0%"  stop-color={g.src} />
+						<stop offset="100%" stop-color={g.dst} />
+					</linearGradient>
+				{/each}
+			</defs>
 			<g>
 				{#each layout.links as l, i (i)}
+					{@const g = linkGradientStops(l)}
 					<path
 						d={linkPath(l)}
 						fill="none"
-						stroke="var(--color-fg)"
+						stroke="url(#{g.id})"
 						stroke-opacity={linkOpacity(l)}
 						stroke-width={Math.max(1, l.width)}
 						style="transition: stroke-opacity 140ms ease-out;"
@@ -511,7 +669,7 @@
 						y={n.y0}
 						width={n.x1 - n.x0}
 						height={Math.max(1, n.y1 - n.y0)}
-						fill={nodeFill(n)}
+						fill={nodeFlowFill(n)}
 						opacity={nodeOpacity(n)}
 						role="img"
 						aria-label="{n.label} ({n.level}): {n.total_price?.toFixed?.(2) ?? n.value}"

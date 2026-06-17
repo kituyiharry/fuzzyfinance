@@ -15,7 +15,7 @@
 	let category = $state(row.category ?? '');
 
 	/**
-	 * @typedef {{ id?: string|null, description: string|null, total: string|null, primaryCategory: string|null, secondaryCategory: string|null, kind: 'standard'|'tax', aiSuggested: boolean, qty?: string|null, unitPrice?: string|null, unitsSold?: string|null, sellPrice?: string|null }} EditableLine
+	 * @typedef {{ id?: string|null, description: string|null, total: string|null, primaryCategory: string|null, secondaryCategory: string|null, kind: 'standard'|'tax', aiSuggested: boolean, qty?: string|null, unitPrice?: string|null, unitsSold?: string|null, sellPrice?: string|null, unitSize?: string|null, unitType?: string|null }} EditableLine
 	 */
 
 	/** @type {EditableLine[]} */
@@ -30,7 +30,9 @@
 		qty:               li.qty ?? null,
 		unitPrice:         li.unitPrice ?? null,
 		unitsSold:         li.unitsSold ?? null,
-		sellPrice:         li.sellPrice ?? null
+		sellPrice:         li.sellPrice ?? null,
+		unitSize:          li.unitSize ?? null,
+		unitType:          li.unitType ?? null
 	})));
 
 	/** Mark a line as user-confirmed (so the next save re-indexes it as
@@ -85,12 +87,14 @@
 			? lines.map((li) => ({
 				id: li.id, description: li.description, qty: li.qty, unitPrice: li.unitPrice,
 				total: li.total, primaryCategory: li.primaryCategory, secondaryCategory: li.secondaryCategory, kind: li.kind,
-				aiSuggested: li.aiSuggested
+				aiSuggested: li.aiSuggested,
+				unitSize: li.unitSize ?? null, unitType: li.unitType ?? null
 			}))
 			: lines.map((li) => ({
 				id: li.id, description: li.description, unitsSold: li.unitsSold, sellPrice: li.sellPrice,
 				total: li.total, primaryCategory: li.primaryCategory, secondaryCategory: li.secondaryCategory, kind: li.kind,
-				aiSuggested: li.aiSuggested
+				aiSuggested: li.aiSuggested,
+				unitSize: li.unitSize ?? null, unitType: li.unitType ?? null
 			}));
 		const res = await fetch(url, {
 			method: 'PUT', headers: { 'content-type': 'application/json' },
@@ -177,8 +181,9 @@
 			/** @type {{ suggestions: Array<{ primary: string, secondary: string, score?: number, source: 'embeddings' | 'gemini' } | null> }} */
 			const { suggestions } = await res.json();
 
-			let filledEmb = 0;
-			let filledGem = 0;
+			let filledEmb  = 0;
+			let filledGem  = 0;
+			let filledUnit = 0;
 			for (let i = 0; i < targets.length; i++) {
 				const s = suggestions[i];
 				if (!s) continue;
@@ -194,6 +199,13 @@
 					li.secondaryCategory = s.secondary;
 				} else if (!li.secondaryCategory) {
 					li.secondaryCategory = s.secondary;
+				}
+				// Unit fields only fill if currently empty — we never overwrite
+				// a user-typed measurement.
+				if (s.unitSize && s.unitType) {
+					if (!li.unitSize) li.unitSize = s.unitSize;
+					if (!li.unitType) li.unitType = s.unitType;
+					filledUnit++;
 				}
 				li.aiSuggested = true;
 				if (s.source === 'gemini') filledGem++; else filledEmb++;
@@ -215,9 +227,10 @@
 
 			if (filled > 0) {
 				const parts = [];
-				if (filledEmb > 0) parts.push(`${filledEmb} via embeddings`);
-				if (filledGem > 0) parts.push(`${filledGem} via Gemini`);
-				if (headerDerived) parts.push(`header set to "${category}"`);
+				if (filledEmb > 0)  parts.push(`${filledEmb} via embeddings`);
+				if (filledGem > 0)  parts.push(`${filledGem} via Gemini`);
+				if (filledUnit > 0) parts.push(`${filledUnit} with unit info`);
+				if (headerDerived)  parts.push(`header set to "${category}"`);
 				autofillNote = `Suggested ${filled} of ${targets.length} line(s) (${parts.join(', ')}). Confirm or edit, then save.`;
 			} else if (headerDerived) {
 				autofillNote = `No new line suggestions, but header set to "${category}" from existing line categories. Confirm or edit, then save.`;

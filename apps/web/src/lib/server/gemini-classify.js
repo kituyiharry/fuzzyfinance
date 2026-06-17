@@ -21,6 +21,7 @@ import { and, eq } from 'drizzle-orm';
 import { env as privateEnv } from '$env/dynamic/private';
 import { classifyLineItems } from '$lib/server/gemini';
 import { getValidAccessToken } from '$lib/server/token-refresh';
+import { normalizeUnitType } from '$lib/server/unit-normalizer';
 
 const GEMINI_SCOPE = 'https://www.googleapis.com/auth/generative-language.retriever';
 
@@ -84,10 +85,13 @@ const GEMINI_BATCH_SIZE = 25;
  *   documentCategory?: string | null,
  *   items:             Array<{ description: string | null, type?: string | null }>
  * }} opts
- * @returns {Promise<Array<{ primary: string, secondary: string } | null>>}
+ * @returns {Promise<Array<{ primary: string, secondary: string, unitSize?: string, unitType?: string } | null>>}
  *   One entry per input item, in input order. `null` when Gemini doesn't
  *   come back with a confident result for that index. Per-batch failures
  *   are isolated — null gets returned for that slice, the rest still go.
+ *   `unitSize` / `unitType` carry Gemini's extracted unit info when the
+ *   description contains a recognised size; absent otherwise. Unit type
+ *   is normalised to the canonical abbreviation before being returned.
  */
 export async function classifyLineItemsViaGemini(opts) {
 	if (opts.items.length === 0) return [];
@@ -100,7 +104,7 @@ export async function classifyLineItemsViaGemini(opts) {
 	// `$env/dynamic/private` (a Worker secret).
 	const accessToken = cred.kind === 'oauth' ? cred.accessToken : null;
 
-	/** @type {Array<{ primary: string, secondary: string } | null>} */
+	/** @type {Array<{ primary: string, secondary: string, unitSize?: string, unitType?: string } | null>} */
 	const out = opts.items.map(() => null);
 
 	for (let start = 0; start < opts.items.length; start += GEMINI_BATCH_SIZE) {
@@ -123,7 +127,22 @@ export async function classifyLineItemsViaGemini(opts) {
 				const primary   = c.primaryCategory   ?? '';
 				const secondary = c.secondaryCategory ?? '';
 				if (!primary || primary === 'Other') continue;
-				out[start + i] = { primary, secondary };
+
+				// Gemini sometimes returns the unit type in non-canonical form
+				// (e.g. "litres" instead of "L"). Run it through the alias
+				// table so the persisted value matches the dropdown options.
+				const rawUnitSize = (c.unitSize ?? '').trim();
+				const rawUnitType = (c.unitType ?? '').trim();
+				const unitType    = rawUnitType ? normalizeUnitType(rawUnitType) ?? undefined : undefined;
+				const unitSize    = rawUnitSize || undefined;
+
+				/** @type {{ primary: string, secondary: string, unitSize?: string, unitType?: string }} */
+				const entry = { primary, secondary };
+				if (unitSize && unitType) {
+					entry.unitSize = unitSize;
+					entry.unitType = unitType;
+				}
+				out[start + i] = entry;
 			}
 		} catch (/** @type {any} */ err) {
 			// Per-batch failure is non-fatal: lines in this slice stay null,

@@ -81,3 +81,37 @@ export function normalizeUnitType(raw) {
 	if (!trimmed) return trimmed;
 	return _lookup.get(trimmed.toLowerCase()) ?? trimmed;
 }
+
+/**
+ * Heuristic unit extraction from a product description.
+ *
+ * Scans for `<number><optional space><unit>` patterns and returns the
+ * first match whose unit token is in the alias table. Used as a fallback
+ * when Gemini didn't classify the line (embeddings-only hits, or when
+ * the user manually fills a category but not a size). Returns null when
+ * no recognised unit appears in the text.
+ *
+ * Examples:
+ *   "FullCream Milk 2L"          → { size: "2",     type: "L"  }
+ *   "Tangold Seedless 0.784 kg"  → { size: "0.784", type: "kg" }
+ *   "Flushable Wipe 40pk"        → { size: "40",    type: "pk" }
+ *   "Random thing"               → null
+ *
+ * @param {string | null | undefined} description
+ * @returns {{ size: string, type: string } | null}
+ */
+export function extractUnitsFromDescription(description) {
+	if (!description) return null;
+	// Number (allowing decimals with `.` or `,`) followed by an optional
+	// space and a 1-8 letter unit word. Globally iterated so multiple
+	// matches can be evaluated; the first known unit wins.
+	const re = /(\d+(?:[.,]\d+)?)\s*([a-zA-Z]{1,8})/g;
+	let match;
+	while ((match = re.exec(description)) !== null) {
+		const raw = match[2].toLowerCase();
+		const canonical = _lookup.get(raw);
+		if (!canonical) continue;
+		return { size: match[1].replace(',', '.'), type: canonical };
+	}
+	return null;
+}

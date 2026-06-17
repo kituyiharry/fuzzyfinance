@@ -4,6 +4,7 @@ import { schema } from '@fuzzyfinance/db';
 import { and, eq } from 'drizzle-orm';
 import { suggestCategoriesForLines } from '$lib/server/vectorize';
 import { classifyLineItemsViaGemini } from '$lib/server/gemini-classify';
+import { extractUnitsFromDescription } from '$lib/server/unit-normalizer';
 
 /**
  * On-demand category suggester. Same two-hop waterfall the Xero
@@ -33,10 +34,19 @@ import { classifyLineItemsViaGemini } from '$lib/server/gemini-classify';
  *     suggestions: Array<{
  *       primary:   string,
  *       secondary: string,
- *       score?:    number,         // present only for embeddings hits
- *       source:    'embeddings' | 'gemini'
+ *       score?:    number,                  // present only for embeddings hits
+ *       source:    'embeddings' | 'gemini',
+ *       unitSize?: string,                  // present when a unit was extracted
+ *       unitType?: string,                  // canonical abbreviation (kg, L, pk, …)
+ *       unitSource?: 'gemini' | 'regex'     // which path produced unitSize/unitType
  *     } | null>
  *   }
+ *
+ * Unit info comes from Gemini when that hop fired; otherwise from a
+ * lightweight regex pass over the description that matches known unit
+ * aliases (handles "2L", "500ml", "0.784 kg", "40pk" patterns). Either
+ * way the unit type is normalised to its canonical abbreviation before
+ * the response goes out.
  *
  * `null` at index `i` means neither hop could classify line `i` —
  * leave it as the user found it.
@@ -65,7 +75,7 @@ export async function POST({ params, locals, request, platform }) {
 	const lines = Array.isArray(body.lines) ? body.lines : [];
 	if (lines.length === 0) return json({ suggestions: [] });
 
-	/** @type {Array<{ primary: string, secondary: string, score?: number, source: 'embeddings' | 'gemini' } | null>} */
+	/** @type {Array<{ primary: string, secondary: string, score?: number, source: 'embeddings' | 'gemini', unitSize?: string, unitType?: string, unitSource?: 'gemini' | 'regex' } | null>} */
 	const suggestions = lines.map(() => null);
 
 	// Hop 1 — embeddings. Fail-open: a Vectorize hiccup or empty index
@@ -100,10 +110,32 @@ export async function POST({ params, locals, request, platform }) {
 			});
 			for (let k = 0; k < pendingIndexes.length; k++) {
 				const g = gemini[k];
-				if (g) suggestions[pendingIndexes[k]] = { primary: g.primary, secondary: g.secondary, source: 'gemini' };
+				if (!g) continue;
+				/** @type {NonNullable<typeof suggestions[number]>} */
+				const entry = { primary: g.primary, secondary: g.secondary, source: 'gemini' };
+				if (g.unitSize && g.unitType) {
+					entry.unitSize   = g.unitSize;
+					entry.unitType   = g.unitType;
+					entry.unitSource = 'gemini';
+				}
+				suggestions[pendingIndexes[k]] = entry;
 			}
 		} catch (/** @type {any} */ err) {
 			console.warn('[embeddings/suggest] gemini hop failed:', err?.message ?? err);
+		}
+	}
+
+	// Hop 3 (free) — regex unit extraction for every classified line that
+	// didn't already get a unit from Gemini. Gives embeddings-only hits a
+	// chance to carry units forward when the description is unambiguous.
+	for (let i = 0; i < suggestions.length; i++) {
+		const s = suggestions[i];
+		if (!s || s.unitSize) continue;
+		const extracted = extractUnitsFromDescription(lines[i]?.description ?? null);
+		if (extracted) {
+			s.unitSize   = extracted.size;
+			s.unitType   = extracted.type;
+			s.unitSource = 'regex';
 		}
 	}
 

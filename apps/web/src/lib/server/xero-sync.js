@@ -65,6 +65,21 @@ function _activeFyStartUTC(now = new Date()) {
 }
 
 /**
+ * Previous AU/NZ financial year, as a half-open `[start, end)` range
+ * suitable for a `Date>=start AND Date<end` Xero filter. End is the
+ * active FY's start (exclusive), so today's not-yet-closed FY is never
+ * included.
+ *
+ * @param {Date} [now]
+ * @returns {{ start: Date, end: Date }}
+ */
+function _previousFyRangeUTC(now = new Date()) {
+	const activeStart = _activeFyStartUTC(now);
+	const previousStart = new Date(Date.UTC(activeStart.getUTCFullYear() - 1, 6, 1));
+	return { start: previousStart, end: activeStart };
+}
+
+/**
  * Top-level sync entry. Loads the user's Xero integration + tenant list,
  * iterates them, runs both ACCREC and ACCPAY pulls per tenant. Returns a
  * summary so the caller (manual button or future cron) can surface it.
@@ -73,9 +88,18 @@ function _activeFyStartUTC(now = new Date()) {
  * @param {App.Platform['env']} [env]   Optional Workers env — when present,
  *   the sync will run the kNN suggestor on newly-inserted standard lines
  *   that arrive without categories from Xero. Skipped when env is absent.
+ * @param {{ mode?: 'auto' | 'previousFy' }} [opts]
+ *   - `'auto'` (default): existing two-mode behaviour. First sync uses
+ *     the active FY-start as a Date lower bound; subsequent syncs use
+ *     `If-Modified-Since` against `metadata.lastSyncedAt`.
+ *   - `'previousFy'`: one-shot historical back-fill. Pulls only invoices
+ *     issued in the *previous* AU/NZ FY (`[Jul 1 prevYear, Jul 1 thisYear)`).
+ *     Does NOT update `metadata.lastSyncedAt` — the delta watermark
+ *     should keep tracking the live present.
  * @returns {Promise<{ tenants: number, invoicesCreated: number, invoicesUpdated: number, skipped: number, errors: string[] }>}
  */
-export async function syncUserXero(userId, env) {
+export async function syncUserXero(userId, env, opts = {}) {
+	const mode = opts.mode === 'previousFy' ? 'previousFy' : 'auto';
 	const [integration] = await db.select()
 		.from(schema.integration)
 		.where(and(
@@ -116,8 +140,18 @@ export async function syncUserXero(userId, env) {
 	//
 	// Format is ISO-8601 to match the Xero spec's `ifModifiedSince` example.
 	const isFirstSync = !metadata.lastSyncedAt;
-	const sinceISO    = isFirstSync ? null : new Date(metadata.lastSyncedAt).toISOString();
-	const fyStart     = isFirstSync ? _activeFyStartUTC() : null;
+	let sinceISO, fyStart, fyEnd;
+	if (mode === 'previousFy') {
+		// Historical back-fill: bounded Date range, no If-Modified-Since.
+		const range = _previousFyRangeUTC();
+		fyStart  = range.start;
+		fyEnd    = range.end;
+		sinceISO = null;
+	} else {
+		sinceISO = isFirstSync ? null : new Date(metadata.lastSyncedAt).toISOString();
+		fyStart  = isFirstSync ? _activeFyStartUTC() : null;
+		fyEnd    = null;
+	}
 
 	const accessToken = await getValidAccessToken(userId, 'xero');
 	if (!accessToken) {
@@ -131,11 +165,11 @@ export async function syncUserXero(userId, env) {
 			// Integrations page. Tenants without an explicit mapping fall
 			// back to the user's default workspace.
 			const workspaceId = tenant.workspaceId ?? defaultWorkspaceId;
-			const accrec = await syncTenant(userId, accessToken, tenant, 'ACCREC', { sinceISO, fyStart, env, workspaceId });
+			const accrec = await syncTenant(userId, accessToken, tenant, 'ACCREC', { sinceISO, fyStart, fyEnd, env, workspaceId });
 			summary.invoicesCreated += accrec.created;
 			summary.invoicesUpdated += accrec.updated;
 			summary.skipped         += accrec.skipped;
-			const accpay = await syncTenant(userId, accessToken, tenant, 'ACCPAY', { sinceISO, fyStart, env, workspaceId });
+			const accpay = await syncTenant(userId, accessToken, tenant, 'ACCPAY', { sinceISO, fyStart, fyEnd, env, workspaceId });
 			summary.invoicesCreated += accpay.created;
 			summary.invoicesUpdated += accpay.updated;
 			summary.skipped         += accpay.skipped;
@@ -146,9 +180,12 @@ export async function syncUserXero(userId, env) {
 
 	// Stamp the integration only if at least one tenant succeeded — partial
 	// success still advances; total failure leaves `lastSyncedAt` alone so the
-	// next attempt re-tries the same window.
+	// next attempt re-tries the same window. previousFy is a historical
+	// back-fill — it must NOT advance the live-delta watermark.
 	if (summary.errors.length < tenants.length) {
-		const next = { ...metadata, lastSyncedAt: new Date().toISOString(), lastSummary: { ...summary, errors: undefined } };
+		const next = mode === 'previousFy'
+			? { ...metadata, lastPreviousFySyncAt: new Date().toISOString(), lastSummary: { ...summary, errors: undefined, mode } }
+			: { ...metadata, lastSyncedAt: new Date().toISOString(), lastSummary: { ...summary, errors: undefined } };
 		await db.update(schema.integration)
 			.set({ metadataJson: JSON.stringify(next) })
 			.where(eq(schema.integration.id, integration.id));
@@ -184,11 +221,11 @@ export async function syncUserXero(userId, env) {
  * @param {string} accessToken
  * @param {{ tenantId: string, tenantName?: string }} tenant
  * @param {'ACCREC' | 'ACCPAY'} invoiceType
- * @param {{ sinceISO: string | null, fyStart: Date | null, env?: App.Platform['env'], workspaceId?: string | null }} opts
+ * @param {{ sinceISO: string | null, fyStart: Date | null, fyEnd?: Date | null, env?: App.Platform['env'], workspaceId?: string | null }} opts
  * @returns {Promise<{ created: number, updated: number, skipped: number }>}
  */
 export async function syncTenant(userId, accessToken, tenant, invoiceType, opts) {
-	const { sinceISO, fyStart, env, workspaceId = null } = opts;
+	const { sinceISO, fyStart, fyEnd = null, env, workspaceId = null } = opts;
 	const externalSource = invoiceType === 'ACCREC' ? 'xero-invoice-accrec' : 'xero-invoice-accpay';
 	const result = { created: 0, updated: 0, skipped: 0 };
 
@@ -201,6 +238,14 @@ export async function syncTenant(userId, accessToken, tenant, invoiceType, opts)
 		const m = fyStart.getUTCMonth() + 1; // Xero expects 1-12
 		const d = fyStart.getUTCDate();
 		whereClause += ` AND Date>=DateTime(${y},${m},${d})`;
+	}
+	if (fyEnd) {
+		// Half-open range upper bound — `Date<DateTime(...)` so we never
+		// include rows from the next FY (e.g. previousFy excludes today).
+		const y = fyEnd.getUTCFullYear();
+		const m = fyEnd.getUTCMonth() + 1;
+		const d = fyEnd.getUTCDate();
+		whereClause += ` AND Date<DateTime(${y},${m},${d})`;
 	}
 
 	for (let page = 1; page < 500; page++) { // hard ceiling, see header comment

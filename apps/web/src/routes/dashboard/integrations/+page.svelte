@@ -92,12 +92,20 @@
 
 	const xero = $derived(data.integrations.xero ?? null);
 
-	/** @param {string} provider */
-	async function syncNow(provider) {
-		syncing[provider] = true;
+	/**
+	 * `auto` is the default delta behaviour; `previousFy` runs a historical
+	 * back-fill of the prior AU/NZ financial year without disturbing the
+	 * live-delta watermark.
+	 *
+	 * @param {string} provider
+	 * @param {'auto' | 'previousFy'} [mode]
+	 */
+	async function syncNow(provider, mode = 'auto') {
+		const key = mode === 'previousFy' ? `${provider}:previousFy` : provider;
+		syncing[key] = true;
 		syncError[provider] = null;
 		try {
-			const res = await fetch(`/api/integrations/${provider}/sync`, { method: 'POST' });
+			const res = await fetch(`/api/integrations/${provider}/sync?mode=${encodeURIComponent(mode)}`, { method: 'POST' });
 			const body = await res.json().catch(() => null);
 			if (!res.ok) {
 				syncError[provider] = body?.message ?? `Sync failed (${res.status})`;
@@ -107,7 +115,7 @@
 		} catch (/** @type {any} */ err) {
 			syncError[provider] = String(err?.message ?? err);
 		} finally {
-			syncing[provider] = false;
+			syncing[key] = false;
 		}
 	}
 
@@ -312,6 +320,9 @@
 				{#if xero}
 					<Button variant="primary"   onclick={() => syncNow('xero')}      class="text-xs font-black uppercase tracking-widest">
 						{syncing.xero ? 'SYNCING...' : 'SYNC NOW'}
+					</Button>
+					<Button variant="secondary" onclick={() => syncNow('xero', 'previousFy')} class="text-xs font-black uppercase tracking-widest">
+						{syncing['xero:previousFy'] ? 'BACK-FILLING...' : 'SYNC PREVIOUS FY'}
 					</Button>
 					<Button variant="secondary" onclick={resetXeroSync}              class="text-xs font-black uppercase tracking-widest">
 						{resettingSync ? 'RESETTING...' : 'RESET SYNC HISTORY'}
