@@ -12,6 +12,11 @@
 	/** @type {{ data: import('./$types').PageData }} */
 	let { data } = $props();
 
+	/** Sub-tab under each chart type: which side of the equation we're
+	 *  visualising. Driven by `side=` in the URL so refreshes preserve it
+	 *  and a chosen range applies the same way to either side. */
+	const side = $derived(/** @type {'expense' | 'revenue'} */ (data.side ?? 'expense'));
+
 	// Form fields are editable independently of the server's loaded range;
 	// initial values come from the URL on first mount, then stay user-controlled.
 	let startInput = $state(untrack(() => data.range?.start ?? ''));
@@ -91,8 +96,68 @@
 
 	function generate() {
 		if (!startInput || !endInput) return;
-		const params = new URLSearchParams({ start: startInput, end: endInput });
+		const params = new URLSearchParams({ start: startInput, end: endInput, side });
 		goto(`/dashboard/visualization/live?${params.toString()}`, { invalidateAll: true });
+	}
+
+	/** @param {'expense' | 'revenue'} next */
+	function switchSide(next) {
+		const params = new URLSearchParams({ side: next });
+		if (startInput) params.set('start', startInput);
+		if (endInput)   params.set('end',   endInput);
+		goto(`/dashboard/visualization/live?${params.toString()}`, { invalidateAll: true });
+	}
+
+	// ── Save snapshot ─────────────────────────────────────────────────────
+	// Captures BOTH sides of the current date range as saved exports — so
+	// the next visit can pick the same range out of the listing instead of
+	// re-running the live query. Saves whichever side(s) actually have
+	// data; empty sides are reported as skipped.
+	let saving = $state(false);
+	/** @type {{ kind: 'success' | 'error', text: string, links: Array<{ href: string, label: string }> } | null} */
+	let saveStatus = $state(null);
+
+	async function saveSnapshot() {
+		const range = data.range;
+		if (!range || saving) return;
+		saving = true;
+		saveStatus = null;
+		try {
+			const res = await fetch('/api/visualization-snapshots', {
+				method:  'POST',
+				headers: { 'content-type': 'application/json' },
+				body:    JSON.stringify({ start: range.start, end: range.end })
+			});
+			const body = await res.json().catch(() => null);
+			if (!res.ok) {
+				saveStatus = { kind: 'error', text: body?.message ?? `Save failed (${res.status})`, links: [] };
+				return;
+			}
+			/** @type {Array<{ href: string, label: string }>} */
+			const links = [];
+			const parts = [];
+			if (body.expense?.id) {
+				parts.push(`expense (${body.expense.docCount} receipts)`);
+				links.push({ href: `/dashboard/visualization/${body.expense.id}?side=expense`, label: 'Open expense →' });
+			} else if (body.expense?.skipped) {
+				parts.push(`expense (skipped: ${body.expense.skipped})`);
+			}
+			if (body.revenue?.id) {
+				parts.push(`revenue (${body.revenue.docCount} sales)`);
+				links.push({ href: `/dashboard/visualization/${body.revenue.id}?side=revenue`, label: 'Open revenue →' });
+			} else if (body.revenue?.skipped) {
+				parts.push(`revenue (skipped: ${body.revenue.skipped})`);
+			}
+			saveStatus = {
+				kind:  links.length > 0 ? 'success' : 'error',
+				text:  `Snapshot ${range.start} → ${range.end}: ${parts.join(', ')}`,
+				links
+			};
+		} catch (/** @type {any} */ err) {
+			saveStatus = { kind: 'error', text: String(err?.message ?? err), links: [] };
+		} finally {
+			saving = false;
+		}
 	}
 </script>
 
@@ -108,8 +173,25 @@
 
 	<Card title="Live Analysis">
 		<p class="font-mono text-[10px] text-(--color-muted-foreground) mb-3">
-			Pull receipts within a date range and visualise them on-the-fly. Not saved — refresh re-runs the analysis.
+			Pull receipts (expense) or sales (revenue) within a date range and visualise them on-the-fly. Not saved — refresh re-runs the analysis.
 		</p>
+
+		<!-- Side toggle: expense ↔ revenue. Persisted in the URL. -->
+		<div class="inline-flex border-2 border-(--color-border) mb-3">
+			{#each /** @type {const} */ ([
+				{ id: 'expense', label: 'Expense' },
+				{ id: 'revenue', label: 'Revenue' }
+			]) as opt (opt.id)}
+				<button
+					onclick={() => switchSide(opt.id)}
+					aria-pressed={side === opt.id}
+					class="px-4 py-1.5 font-mono text-[10px] font-black uppercase tracking-widest transition-colors
+						{side === opt.id
+							? 'bg-(--color-fg) text-(--color-bg)'
+							: 'text-(--color-muted-foreground) hover:text-(--color-fg)'}"
+				>{side === opt.id ? '● ' : ''}{opt.label}</button>
+			{/each}
+		</div>
 
 		{#if data.baselineCurrency}
 			<div class="border-2 border-(--color-border) bg-(--color-bg) p-3 mb-3 flex items-start gap-3">
@@ -170,22 +252,43 @@
 	</Card>
 
 	{#if data.errorMessage}
-		<Card title="Analysis">
+		<Card title={side === 'revenue' ? 'Revenue Analysis' : 'Expense Analysis'}>
 			<p class="font-mono text-[11px] text-(--color-danger) py-2">{data.errorMessage}</p>
-			{#if data.meta && data.meta.receiptCount > 0}
+			{#if data.meta && data.meta.docCount > 0}
 				<p class="font-mono text-[10px] text-(--color-muted-foreground)">
-					{data.meta.receiptCount} receipts · {data.meta.rowCount} line items in range.
+					{data.meta.docCount} {side === 'revenue' ? 'revenue documents' : 'receipts'} · {data.meta.rowCount} line items in range.
 				</p>
 			{/if}
 		</Card>
 	{:else if data.alluvial && data.range}
-		<Card title="Analysis: {data.range.start} → {data.range.end}">
-			<p class="font-mono text-[10px] text-(--color-muted-foreground) mb-3">
-				{data.meta?.receiptCount} receipts · {data.meta?.rowCount} line items · {data.alluvial.nodes.length} nodes · {data.alluvial.links.length} links
-				{#if data.meta?.excludedCount && data.meta.excludedCount > 0}
-					<span class="text-(--color-warning) ml-2">· {data.meta.excludedCount} excluded (currency ≠ {data.baselineCurrency})</span>
-				{/if}
-			</p>
+		<Card title="{side === 'revenue' ? 'Revenue' : 'Expense'} Analysis: {data.range.start} → {data.range.end}">
+			<div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
+				<p class="font-mono text-[10px] text-(--color-muted-foreground)">
+					{data.meta?.docCount} {side === 'revenue' ? 'revenue documents' : 'receipts'} · {data.meta?.rowCount} line items · {data.alluvial.nodes.length} nodes · {data.alluvial.links.length} links
+					{#if data.meta?.excludedCount && data.meta.excludedCount > 0}
+						<span class="text-(--color-warning) ml-2">· {data.meta.excludedCount} excluded (currency ≠ {data.baselineCurrency})</span>
+					{/if}
+				</p>
+				<button
+					onclick={saveSnapshot}
+					disabled={saving}
+					title="Save both expense + revenue exports for this date range so they appear on the visualization home page"
+					class="px-3 py-1.5 border-2 font-mono text-[10px] font-black uppercase tracking-widest transition-colors
+						{saving
+							? 'border-(--color-border) text-(--color-muted-foreground) cursor-wait'
+							: 'border-(--color-fg) bg-(--color-fg) text-(--color-bg) hover:bg-(--color-bg) hover:text-(--color-fg)'}"
+				>{saving ? 'SAVING…' : '💾 SAVE SNAPSHOT'}</button>
+			</div>
+
+			{#if saveStatus}
+				<div class="font-mono text-[10px] uppercase tracking-widest mb-3 flex flex-wrap items-center gap-x-3 gap-y-1
+					{saveStatus.kind === 'success' ? 'text-(--color-success)' : 'text-(--color-warning)'}">
+					<span>{saveStatus.text}</span>
+					{#each saveStatus.links as link, i (i)}
+						<a href={link.href} class="underline hover:no-underline">{link.label}</a>
+					{/each}
+				</div>
+			{/if}
 
 			<!-- Tab bar -->
 			<div class="flex border-b-2 border-(--color-border) mb-4">

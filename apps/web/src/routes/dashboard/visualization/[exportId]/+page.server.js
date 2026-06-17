@@ -5,30 +5,59 @@ import { schema } from '@fuzzyfinance/db';
 import { getOrCreateVisualization } from '$lib/server/visualization';
 
 /**
- * Load (or lazily generate) the visualization JSON for a receipt export
- * and pass it to the page for rendering.
+ * @param {string | null | undefined} raw
+ * @returns {'expense' | 'revenue'}
+ */
+function parseSide(raw) {
+	return raw === 'revenue' ? 'revenue' : 'expense';
+}
+
+/**
+ * Load (or lazily generate) the visualization JSON for a saved export.
+ * `?side=expense|revenue` picks which export table to read from — same
+ * `[exportId]` route serves both kinds.
  *
  * @type {import('./$types').PageServerLoad}
  */
-export async function load({ params, locals, platform }) {
+export async function load({ params, url, locals, platform }) {
 	if (!locals.user) redirect(302, '/');
 	if (!platform?.env?.fuzzyfinance_exports) error(500, 'R2 binding missing');
 
 	const exportId = params.exportId;
+	const side = parseSide(url.searchParams.get('side'));
 
-	// Verify ownership + grab metadata for the header
-	const [exportMeta] = await db.select({
-		id:           schema.receiptExport.id,
-		fileName:     schema.receiptExport.fileName,
-		receiptCount: schema.receiptExport.receiptCount,
-		rowCount:     schema.receiptExport.rowCount,
-		createdAt:    schema.receiptExport.createdAt,
-	})
-	.from(schema.receiptExport)
-	.where(and(
-		eq(schema.receiptExport.id, exportId),
-		eq(schema.receiptExport.userId, locals.user.id),
-	));
+	// Verify ownership + grab metadata for the header. Each side has its
+	// own table; we never read the wrong one because side is explicit.
+	let exportMeta;
+	if (side === 'revenue') {
+		const [row] = await db.select({
+			id:        schema.saleExport.id,
+			fileName:  schema.saleExport.fileName,
+			docCount:  schema.saleExport.saleCount,
+			rowCount:  schema.saleExport.rowCount,
+			createdAt: schema.saleExport.createdAt,
+		})
+		.from(schema.saleExport)
+		.where(and(
+			eq(schema.saleExport.id, exportId),
+			eq(schema.saleExport.userId, locals.user.id),
+		));
+		exportMeta = row;
+	} else {
+		const [row] = await db.select({
+			id:        schema.receiptExport.id,
+			fileName:  schema.receiptExport.fileName,
+			docCount:  schema.receiptExport.receiptCount,
+			rowCount:  schema.receiptExport.rowCount,
+			createdAt: schema.receiptExport.createdAt,
+		})
+		.from(schema.receiptExport)
+		.where(and(
+			eq(schema.receiptExport.id, exportId),
+			eq(schema.receiptExport.userId, locals.user.id),
+		));
+		exportMeta = row;
+	}
 	if (!exportMeta) error(404, 'Export not found');
 
 	let row;
@@ -37,6 +66,7 @@ export async function load({ params, locals, platform }) {
 			userId:      locals.user.id,
 			workspaceId: locals.workspaceId ?? null,
 			exportId,
+			side,
 			platform,
 		}));
 	} catch (/** @type {any} */ e) {
@@ -59,6 +89,7 @@ export async function load({ params, locals, platform }) {
 	}
 
 	return {
+		side,
 		alluvial:  bundle.alluvial  ?? bundle, // bundle on v2; raw alluvial on legacy v1
 		trendline: bundle.trendline ?? null,
 		exportMeta,

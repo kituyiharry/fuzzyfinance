@@ -73,6 +73,40 @@ export const receiptExport = sqliteTable(
   ]
 );
 
+export const saleExportVisualization = sqliteTable(
+  "sale_export_visualization",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    saleExportId: text("sale_export_id")
+      .notNull()
+      .references(() => saleExport.id, { onDelete: "cascade" }),
+
+    /** Semver of the Rust aggregation logic. Bumped to invalidate stale viz. */
+    analyzerVersion: text("analyzer_version").notNull(),
+
+    /** R2 object key under the fuzzyfinance-exports bucket. */
+    r2Key: text("r2_key").notNull(),
+
+    /** Cached counts so the list page doesn't need to fetch the full JSON. */
+    nodeCount: integer("node_count").notNull().default(0),
+    linkCount: integer("link_count").notNull().default(0),
+
+    generatedAt: integer("generated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+  },
+  (table) => [
+    index("sale_export_viz_userId_idx").on(table.userId),
+    uniqueIndex("sale_export_viz_export_version_unique")
+      .on(table.saleExportId, table.analyzerVersion),
+  ]
+);
+
 export const receiptExportVisualization = sqliteTable(
   "receipt_export_visualization",
   {

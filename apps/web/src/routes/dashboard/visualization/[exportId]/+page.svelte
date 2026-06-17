@@ -32,8 +32,16 @@
 	</div>
 
 	<Card title={data.exportMeta.fileName}>
-		<div class="font-mono text-[10px] text-(--color-muted-foreground) mb-4">
-			{data.exportMeta.receiptCount} receipts · {data.exportMeta.rowCount} line items · created {fmtDateTime(data.exportMeta.createdAt)}
+		<div class="flex items-center gap-2 mb-4 flex-wrap">
+			<span class="font-mono text-[9px] uppercase tracking-widest font-black px-2 py-0.5 border-2
+				{data.side === 'revenue'
+					? 'border-(--color-success) text-(--color-success)'
+					: 'border-(--color-accent) text-(--color-accent)'}">
+				{data.side === 'revenue' ? '↗ Revenue' : '↘ Expense'}
+			</span>
+			<span class="font-mono text-[10px] text-(--color-muted-foreground)">
+				{data.exportMeta.docCount} {data.side === 'revenue' ? 'revenue documents' : 'receipts'} · {data.exportMeta.rowCount} line items · created {fmtDateTime(data.exportMeta.createdAt)}
+			</span>
 		</div>
 
 		{#if data.baselineCurrency}
