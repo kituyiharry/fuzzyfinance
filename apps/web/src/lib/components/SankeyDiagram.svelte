@@ -631,7 +631,7 @@
 	{/if}
 
 	<!-- Diagram viewport: centered with padding, scrolls when content overflows -->
-	<div class="w-full overflow-auto px-6 py-6 sm:px-10 sm:py-8 min-h-[70vh] flex items-center justify-center border-2 border-(--color-border) bg-(--color-bg)">
+	<div class="w-full overflow-auto px-1 py-1 sm:px-10 sm:py-8 min-h-[70vh] flex items-center justify-center border-2 border-(--color-border) bg-(--color-bg)">
 		<svg
 			viewBox="0 0 {width} {height}"
 			preserveAspectRatio="xMidYMid meet"

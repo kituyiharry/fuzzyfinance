@@ -66,7 +66,92 @@ export async function POST({ locals, request }) {
 	const expense = await _saveExpenseSide({ userId, workspaceId, start, endInclusive, baselineCurrency, dateStr, rangeLabel });
 	const revenue = await _saveRevenueSide({ userId, workspaceId, start, endInclusive, baselineCurrency, dateStr, rangeLabel });
 
-	return json({ expense, revenue, baselineCurrency, range: { start: body.start, end: body.end } });
+	// Couple the two exports under a single snapshot row so the listing
+	// shows them as one entry and the viewer can render both sides
+	// side-by-side. Either FK may be null when that side had no data.
+	const receiptExportId = expense.id ?? null;
+	const saleExportId    = revenue.id ?? null;
+	let snapshotId = null;
+	if (receiptExportId || saleExportId) {
+		const [snap] = await db.insert(schema.visualizationSnapshot).values({
+			id:              crypto.randomUUID(),
+			userId,
+			workspaceId,
+			label:           `${body.start} → ${body.end}`,
+			rangeStart:      body.start,
+			rangeEnd:        body.end,
+			receiptExportId,
+			saleExportId,
+		}).returning({ id: schema.visualizationSnapshot.id });
+		snapshotId = snap.id;
+	}
+
+	return json({ snapshotId, expense, revenue, baselineCurrency, range: { start: body.start, end: body.end } });
+}
+
+/**
+ * Delete a snapshot AND its underlying receipt/sale exports + their
+ * visualization rows + R2 objects.
+ *
+ * @type {import('./$types').RequestHandler}
+ */
+export async function DELETE({ url, locals, platform }) {
+	if (!locals.user) error(401, 'Unauthorized');
+	const snapshotId = url.searchParams.get('id');
+	if (!snapshotId) error(400, 'Missing snapshot id');
+
+	const [snap] = await db.select()
+		.from(schema.visualizationSnapshot)
+		.where(and(
+			eq(schema.visualizationSnapshot.id, snapshotId),
+			eq(schema.visualizationSnapshot.userId, locals.user.id),
+		));
+	if (!snap) error(404, 'Snapshot not found');
+
+	// Best-effort R2 cleanup. Failure here doesn't block DB teardown —
+	// orphan R2 objects are recoverable; orphan DB rows aren't.
+	const r2 = platform?.env?.fuzzyfinance_exports;
+	const purgedKeys = [];
+
+	if (snap.receiptExportId) {
+		const expenseViz = await db.select({ r2Key: schema.receiptExportVisualization.r2Key })
+			.from(schema.receiptExportVisualization)
+			.where(eq(schema.receiptExportVisualization.receiptExportId, snap.receiptExportId));
+		for (const v of expenseViz) purgedKeys.push(v.r2Key);
+	}
+	if (snap.saleExportId) {
+		const revenueViz = await db.select({ r2Key: schema.saleExportVisualization.r2Key })
+			.from(schema.saleExportVisualization)
+			.where(eq(schema.saleExportVisualization.saleExportId, snap.saleExportId));
+		for (const v of revenueViz) purgedKeys.push(v.r2Key);
+	}
+	if (r2) {
+		for (const key of purgedKeys) {
+			try { await r2.delete(key); } catch { /* swallow */ }
+		}
+	}
+
+	// Delete the snapshot first so the FK constraints don't trip when we
+	// cascade-delete the underlying exports below.
+	await db.delete(schema.visualizationSnapshot)
+		.where(eq(schema.visualizationSnapshot.id, snapshotId));
+
+	if (snap.receiptExportId) {
+		await db.delete(schema.receiptExport)
+			.where(and(
+				eq(schema.receiptExport.id, snap.receiptExportId),
+				eq(schema.receiptExport.userId, locals.user.id),
+			));
+	}
+	if (snap.saleExportId) {
+		await db.delete(schema.saleExport)
+			.where(and(
+				eq(schema.saleExport.id, snap.saleExportId),
+				eq(schema.saleExport.userId, locals.user.id),
+			));
+	}
+
+	return json({ ok: true, purgedR2Keys: purgedKeys.length });
 }
 
 /**

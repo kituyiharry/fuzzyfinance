@@ -5,74 +5,62 @@ import { schema } from '@fuzzyfinance/db';
 import { VIZ_ANALYZER_VERSION } from '$lib/server/visualization';
 
 /**
- * Unified saved-visualizations index. Pulls receipt exports + sale
- * exports + their (analyzer-versioned) viz rows in two queries, merges
- * them into one feed tagged with `side`. The page renders a single
- * picker — each card shows what sides are saved and links to the
- * viewer in the appropriate mode.
+ * Saved snapshot listing. Each row couples an expense export and a
+ * revenue export under one entry, with the per-side viz cache state
+ * resolved via left joins on the analyzer-versioned visualization
+ * tables. The page surfaces a single picker that — on selection —
+ * opens both sides in a split view.
  *
  * @type {import('./$types').PageServerLoad}
  */
 export async function load({ locals }) {
 	if (!locals.user) redirect(302, '/');
 
-	const wsReceipt = locals.workspaceId
-		? [eq(schema.receiptExport.workspaceId, locals.workspaceId)]
-		: [];
-	const wsSale = locals.workspaceId
-		? [eq(schema.saleExport.workspaceId, locals.workspaceId)]
+	const wsFilter = locals.workspaceId
+		? [eq(schema.visualizationSnapshot.workspaceId, locals.workspaceId)]
 		: [];
 
-	const expenseRows = await db
+	const rows = await db
 		.select({
-			id:            schema.receiptExport.id,
-			fileName:      schema.receiptExport.fileName,
-			docCount:      schema.receiptExport.receiptCount,
-			rowCount:      schema.receiptExport.rowCount,
-			createdAt:     schema.receiptExport.createdAt,
-			vizId:         schema.receiptExportVisualization.id,
-			nodeCount:     schema.receiptExportVisualization.nodeCount,
-			linkCount:     schema.receiptExportVisualization.linkCount,
-			generatedAt:   schema.receiptExportVisualization.generatedAt,
+			id:                 schema.visualizationSnapshot.id,
+			label:              schema.visualizationSnapshot.label,
+			rangeStart:         schema.visualizationSnapshot.rangeStart,
+			rangeEnd:           schema.visualizationSnapshot.rangeEnd,
+			createdAt:          schema.visualizationSnapshot.createdAt,
+			receiptExportId:    schema.visualizationSnapshot.receiptExportId,
+			saleExportId:       schema.visualizationSnapshot.saleExportId,
+			expenseFile:        schema.receiptExport.fileName,
+			expenseDocCount:    schema.receiptExport.receiptCount,
+			expenseRowCount:    schema.receiptExport.rowCount,
+			expenseVizId:       schema.receiptExportVisualization.id,
+			expenseNodeCount:   schema.receiptExportVisualization.nodeCount,
+			expenseLinkCount:   schema.receiptExportVisualization.linkCount,
+			revenueFile:        schema.saleExport.fileName,
+			revenueDocCount:    schema.saleExport.saleCount,
+			revenueRowCount:    schema.saleExport.rowCount,
+			revenueVizId:       schema.saleExportVisualization.id,
+			revenueNodeCount:   schema.saleExportVisualization.nodeCount,
+			revenueLinkCount:   schema.saleExportVisualization.linkCount,
 		})
-		.from(schema.receiptExport)
+		.from(schema.visualizationSnapshot)
+		.leftJoin(schema.receiptExport, eq(schema.receiptExport.id, schema.visualizationSnapshot.receiptExportId))
+		.leftJoin(schema.saleExport,    eq(schema.saleExport.id,    schema.visualizationSnapshot.saleExportId))
 		.leftJoin(
 			schema.receiptExportVisualization,
 			and(
-				eq(schema.receiptExportVisualization.receiptExportId, schema.receiptExport.id),
+				eq(schema.receiptExportVisualization.receiptExportId, schema.visualizationSnapshot.receiptExportId),
 				eq(schema.receiptExportVisualization.analyzerVersion, VIZ_ANALYZER_VERSION),
 			),
 		)
-		.where(and(eq(schema.receiptExport.userId, locals.user.id), ...wsReceipt))
-		.orderBy(desc(schema.receiptExport.createdAt));
-
-	const revenueRows = await db
-		.select({
-			id:            schema.saleExport.id,
-			fileName:      schema.saleExport.fileName,
-			docCount:      schema.saleExport.saleCount,
-			rowCount:      schema.saleExport.rowCount,
-			createdAt:     schema.saleExport.createdAt,
-			vizId:         schema.saleExportVisualization.id,
-			nodeCount:     schema.saleExportVisualization.nodeCount,
-			linkCount:     schema.saleExportVisualization.linkCount,
-			generatedAt:   schema.saleExportVisualization.generatedAt,
-		})
-		.from(schema.saleExport)
 		.leftJoin(
 			schema.saleExportVisualization,
 			and(
-				eq(schema.saleExportVisualization.saleExportId, schema.saleExport.id),
+				eq(schema.saleExportVisualization.saleExportId, schema.visualizationSnapshot.saleExportId),
 				eq(schema.saleExportVisualization.analyzerVersion, VIZ_ANALYZER_VERSION),
 			),
 		)
-		.where(and(eq(schema.saleExport.userId, locals.user.id), ...wsSale))
-		.orderBy(desc(schema.saleExport.createdAt));
+		.where(and(eq(schema.visualizationSnapshot.userId, locals.user.id), ...wsFilter))
+		.orderBy(desc(schema.visualizationSnapshot.createdAt));
 
-	const exports = [
-		...expenseRows.map((r) => ({ ...r, side: /** @type {const} */ ('expense') })),
-		...revenueRows.map((r) => ({ ...r, side: /** @type {const} */ ('revenue') })),
-	].sort((a, b) => (b.createdAt?.getTime?.() ?? 0) - (a.createdAt?.getTime?.() ?? 0));
-
-	return { exports };
+	return { snapshots: rows };
 }

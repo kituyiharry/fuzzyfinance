@@ -15,26 +15,15 @@ function parseDate(s) {
 }
 
 /**
- * @param {string | null | undefined} raw
- * @returns {'expense' | 'revenue'}
- */
-function parseSide(raw) {
-	return raw === 'revenue' ? 'revenue' : 'expense';
-}
-
-/**
- * Live alluvial: builds an ephemeral export from receipts OR sales in a
- * date range and asks hedaz to analyse it inline. The `side` query
- * param selects which dataset (default `expense` = receipts; `revenue`
- * = sales). Either way the response shape is the same alluvial + trend
- * bundle, so the UI can swap between sides with no server-shape change.
+ * Live alluvial: builds ephemeral exports from receipts AND sales in a
+ * date range and asks hedaz to analyse both inline. The result is a pair
+ * of per-side bundles ({ alluvial, trendline, meta, errorMessage }) so
+ * the page can render expense + revenue side-by-side.
  *
  * @type {import('./$types').PageServerLoad}
  */
 export async function load({ url, locals, platform }) {
 	if (!locals.user) redirect(302, '/');
-
-	const side = parseSide(url.searchParams.get('side'));
 
 	let baselineCurrency = 'AUD';
 	if (locals.workspaceId) {
@@ -48,155 +37,155 @@ export async function load({ url, locals, platform }) {
 	const startStr = url.searchParams.get('start');
 	const endStr   = url.searchParams.get('end');
 
-	// Render picker-only view when no range is set.
+	const emptySide = { alluvial: null, trendline: null, meta: null, errorMessage: null };
+
 	if (!startStr || !endStr) {
-		return { side, range: null, alluvial: null, trendline: null, meta: null, baselineCurrency, errorMessage: null };
+		return { range: null, baselineCurrency, expense: emptySide, revenue: emptySide };
 	}
 
 	const start = parseDate(startStr);
 	const end   = parseDate(endStr);
 	if (!start || !end || start > end) {
+		const invalid = { ...emptySide, errorMessage: 'Invalid date range — end must be on or after start.' };
 		return {
-			side,
 			range: { start: startStr, end: endStr },
-			alluvial: null,
-			trendline: null,
-			meta: null,
 			baselineCurrency,
-			errorMessage: 'Invalid date range — end must be on or after start.',
+			expense: invalid,
+			revenue: invalid,
 		};
 	}
 	const endInclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000 - 1);
 
 	if (!platform?.env?.HEDAZ) error(500, 'HEDAZ service binding missing');
 
-	let csv, rowCount, docCount, excludedCount;
+	const [expense, revenue] = await Promise.all([
+		_buildExpenseSide({ userId: locals.user.id, workspaceId: locals.workspaceId ?? null, start, endInclusive, baselineCurrency, platform }),
+		_buildRevenueSide({ userId: locals.user.id, workspaceId: locals.workspaceId ?? null, start, endInclusive, baselineCurrency, platform }),
+	]);
 
-	if (side === 'revenue') {
-		const wsFilter = locals.workspaceId
-			? [eq(schema.sale.workspaceId, locals.workspaceId)]
-			: [];
+	return {
+		range: { start: startStr, end: endStr },
+		baselineCurrency,
+		expense,
+		revenue,
+	};
+}
 
-		const allSales = await db
-			.select()
-			.from(schema.sale)
-			.where(and(
-				eq(schema.sale.userId, locals.user.id),
-				gte(schema.sale.saleDate, start),
-				lte(schema.sale.saleDate, endInclusive),
-				...wsFilter,
-			));
+/**
+ * @param {{ userId: string, workspaceId: string|null, start: Date, endInclusive: Date, baselineCurrency: string, platform: any }} ctx
+ */
+async function _buildExpenseSide(ctx) {
+	const { userId, workspaceId, start, endInclusive, baselineCurrency, platform } = ctx;
+	const wsFilter = workspaceId ? [eq(schema.receipt.workspaceId, workspaceId)] : [];
 
-		const sales = allSales.filter((s) => (s.currency ?? baselineCurrency).toUpperCase() === baselineCurrency.toUpperCase());
-		excludedCount = allSales.length - sales.length;
-		docCount = sales.length;
+	const allReceipts = await db.select()
+		.from(schema.receipt)
+		.where(and(
+			eq(schema.receipt.userId, userId),
+			gte(schema.receipt.receiptDate, start),
+			lte(schema.receipt.receiptDate, endInclusive),
+			...wsFilter,
+		));
 
-		if (sales.length === 0) {
-			return {
-				side,
-				range: { start: startStr, end: endStr },
-				alluvial: null,
-				trendline: null,
-				meta: { docCount: 0, rowCount: 0, excludedCount },
-				baselineCurrency,
-				errorMessage: excludedCount > 0
-					? `No revenue documents in ${baselineCurrency} for this range (${excludedCount} excluded for currency mismatch).`
-					: 'No revenue documents in this date range.',
-			};
-		}
+	const receipts = allReceipts.filter((r) => (r.currency ?? baselineCurrency).toUpperCase() === baselineCurrency.toUpperCase());
+	const excludedCount = allReceipts.length - receipts.length;
 
-		const lineItems = await db
-			.select()
-			.from(schema.saleLineItem)
-			.where(inArray(schema.saleLineItem.saleId, sales.map((s) => s.id)));
-
-		const built = buildSaleExportCsv(sales, lineItems);
-		csv      = built.csv;
-		rowCount = built.rowCount;
-	} else {
-		const wsFilter = locals.workspaceId
-			? [eq(schema.receipt.workspaceId, locals.workspaceId)]
-			: [];
-
-		const allReceipts = await db
-			.select()
-			.from(schema.receipt)
-			.where(and(
-				eq(schema.receipt.userId, locals.user.id),
-				gte(schema.receipt.receiptDate, start),
-				lte(schema.receipt.receiptDate, endInclusive),
-				...wsFilter,
-			));
-
-		const receipts = allReceipts.filter((r) => (r.currency ?? baselineCurrency).toUpperCase() === baselineCurrency.toUpperCase());
-		excludedCount = allReceipts.length - receipts.length;
-		docCount = receipts.length;
-
-		if (receipts.length === 0) {
-			return {
-				side,
-				range: { start: startStr, end: endStr },
-				alluvial: null,
-				trendline: null,
-				meta: { docCount: 0, rowCount: 0, excludedCount },
-				baselineCurrency,
-				errorMessage: excludedCount > 0
-					? `No receipts in ${baselineCurrency} for this range (${excludedCount} excluded for currency mismatch).`
-					: 'No receipts in this date range.',
-			};
-		}
-
-		const lineItems = await db
-			.select()
-			.from(schema.receiptLineItem)
-			.where(inArray(schema.receiptLineItem.receiptId, receipts.map((r) => r.id)));
-
-		const built = buildReceiptExportCsv(receipts, lineItems);
-		csv      = built.csv;
-		rowCount = built.rowCount;
+	if (receipts.length === 0) {
+		return {
+			alluvial: null,
+			trendline: null,
+			meta: { docCount: 0, rowCount: 0, excludedCount },
+			errorMessage: excludedCount > 0
+				? `No receipts in ${baselineCurrency} for this range (${excludedCount} excluded for currency mismatch).`
+				: 'No receipts in this date range.',
+		};
 	}
 
-	let bundle;
+	const lineItems = await db.select()
+		.from(schema.receiptLineItem)
+		.where(inArray(schema.receiptLineItem.receiptId, receipts.map((r) => r.id)));
+
+	const { csv, rowCount } = buildReceiptExportCsv(receipts, lineItems);
+	return _analyseCsv({ csv, rowCount, docCount: receipts.length, excludedCount, baselineCurrency, platform });
+}
+
+/**
+ * @param {{ userId: string, workspaceId: string|null, start: Date, endInclusive: Date, baselineCurrency: string, platform: any }} ctx
+ */
+async function _buildRevenueSide(ctx) {
+	const { userId, workspaceId, start, endInclusive, baselineCurrency, platform } = ctx;
+	const wsFilter = workspaceId ? [eq(schema.sale.workspaceId, workspaceId)] : [];
+
+	const allSales = await db.select()
+		.from(schema.sale)
+		.where(and(
+			eq(schema.sale.userId, userId),
+			gte(schema.sale.saleDate, start),
+			lte(schema.sale.saleDate, endInclusive),
+			...wsFilter,
+		));
+
+	const sales = allSales.filter((s) => (s.currency ?? baselineCurrency).toUpperCase() === baselineCurrency.toUpperCase());
+	const excludedCount = allSales.length - sales.length;
+
+	if (sales.length === 0) {
+		return {
+			alluvial: null,
+			trendline: null,
+			meta: { docCount: 0, rowCount: 0, excludedCount },
+			errorMessage: excludedCount > 0
+				? `No revenue documents in ${baselineCurrency} for this range (${excludedCount} excluded for currency mismatch).`
+				: 'No revenue documents in this date range.',
+		};
+	}
+
+	const lineItems = await db.select()
+		.from(schema.saleLineItem)
+		.where(inArray(schema.saleLineItem.saleId, sales.map((s) => s.id)));
+
+	const { csv, rowCount } = buildSaleExportCsv(sales, lineItems);
+	return _analyseCsv({ csv, rowCount, docCount: sales.length, excludedCount, baselineCurrency, platform });
+}
+
+/**
+ * Shared hedaz call. Either-side payload arrives as `csv_text`; hedaz
+ * doesn't need to know whether it's expense or revenue — the column
+ * grammar is the same.
+ *
+ * @param {{ csv: string, rowCount: number, docCount: number, excludedCount: number, baselineCurrency: string, platform: any }} ctx
+ */
+async function _analyseCsv(ctx) {
+	const { csv, rowCount, docCount, excludedCount, baselineCurrency, platform } = ctx;
 	try {
 		const hedazResponse = await platform.env.HEDAZ.fetch(
 			new Request('http://hedaz/analyse/export-inline', {
 				method:  'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ csv_text: csv, default_currency: baselineCurrency }),
+				body:    JSON.stringify({ csv_text: csv, default_currency: baselineCurrency }),
 			})
 		);
 		if (!hedazResponse.ok) {
 			const detail = await hedazResponse.text();
 			return {
-				side,
-				range: { start: startStr, end: endStr },
 				alluvial: null,
 				trendline: null,
 				meta: { docCount, rowCount, excludedCount },
-				baselineCurrency,
 				errorMessage: `Analysis failed: ${detail}`,
 			};
 		}
-		bundle = await hedazResponse.json();
+		const bundle = await hedazResponse.json();
+		return {
+			alluvial:  bundle.alluvial  ?? null,
+			trendline: bundle.trendline ?? null,
+			meta: { docCount, rowCount, excludedCount },
+			errorMessage: null,
+		};
 	} catch (/** @type {any} */ e) {
 		return {
-			side,
-			range: { start: startStr, end: endStr },
 			alluvial: null,
 			trendline: null,
 			meta: { docCount, rowCount, excludedCount },
-			baselineCurrency,
 			errorMessage: `Analysis failed: ${e?.message ?? 'unknown error'}`,
 		};
 	}
-
-	return {
-		side,
-		range: { start: startStr, end: endStr },
-		alluvial:  bundle.alluvial  ?? null,
-		trendline: bundle.trendline ?? null,
-		meta: { docCount, rowCount, excludedCount },
-		baselineCurrency,
-		errorMessage: null,
-	};
 }

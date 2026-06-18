@@ -73,6 +73,40 @@ export const receiptExport = sqliteTable(
   ]
 );
 
+/**
+ * Coupled expense + revenue snapshot. Either FK may be NULL — useful when
+ * a saved date range only has one side. Delete endpoint runs explicit
+ * cleanup (R2 + cascading viz rows) rather than relying on FK cascades.
+ */
+export const visualizationSnapshot = sqliteTable(
+  "visualization_snapshot",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspace.id, { onDelete: "cascade" }),
+
+    label:       text("label").notNull().default(""),
+    rangeStart:  text("range_start").notNull(),  // YYYY-MM-DD
+    rangeEnd:    text("range_end").notNull(),    // YYYY-MM-DD
+
+    receiptExportId: text("receipt_export_id")
+      .references(() => receiptExport.id, { onDelete: "set null" }),
+    saleExportId: text("sale_export_id")
+      .references(() => saleExport.id, { onDelete: "set null" }),
+
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+  },
+  (table) => [
+    index("visualization_snapshot_userId_idx").on(table.userId),
+    index("visualization_snapshot_workspaceId_idx").on(table.workspaceId),
+  ]
+);
+
 export const saleExportVisualization = sqliteTable(
   "sale_export_visualization",
   {
